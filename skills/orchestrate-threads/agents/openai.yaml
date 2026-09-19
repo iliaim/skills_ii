@@ -1,0 +1,7 @@
+interface:
+  display_name: "Orchestrate Threads"
+  short_description: "Coordinate a bounded graph of Codex tasks"
+  default_prompt: "Use $orchestrate-threads to coordinate this objective across a bounded graph of separate tasks and verify the cumulative result."
+
+policy:
+  allow_implicit_invocation: true

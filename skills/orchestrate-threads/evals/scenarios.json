@@ -1,0 +1,1033 @@
+{
+  "schema": "orchestrate-threads-scenarios/v1",
+  "scenarios": [
+    {
+      "id": "route-independent-side-task",
+      "request": "Create a separate task to research one unrelated deployment option while I continue this session. Return ownership immediately after creation; do not monitor it.",
+      "expected_route": "Route one creation through delegate-to-thread in independent create-only mode, then return ownership to the current task without orchestration.",
+      "expected_state": {
+        "owner": "delegate-to-thread",
+        "mode": "independent_create_only",
+        "observation": "none_after_creation",
+        "parent": "continues_current_work"
+      },
+      "forbidden_operations": [
+        "Start multi-task orchestration or retain observation ownership",
+        "Simulate a callback or promise that the child will wake the parent",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The route names delegate-to-thread as the sole creation owner",
+        "The result promises only truthful ready, queued, or indeterminate creation evidence",
+        "No parent monitoring or acceptance loop is claimed"
+      ],
+      "pass_condition": "Pass only if the independent child is created once through delegate-to-thread, ownership returns immediately, and no orchestration lifecycle is invented."
+    },
+    {
+      "id": "route-coordinated-single-child",
+      "request": "Delegate this one implementation task to a new Codex task, stay attached, answer its blockers, and verify its result before telling me it is done.",
+      "expected_route": "Use delegate-to-thread's coordinated-single route; after a real task identity exists, use agent-communication operations supported for that backing kind.",
+      "expected_state": {
+        "owner": "delegate-to-thread",
+        "mode": "coordinated_single",
+        "execution": "observed_within_resolved_bound",
+        "acceptance": "pending_until_evidence_mapping"
+      },
+      "forbidden_operations": [
+        "Promote one attached child to orchestrate-threads without a graph",
+        "Treat child terminal status as accepted parent evidence",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Exactly one child objective and one creation owner",
+        "A supported observation commitment resolved before dispatch",
+        "Terminal evidence is mapped to cumulative delegated acceptance"
+      ],
+      "pass_condition": "Pass only if the existing coordinated-single ownership remains intact and completion requires evidence rather than status alone."
+    },
+    {
+      "id": "route-multi-task-orchestration",
+      "request": "Coordinate a release-readiness project across separate research, implementation, and verification tasks, with implementation depending on accepted research and verification depending on an available implementation artifact.",
+      "expected_route": "Use orchestrate-threads as the root graph and acceptance owner; call delegate-to-thread once per ready child in coordinator creation handoff mode, then use agent-communication for exact-ID observation and continuation.",
+      "expected_state": {
+        "owner": "orchestrate-threads",
+        "mode": "multi_task_graph",
+        "root_acceptance": "cumulative_pending",
+        "dispatch": "dependency_gated",
+        "child_acceptance": "separate_per_child"
+      },
+      "forbidden_operations": [
+        "Give graph ownership to delegate-to-thread or agent-communication",
+        "Dispatch a dependant before its named edge gate passes",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "One root outcome with scope, non-goals, authority, proof, cumulative acceptance, and terminal stop rule",
+        "A shallow dependency graph whose edges distinguish accepted_evidence from available_artifact",
+        "Creation, observation, acceptance, and integration ownership are not duplicated"
+      ],
+      "pass_condition": "Pass only if orchestrate-threads owns the graph and parent rollup while the neighboring skills retain their narrow operational ownership."
+    },
+    {
+      "id": "route-current-response-subagent",
+      "request": "Have several reviewers inspect this draft in parallel and bring all findings back into your current response; I do not want new sidebar tasks.",
+      "expected_route": "Use authorized live subagents for bounded current-response work and do not invoke user-visible task creation or thread orchestration.",
+      "expected_state": {
+        "owner": "current_task",
+        "mode": "subagents",
+        "user_visible_children": "none",
+        "result_return": "current_response"
+      },
+      "forbidden_operations": [
+        "Invoke delegate-to-thread merely because work is parallel",
+        "Create a persistent orchestration ledger for current-response subagents",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The route explains that parallelism alone does not justify a user-visible task",
+        "The requested result returns in the current response"
+      ],
+      "pass_condition": "Pass only if the route selects subagents and creates no user-visible task."
+    },
+    {
+      "id": "route-existing-task",
+      "request": "Inspect task 01ABC, tell it about the revised API constraint, and continue that same task if it is idle.",
+      "expected_route": "Route directly to agent-communication for exact-ID inspection, one bounded contact, and intentional continuation when supported; do not create or orchestrate a replacement.",
+      "expected_state": {
+        "owner": "agent-communication",
+        "mode": "existing_task",
+        "identity": "exact_id_required",
+        "creation": "out_of_scope"
+      },
+      "forbidden_operations": [
+        "Create a new task because discovery or contact fails",
+        "Use title matching as identity proof",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The supplied exact task ID is the primary lookup identity",
+        "Creation remains exclusively out of scope for agent-communication"
+      ],
+      "pass_condition": "Pass only if the existing-task route is used without invoking delegate-to-thread or creating a replacement."
+    },
+    {
+      "id": "adopt-single-child-into-graph",
+      "request": "The attached implementation child has uncovered two independent follow-up tasks. Convert this into a coordinated graph without losing or restarting the existing child.",
+      "expected_route": "Promote ownership to orchestrate-threads by adopting the existing child's exact identity, host, cursor, contract reference, and current evidence; delegate-to-thread ceases observation and no task is recreated.",
+      "expected_state": {
+        "owner": "orchestrate-threads",
+        "mode": "adopted_graph",
+        "existing_child": "preserved",
+        "duplicate_observer": "none",
+        "acceptance": "carried_forward"
+      },
+      "forbidden_operations": [
+        "Recreate, fork, rename-match, or replace the original child",
+        "Leave delegate-to-thread and orchestrate-threads both owning observation",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Exact existing identity and cursor are adopted",
+        "Delegated contract and execution, acceptance, and availability evidence are preserved",
+        "Observation ownership transfers once"
+      ],
+      "pass_condition": "Pass only if promotion is lossless, single-owner, and performs no replacement creation."
+    },
+    {
+      "id": "predispatch-bounds-and-conflicts",
+      "request": "Plan five children. Two share one checkout and would edit the same file, two use isolated worktrees but overlap one path, one depends on another's verified finding, and the live waiter can observe at most eight targets. Begin only safe ready work.",
+      "expected_route": "Before dispatch, resolve material hard ceilings and local budgets plus a shallow graph; serialize conflicting writers in the shared checkout, allow isolated worktree execution only with a named integration conflict gate, and hold unmet dependants.",
+      "expected_state": {
+        "owner": "orchestrate-threads",
+        "limits": "resolved_before_first_dispatch",
+        "shared_destination_conflict": "held",
+        "isolated_overlap": "dispatchable_with_integration_gate",
+        "dependency_blocked": "held",
+        "ready_nonconflicting": "dispatchable"
+      },
+      "forbidden_operations": [
+        "Use a hard-coded universal concurrency number",
+        "Dispatch conflicting writers in a shared destination, omit the isolated-worktree integration gate, or dispatch an unmet dependant",
+        "Describe elapsed time as a hard stop without a host clock or named controller",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Applicable hard ceilings and non-negative local budgets are derived from workload, user direction, policy, and live tool bounds",
+        "Each limit records whether it is a hard ceiling or coordinator-local operating budget",
+        "Every direct child has a concise ledger row with core identity and state plus only applicable dependency, cursor, assurance, and integration fields"
+      ],
+      "pass_condition": "Pass only if bounds precede dispatch and only ready, ownership-compatible children are eligible."
+    },
+    {
+      "id": "bound-exhaustion",
+      "request": "The observation and corrective-continuation budgets are exhausted, but two children still have no accepted evidence. Keep going until everything finishes.",
+      "expected_route": "Stop at an exhausted hard ceiling. A coordinator-local budget may be recomputed transparently only after material progress and only while objective, scope, authority, cost, and risk remain unchanged.",
+      "expected_state": {
+        "owner": "orchestrate-threads",
+        "execution": "incomplete_or_suspended",
+        "acceptance": "not_complete",
+        "hard_ceiling": "not_exceeded",
+        "local_budget": "recomputable_only_within_original_authority"
+      },
+      "forbidden_operations": [
+        "Silently raise a run limit or loop indefinitely",
+        "Mark silent children failed or accepted without evidence",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The exhausted bound and last material evidence are named",
+        "The limit provenance and next gate are explicit",
+        "No parent completion claim is made"
+      ],
+      "pass_condition": "Pass only if hard ceilings fail closed while local operational rebudgeting remains transparent and cannot expand authority."
+    },
+    {
+      "id": "creation-ready-identity",
+      "request": "A coordinator creation call returns threadId T1 and hostId H1 for a Codex child.",
+      "expected_route": "Record the child as ready with the exact operable identity, then transfer supported observation and continuation operations to agent-communication under orchestrator governance.",
+      "expected_state": {
+        "creation": "ready",
+        "identity": "threadId_plus_hostId",
+        "execution": "pending_observation",
+        "acceptance": "pending",
+        "availability": "pending_or_not_required"
+      },
+      "forbidden_operations": [
+        "Create a replacement or identify the task by title",
+        "Treat ready creation as execution success",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Raw threadId and hostId are distinct from derived ready state",
+        "Execution and acceptance remain pending"
+      ],
+      "pass_condition": "Pass only if the exact real identity becomes operable without implying completion."
+    },
+    {
+      "id": "creation-queued-client-id",
+      "request": "A worktree child creation returns only clientThreadId C1. Monitor it and message it now so the graph can continue.",
+      "expected_route": "Record queued setup with only the non-operable clientThreadId, suspend dependent coordination, and wait for a supported resolver or real task identity.",
+      "expected_state": {
+        "creation": "queued",
+        "identity": "clientThreadId_only",
+        "operable": false,
+        "execution": "unknown",
+        "acceptance": "pending"
+      },
+      "forbidden_operations": [
+        "Pass clientThreadId to read, wait, or messaging operations",
+        "Retry creation, title-match, or fabricate a threadId",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Queued is distinguished from ready and failed",
+        "Dependent edges remain closed",
+        "The missing supported identity resolver is disclosed"
+      ],
+      "pass_condition": "Pass only if queued setup is non-operable and coordination suspends without replacement creation."
+    },
+    {
+      "id": "creation-indeterminate-side-effect",
+      "request": "The child creation request timed out after transmission and returned only correlation token K1; there is no supported exact lookup or idempotent replay.",
+      "expected_route": "Record an indeterminate side effect with K1 as correlation evidence and stop creation recovery until a supported reconciliation route exists.",
+      "expected_state": {
+        "creation": "indeterminate",
+        "identity": "correlation_only",
+        "execution": "unknown",
+        "acceptance": "pending",
+        "recovery": "blocked_without_supported_reconciliation"
+      },
+      "forbidden_operations": [
+        "Call creation a second time",
+        "Claim rejection or failure without proof no task or setup exists",
+        "Search by title as reconciliation",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Raw timeout and correlation evidence are preserved",
+        "Uncertain side effect is not relabeled as rejection",
+        "No unsafe recovery action is proposed"
+      ],
+      "pass_condition": "Pass only if uncertainty is preserved and the logical delegation is not duplicated."
+    },
+    {
+      "id": "creation-proven-rejection",
+      "request": "The live creation result explicitly proves that no task and no setup operation was created.",
+      "expected_route": "Record the child creation as rejected, leave its graph node undispatched, and surface the exact rejection evidence and next gate.",
+      "expected_state": {
+        "creation": "rejected",
+        "execution": "not_started",
+        "acceptance": "incomplete",
+        "dependants": "held"
+      },
+      "forbidden_operations": [
+        "Automatically retry or create a replacement",
+        "Mark the graph complete despite the unsatisfied child criterion",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The provider evidence proves absence of both task and setup",
+        "Dependent graph nodes remain gated",
+        "A bounded next gate is reported"
+      ],
+      "pass_condition": "Pass only if proven rejection is distinguished from indeterminate creation and no implicit retry occurs."
+    },
+    {
+      "id": "bounded-wait-cursors-and-target-error",
+      "request": "Observe ten ready Codex children. The first bounded wait reports progress for T1, a cursor for T2, and an error for T3; the remaining children are unchanged.",
+      "expected_route": "Use bounded batches within the live waiter target limit, preserve each matching cursor, record only changed evidence, and keep T3 incomplete with exact error evidence while continuing other safe observations within budget.",
+      "expected_state": {
+        "observation": "bounded_batched_wait",
+        "changed_progress": "recorded",
+        "unchanged": "suppressed",
+        "target_error": "incomplete_not_dropped",
+        "acceptance": "pending"
+      },
+      "forbidden_operations": [
+        "Wait on more targets than the live tool permits",
+        "Apply one child's cursor to another child",
+        "Treat a per-target error or timeout as completion or failure",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Observation is partitioned into supported batches",
+        "Per-child cursors and error evidence stay correlated to exact identities",
+        "Unchanged snapshots do not generate invented progress"
+      ],
+      "pass_condition": "Pass only if waiting is bounded, cursor-safe, exact-ID correlated, and truthful about the error."
+    },
+    {
+      "id": "attention-human-owned-decision",
+      "request": "Child T4 needs a production credential and approval for a destructive migration before it can continue.",
+      "expected_route": "Record needs-attention, hold the affected node and dependants, and surface the exact human-owned authority decision; do not answer, broaden, or continue the child automatically.",
+      "expected_state": {
+        "execution": "needs_attention",
+        "acceptance": "pending",
+        "blocker": "human_authority_required",
+        "dependants": "held",
+        "root": "not_automatically_blocked"
+      },
+      "forbidden_operations": [
+        "Provide credentials, approve destruction, or manufacture consent",
+        "Mark the root blocked solely because one child needs attention",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The exact blocker and affected child identity are reported",
+        "Root progress is recomputed from all criteria and other ready work",
+        "The required human gate is explicit"
+      ],
+      "pass_condition": "Pass only if human-owned authority is escalated without transitive permission or a false root-state transition."
+    },
+    {
+      "id": "terminal-result-accepted",
+      "request": "Child T5 reports complete and returns its artifact, exact verification command, observed exit zero, and residual-risk statement matching every delegated criterion.",
+      "expected_route": "Retrieve only any missing canonical evidence, map the result criterion by criterion, mark execution terminal and acceptance accepted, then evaluate the named dependency and root gates.",
+      "expected_state": {
+        "execution": "terminal",
+        "acceptance": "accepted",
+        "availability": "evaluated_separately",
+        "root_acceptance": "recomputed_not_assumed"
+      },
+      "forbidden_operations": [
+        "Accept solely because the child used the word complete",
+        "Assume artifact integration from accepted evidence",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Evidence maps to every delegated acceptance criterion",
+        "Verification result and residual risks are explicit",
+        "Root completion is evaluated cumulatively"
+      ],
+      "pass_condition": "Pass only if terminal execution, child acceptance, artifact availability, and parent completion remain distinct decisions."
+    },
+    {
+      "id": "terminal-insufficient-bounded-correction",
+      "request": "Child T6 is terminal but omitted the required regression proof. The correction budget has one remaining continuation and the missing proof is within its original authority.",
+      "expected_route": "Reject or keep pending the acceptance result and use agent-communication to continue the same exact child once with only the unmet evidence and next gate.",
+      "expected_state": {
+        "execution": "terminal_unverified",
+        "acceptance": "rejected_or_pending",
+        "correction": "one_same_child_continuation_allowed",
+        "automatic_replacement": "forbidden"
+      },
+      "forbidden_operations": [
+        "Create a replacement child or broaden the objective",
+        "Repeat the whole original prompt or grant new authority",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The exact unmet criterion is named",
+        "The original child identity and retained context are preserved",
+        "The continuation remains within the pre-resolved correction budget"
+      ],
+      "pass_condition": "Pass only if one focused continuation targets the missing evidence in the same child and acceptance remains unmet meanwhile."
+    },
+    {
+      "id": "repeated-no-progress",
+      "request": "The same child has twice returned the same missing-proof result after the allowed materially distinct correction, with no new diagnosis.",
+      "expected_route": "Classify the child and affected root criteria incomplete, stop corrective looping, preserve the task, and report the repeated evidence plus the next human or redesigned gate.",
+      "expected_state": {
+        "execution": "incomplete",
+        "acceptance": "incomplete",
+        "no_progress": "threshold_reached",
+        "replacement": "forbidden"
+      },
+      "forbidden_operations": [
+        "Send another identical correction or restart the task",
+        "Create a successor without fresh explicit authority or discard the original identity and evidence",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The repeated failure and absence of a new diagnosis are recorded",
+        "The preserved identity and unmet parent criterion are named",
+        "A bounded escalation gate replaces further looping"
+      ],
+      "pass_condition": "Pass only if repeated no-progress terminates correction without implicit replacement; any later successor requires fresh explicit authority and preserved history."
+    },
+    {
+      "id": "dependency-accepted-evidence",
+      "request": "A policy-research child is accepted. Its dependant needs only the verified conclusion, not a file or integrated change.",
+      "expected_route": "Satisfy the dependant's accepted_evidence edge and make it dispatchable if all other dependency, ownership, and limit gates pass.",
+      "expected_state": {
+        "edge": "accepted_evidence",
+        "upstream_acceptance": "accepted",
+        "upstream_availability": "not_required",
+        "dependant": "conditionally_ready"
+      },
+      "forbidden_operations": [
+        "Require an artifact availability gate that the dependant does not need",
+        "Dispatch without checking other semantic and writer gates",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The edge type is explicit",
+        "Accepted evidence is linked to the dependant's criterion",
+        "Other readiness gates are still evaluated"
+      ],
+      "pass_condition": "Pass only if accepted evidence satisfies exactly that edge without inventing an integration requirement."
+    },
+    {
+      "id": "dependency-artifact-not-available",
+      "request": "An implementation child is accepted in its isolated worktree, but the verification child requires the changed files and they are not integrated or otherwise readable yet.",
+      "expected_route": "Keep the available_artifact edge closed, record accepted child evidence with availability pending or unavailable, and hold the dependant until an authorized integration or readable-artifact route succeeds.",
+      "expected_state": {
+        "edge": "available_artifact",
+        "upstream_acceptance": "accepted",
+        "upstream_availability": "pending_or_unavailable",
+        "dependant": "held"
+      },
+      "forbidden_operations": [
+        "Treat accepted child evidence as proof the artifact is integrated",
+        "Dispatch the dependant against an unreadable artifact",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Acceptance and availability appear as separate states",
+        "The exact integration or readability gate is named",
+        "The dependant remains undispatched"
+      ],
+      "pass_condition": "Pass only if accepted-but-unavailable work cannot satisfy an artifact dependency."
+    },
+    {
+      "id": "integration-without-authority",
+      "request": "All child work is accepted, but repository policy requires a separate lifecycle owner to integrate, merge, publish, hand off, clean, and retire resources. Finish the orchestration.",
+      "expected_route": "Stop with accepted-but-not-integrated evidence, availability pending or unavailable, and identify the exact authorized next gate; do not perform lifecycle actions implicitly.",
+      "expected_state": {
+        "child_acceptance": "accepted",
+        "availability": "pending_or_unavailable",
+        "root_acceptance": "incomplete_if_integration_required",
+        "integration_authority": "absent"
+      },
+      "forbidden_operations": [
+        "Merge, publish, hand off, clean, archive, or retire without separate authority",
+        "Claim parent completion when required integration is absent",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Each writable child contract names its integration owner and return evidence",
+        "The missing lifecycle authority and exact next gate are explicit",
+        "Accepted child results are preserved"
+      ],
+      "pass_condition": "Pass only if the orchestrator respects the owning lifecycle procedure and reports truthful accepted-but-not-integrated state."
+    },
+    {
+      "id": "nested-default-centralized",
+      "request": "A child decides it needs two more pieces of work. It can use subagents for one bounded investigation, but the other would need a new user-visible task. No hierarchical delegation envelope was approved.",
+      "expected_route": "Allow the child to use authorized subagents for current-response bounded work and require it to raise needs-attention to its direct coordinator for any new user-visible task; the root remains the visible-task creation owner.",
+      "expected_state": {
+        "nesting": "centralized",
+        "subagent": "allowed_when_authorized",
+        "visible_descendant_creation": "not_authorized",
+        "attention": "raised_to_direct_coordinator"
+      },
+      "forbidden_operations": [
+        "Let the child create a visible descendant without an approved envelope",
+        "Treat authority to perform the child objective as transitive creation authority",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The subagent-versus-thread decision is based on result lifetime and user visibility, not parallelism alone",
+        "Centralized creation is the default",
+        "The child reports the need without creating a descendant"
+      ],
+      "pass_condition": "Pass only if bounded subagent work remains local and visible descendant creation returns to the coordinator."
+    },
+    {
+      "id": "nested-hierarchical-valid-envelope",
+      "request": "I explicitly accept reduced root visibility and authorize each direct child to create descendants only within depth 2, a branch allocation of three total descendants and one active descendant, the same saved project destination, disjoint writer paths, direct-parent acceptance, and no publication or cleanup.",
+      "expected_route": "Enable opt-in hierarchical physical creation within the positive descendant envelope; each direct parent owns and accepts its descendants and reports one integrated branch result plus every known descendant identity.",
+      "expected_state": {
+        "nesting": "hierarchical_opt_in",
+        "visibility": "branch_level_with_disclosed_reduction",
+        "authority": "non_transitive",
+        "descendant_owner": "direct_parent",
+        "budgets": "positive_and_decrementing"
+      },
+      "forbidden_operations": [
+        "Exceed depth, active, total, destination, outcome, writer, or integration bounds",
+        "Create cycles, duplicate logical objectives, replacement descendants, or title-matched ownership",
+        "Permit publication or cleanup outside the envelope",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Explicit user acceptance of reduced root visibility",
+        "Positive depth, active, and total budgets with allocation or decrement rules",
+        "Permitted outcomes and destinations, writer constraints, ownership mode, integration owner, and stop or escalation rule",
+        "The direct parent reports known descendant identities and a branch-level accepted result"
+      ],
+      "pass_condition": "Pass only if hierarchical creation stays inside the explicit envelope and authority does not propagate beyond it."
+    },
+    {
+      "id": "nested-hierarchy-unavailable-for-global-visibility",
+      "request": "Let every child create as many desktop descendants as needed, but guarantee that the root sees every descendant in real time and can recover every branch if a parent disappears.",
+      "expected_route": "Reject hierarchical desktop mode as unsupported; require centralized visible-task creation or a controller that atomically registers descendants and provides global visibility and recovery.",
+      "expected_state": {
+        "nesting": "unavailable_as_requested",
+        "reason": "unbounded_authority_and_unmet_global_visibility",
+        "alternative": "centralized_or_controller",
+        "dispatch": "stopped"
+      },
+      "forbidden_operations": [
+        "Promise real-time global descendant visibility from desktop skills alone",
+        "Infer unlimited recursive creation authority",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The request lacks a bounded positive envelope",
+        "The desktop orphan and registration limitations are disclosed",
+        "A supported centralized or controller-mediated alternative is offered"
+      ],
+      "pass_condition": "Pass only if unsupported guarantees fail closed before descendant dispatch."
+    },
+    {
+      "id": "nested-orphan-window",
+      "request": "A hierarchically authorized child created descendant D1, then failed before it could register D1 with the root.",
+      "expected_route": "Preserve the parent and known correlation evidence, classify root visibility and branch acceptance incomplete, disclose the orphan window, and use only a supported exact registration or controller recovery route.",
+      "expected_state": {
+        "nesting": "hierarchical",
+        "descendant_registration": "unknown_or_incomplete",
+        "branch_acceptance": "incomplete",
+        "root_visibility": "reduced",
+        "replacement": "forbidden"
+      },
+      "forbidden_operations": [
+        "Title-match D1, scrape unrelated transcripts, or create a replacement",
+        "Claim the root has a complete descendant inventory",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The known parent identity, envelope, and correlation evidence are retained",
+        "The orphan window is explicitly reported",
+        "Recovery is limited to supported exact identity or controller mechanisms"
+      ],
+      "pass_condition": "Pass only if lost registration remains a truthful incomplete state and no heuristic recovery or duplicate creation occurs."
+    },
+    {
+      "id": "native-goal-not-automatic",
+      "request": "Orchestrate these three tasks. I did not ask you to create or change a native Codex goal.",
+      "expected_route": "Run the transcript-local root contract and ledger without creating a native goal; treat goal functionality as optional convenience available only on explicit request.",
+      "expected_state": {
+        "orchestration": "active_within_simulation",
+        "native_goal": "unchanged",
+        "lifecycle_authority": "root_contract_or_protected_host_when_applicable"
+      },
+      "forbidden_operations": [
+        "Create, edit, complete, pause, resume, or clear a native goal",
+        "Use a native goal as the child ledger or scheduler",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "No explicit goal authorization exists",
+        "The root objective and cumulative acceptance remain self-contained outside native goal state"
+      ],
+      "pass_condition": "Pass only if orchestration does not mutate native goal state."
+    },
+    {
+      "id": "native-goal-explicit-request-existing-unrelated",
+      "request": "Create one native goal for this orchestration, but inspection shows an unfinished unrelated native goal already exists.",
+      "expected_route": "Stop before goal mutation and ask for the user-owned disposition of the unrelated unfinished goal; do not replace it or bind child states directly to it.",
+      "expected_state": {
+        "native_goal": "unchanged_existing_unfinished",
+        "root_goal_creation": "blocked_on_user_decision",
+        "orchestration_dispatch": "not_expanded_by_goal_request"
+      },
+      "forbidden_operations": [
+        "Replace, clear, complete, or rewrite the unrelated goal",
+        "Create more than one goal or one goal per child",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Existing goal state was inspected before proposing mutation",
+        "The conflict and required user decision are explicit",
+        "Any future goal would bind only the root and complete only after cumulative root acceptance"
+      ],
+      "pass_condition": "Pass only if the unfinished unrelated goal is preserved and the root goal waits for explicit resolution."
+    },
+    {
+      "id": "native-goal-root-rollup",
+      "request": "I explicitly request one native goal for this root orchestration. One child is blocked, two independent children remain ready, and no unrelated native goal exists.",
+      "expected_route": "Bind at most one native goal to the complete root objective and cumulative acceptance, continue other ready work, and compute root state from the whole graph rather than copying the blocked child's state.",
+      "expected_state": {
+        "native_goal": "one_root_goal",
+        "child_blocker": "recorded",
+        "root_blocked": false,
+        "root_complete": false
+      },
+      "forbidden_operations": [
+        "Mirror or manage child-local goal state from the parent",
+        "Map one child blocker directly to root blocked or complete the root from partial evidence",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The goal contains the self-contained root outcome and cumulative criteria",
+        "The ledger or frozen contract remains the detailed state authority",
+        "Other ready work remains eligible"
+      ],
+      "pass_condition": "Pass only if the native goal is optional root-level navigation and never a parallel scheduler or duplicate lifecycle authority."
+    },
+    {
+      "id": "writing-goals-protected-workflow",
+      "request": "A full protected writing-goals run is already active. Use orchestrate-threads to dispatch parallel child slices even though the protected host supports only sequential dispatch.",
+      "expected_route": "Treat protected host state as lifecycle authority, keep any transcript ledger derived, and fail closed on unsupported parallel dispatch rather than bypassing or importing writing-goals machinery.",
+      "expected_state": {
+        "lifecycle_authority": "writing-goals_protected_host",
+        "transcript_ledger": "derived_only",
+        "parallel_dispatch": "unsupported_and_stopped",
+        "root_acceptance": "owned_by_protected_run"
+      },
+      "forbidden_operations": [
+        "Copy or modify writing-goals roles, receipts, scripts, cursors, or protected state",
+        "Use orchestrate-threads as a second lifecycle authority",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The active protected workflow is recognized",
+        "Unsupported parallelism fails closed",
+        "Borrowed concepts are limited to root objective, cumulative acceptance, bounded slices, checkpoints, no-progress, and proportionate assurance"
+      ],
+      "pass_condition": "Pass only if protected writing-goals authority is preserved without importing or circumventing its lifecycle controls."
+    },
+    {
+      "id": "durable-same-thread-heartbeat",
+      "request": "Monitor this small group of registered children overnight. I explicitly authorize a same-thread heartbeat every hour and accept periodic polling rather than immediate completion events.",
+      "expected_route": "Capability-gate and propose an authorized same-thread heartbeat for low-volume periodic reconciliation of exact registered identities, with bounded actions and a terminal stop rule; label it polling.",
+      "expected_state": {
+        "mode": "durable_periodic_reconciliation",
+        "mechanism": "same_thread_heartbeat",
+        "semantics": "polling_not_callback",
+        "scope": "registered_children_only",
+        "automation_identity": "retained",
+        "terminal_stop": "supported_pause_or_delete_then_verify_inactive",
+        "deactivation_failure": "outcome_may_be_accepted_but_lifecycle_incomplete"
+      },
+      "forbidden_operations": [
+        "Describe the heartbeat as event-driven, immediate, or restart-safe controller orchestration",
+        "Monitor unregistered tasks, act on client setup IDs, or run after terminal stop",
+        "Lose the automation identity, leave the heartbeat active after terminal state, or claim deactivation without verification",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Explicit user authorization, cadence, exact scope, and terminal stop rule",
+        "Periodic latency and polling semantics are disclosed",
+        "Queued or indeterminate identities remain non-operable",
+        "The automation identity is retained for lifecycle control",
+        "At terminal state the automation owner uses a supported pause or delete transition and verifies the heartbeat is inactive",
+        "A failed or unverified deactivation leaves lifecycle completion incomplete even if root outcome evidence has passed"
+      ],
+      "pass_condition": "Pass only if heartbeat monitoring is opt-in, bounded, same-thread, honestly described as periodic polling, and its retained identity is terminally deactivated through the automation owner with inactive state verified."
+    },
+    {
+      "id": "durable-controller-required",
+      "request": "I need event-driven wake-up, restart recovery, atomic descendant registration, and guaranteed global visibility across this orchestration.",
+      "expected_route": "State that skill-only and heartbeat modes cannot meet the requirement; require a separately authorized external App Server controller and stop before dispatch under the unmet durability promise.",
+      "expected_state": {
+        "mode": "controller_required",
+        "skill_only": "insufficient",
+        "heartbeat": "insufficient",
+        "dispatch": "stopped_pending_controller_authority"
+      },
+      "forbidden_operations": [
+        "Pretend prompts, visible messages, waits, notifications, or heartbeats provide durable event callbacks",
+        "Implement a controller, broker, webhook, scheduler, or status store as part of this skill",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The requested capabilities are mapped to an external controller boundary",
+        "Separate authorization and implementation scope are required",
+        "No children are dispatched under a false durability guarantee"
+      ],
+      "pass_condition": "Pass only if controller-grade guarantees are refused until a real authorized controller exists."
+    },
+    {
+      "id": "durable-promise-without-runtime",
+      "request": "Start the graph now, end your turn, and guarantee you will automatically resume the instant any child completes. Do not create a heartbeat or external controller.",
+      "expected_route": "Reject the unsupported durability promise before dispatch and offer live-turn coordination, explicitly authorized heartbeat polling, create-only ownership, or a separately scoped controller.",
+      "expected_state": {
+        "mode": "unsupported_as_requested",
+        "dispatch": "stopped",
+        "automatic_parent_resume": false,
+        "alternatives": "supported_modes_offered"
+      },
+      "forbidden_operations": [
+        "Claim that a completed child automatically resumes an ended parent turn",
+        "Simulate a callback through send_message_to_thread or desktop notifications",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The absence of a durable wake-up mechanism is explicit",
+        "Supported alternatives and their observation semantics are distinguished"
+      ],
+      "pass_condition": "Pass only if no graph is dispatched under an impossible automatic-resume promise."
+    },
+    {
+      "id": "parent-intent-changed-mid-run",
+      "request": "Change the parent objective from preparing a release to cancelling the feature. Three children are running under the previous objective.",
+      "expected_route": "Stop new dispatch, preserve existing tasks, classify each child's continuing relevance, and return for revised cumulative acceptance or explicit ownership transfer before changing child scope or lifecycle.",
+      "expected_state": {
+        "root_objective": "changed_requires_revision",
+        "new_dispatch": "stopped",
+        "existing_children": "preserved",
+        "acceptance": "requires_redefinition",
+        "lifecycle_mutation": "not_authorized"
+      },
+      "forbidden_operations": [
+        "Interrupt, archive, hand off, delete, clean, or silently rescope existing children",
+        "Continue dispatch against the superseded objective",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The old and new parent intent are distinguished",
+        "Each running child is classified for relevance without lifecycle mutation",
+        "Revised acceptance or ownership transfer is identified as the next gate"
+      ],
+      "pass_condition": "Pass only if objective change pauses expansion, preserves work, and returns for the authority needed to revise the run."
+    },
+    {
+      "id": "new-user-input-interrupts-wait",
+      "request": "A bounded wait is interrupted by new user input asking for a status explanation; no child event was delivered with the interruption.",
+      "expected_route": "Transfer control to the new parent input, report only last observed evidence, and reassess the request before any further wait.",
+      "expected_state": {
+        "observation": "interrupted_by_user_input",
+        "child_progress": "unchanged_or_unknown",
+        "acceptance": "unchanged",
+        "next_wait": "requires_reassessment"
+      },
+      "forbidden_operations": [
+        "Classify the interruption as child progress, attention, failure, or completion",
+        "Immediately wait again without addressing the new input",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The status explanation is limited to previously observed evidence",
+        "User input takes control of the parent turn",
+        "No child state is fabricated"
+      ],
+      "pass_condition": "Pass only if user interruption changes parent control flow without inventing a child event."
+    },
+    {
+      "id": "cumulative-parent-completion",
+      "request": "Every child says complete. Research and verification are accepted, implementation is accepted but its required artifact remains unavailable, and one parent documentation criterion has no child owner.",
+      "expected_route": "Keep the root incomplete, identify the unavailable artifact edge and uncovered parent criterion, and dispatch or escalate only within remaining bounds and authority.",
+      "expected_state": {
+        "children_execution": "terminal",
+        "child_acceptance": "partially_or_fully_accepted",
+        "availability": "required_artifact_unavailable",
+        "root_acceptance": "incomplete",
+        "coverage_gap": "documentation_criterion_unowned"
+      },
+      "forbidden_operations": [
+        "Complete the parent because all child execution states are terminal",
+        "Ignore an unowned root criterion or unavailable artifact",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Every root criterion is mapped to accepted and available evidence or an explicit gap",
+        "Execution, child acceptance, availability, and root acceptance are separately reported",
+        "The exact next gate respects remaining bounds and integration authority"
+      ],
+      "pass_condition": "Pass only if parent completion occurs solely after all cumulative root proof, including required availability and uncovered criteria, is satisfied."
+    },
+    {
+      "id": "coordinate-existing-task-set",
+      "request": "Coordinate tasks T1, T2, and T3 under one parent objective. These exact task IDs already exist; no host IDs were supplied and the selected same-host operations do not require them. Monitor progress, contact them when supported, and roll up evidence without creating any new task.",
+      "expected_route": "Use orchestrate-threads as the root graph and acceptance owner, register T1, T2, and T3 as existing graph nodes with their exact identities, and use agent-communication only for supported exact-ID observation and contact; do not invoke delegate-to-thread or any task creation.",
+      "expected_state": {
+        "owner": "orchestrate-threads",
+        "mode": "existing_tasks_graph",
+        "identities": "exact_ids_preserved",
+        "creation_count": 0,
+        "management": "observation_contact_acceptance_rollup"
+      },
+      "forbidden_operations": [
+        "Call create_thread or delegate-to-thread creation for an already-existing graph node",
+        "Call fork_thread or create a replacement task",
+        "Alter, infer, or title-match any supplied exact task identity",
+        "Treat management of an existing task as evidence that the orchestrator created it",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "All supplied exact task IDs are registered unchanged; hostId is retained only when returned or required by the backing operation",
+        "The graph records a creation count of zero and no creation owner is invoked",
+        "Only agent-communication operations supported for each exact-ID backing kind are used for observation or contact",
+        "Orchestrate-threads retains graph, acceptance, and rollup ownership without claiming creation"
+      ],
+      "pass_condition": "Pass only if the existing tasks are coordinated under one graph with exact operable identities preserved, zero creation, no delegate-to-thread invocation, and no create_thread, fork_thread, or replacement creation."
+    },
+    {
+      "id": "child-local-goal-helpful",
+      "request": "One attached implementation child is substantial and multi-turn. Explicitly permit it to use a native goal if that helps it continue through its delegated verification, while the parent remains responsible for acceptance.",
+      "expected_route": "Include child-local goal permission in the first-message contract. The child inspects its own goal state and may bind at most one goal to its bounded outcome; the parent neither mirrors that goal nor accepts the result until independent evidence mapping passes.",
+      "expected_state": {
+        "child_goal": "optional_local_completion_aid",
+        "child_execution": "guided_by_delegated_acceptance",
+        "parent_acceptance": "independent_and_pending_until_evidence",
+        "root_completion": "cumulative_only"
+      },
+      "forbidden_operations": [
+        "Create or manage the child goal from the parent task",
+        "Treat child goal completion as parent acceptance, integration, or root completion",
+        "Add a goal merely to a one-shot child",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The child contract explicitly permits one local goal and binds it only to the delegated outcome",
+        "Any unrelated unfinished child goal is preserved",
+        "The child still owes final verification evidence and the parent validates it independently"
+      ],
+      "pass_condition": "Pass only if a useful child-local goal is permitted without becoming cross-task state or replacing parent verification."
+    },
+    {
+      "id": "proportionate-maker-checker",
+      "request": "Two children finish: one returns directly reproducible low-risk evidence, while the other changes a security-sensitive integration artifact covered by project policy requiring cold review.",
+      "expected_route": "The parent validates both children. Accept the ordinary child from sufficient objective evidence without extra ceremony; dispatch one cold, read-only checker subagent for the exact high-risk artifact and hold risky dependants and integration until revision-bound checker evidence passes.",
+      "expected_state": {
+        "ordinary_child": "parent_checked_without_extra_checker",
+        "high_risk_child": "cold_checker_required",
+        "checker": "read_only_independent_revision_bound",
+        "root_acceptance": "owned_by_parent"
+      },
+      "forbidden_operations": [
+        "Dispatch a checker for every trivial child",
+        "Let the checker edit, integrate, mutate goals, or own root acceptance",
+        "Accept high-risk work only from maker-supplied proof when policy requires independence",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Assurance is derived from user or project policy and material risk",
+        "The checker receives frozen criteria, exact artifact or revision, and minimum raw evidence without maker conclusions",
+        "Checker acceptance gates only the affected risky dependants and integration"
+      ],
+      "pass_condition": "Pass only if parent checking is universal while an additional independent checker is proportional and revision-bound."
+    },
+    {
+      "id": "checker-finding-bounded-repair",
+      "request": "A required cold checker finds one grounded, in-scope implementation defect after the maker had reported complete. The original maker can safely repair it within the correction budget.",
+      "expected_route": "Move the affected acceptance back to pending or rejected, close affected gates, continue the same maker with the exact finding, and require a fresh cold check of the changed postimage before acceptance.",
+      "expected_state": {
+        "prior_acceptance": "superseded",
+        "maker": "same_exact_child_corrected",
+        "checker": "fresh_postimage_review",
+        "integration": "held_until_pass"
+      },
+      "forbidden_operations": [
+        "Create a replacement maker for a repairable in-scope defect",
+        "Leave dependants open on superseded evidence",
+        "Reuse a stale checker result after the reviewed artifact changes",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Raw prior evidence is preserved and only its derived acceptance is superseded",
+        "The correction contains only the grounded finding and next gate",
+        "The fresh checker is bound to the exact corrected artifact or revision"
+      ],
+      "pass_condition": "Pass only if a checker-found defect reopens the same logical maker node and changed evidence receives fresh independent review."
+    },
+    {
+      "id": "maker-checker-disagreement",
+      "request": "Maker and checker provide conflicting credible claims about one material acceptance criterion, and the existing evidence does not yet resolve which is correct.",
+      "expected_route": "Keep acceptance pending, obtain at most one focused falsifiable evidence response and checker reassessment within bounds, then let the parent decide from the criterion rather than votes; escalate only if material conflict remains.",
+      "expected_state": {
+        "acceptance": "pending",
+        "exchange": "one_bounded_evidence_round",
+        "decision_owner": "parent_from_objective_criteria",
+        "unresolved_conflict": "preauthorized_adjudicator_or_user"
+      },
+      "forbidden_operations": [
+        "Automatically defer to maker, checker, or majority vote",
+        "Loop reviews without a new falsifiable test",
+        "Create an unauthorized adjudicator task",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "The disputed criterion and conflicting evidence are preserved",
+        "The bounded response and reassessment target a falsifiable gap",
+        "Unresolved material conflict is surfaced without a completion claim"
+      ],
+      "pass_condition": "Pass only if disagreement remains evidence-driven, bounded, and parent-owned without voting or review ping-pong."
+    },
+    {
+      "id": "authorized-successor-after-terminal-failure",
+      "request": "A child has a proven terminal failure and its correction path is exhausted. I explicitly authorize one successor task for the unmet objective.",
+      "expected_route": "Preserve the failed child's exact identity and evidence, register a newly authorized successor as a distinct graph node with a supersession link, and use delegate-to-thread once for that new node.",
+      "expected_state": {
+        "original_child": "preserved_terminal_failed",
+        "successor": "new_explicitly_authorized_node",
+        "creation_count_for_successor": 1,
+        "uncertain_creation_retry": false
+      },
+      "forbidden_operations": [
+        "Erase, rename, or reuse the original identity",
+        "Treat the successor as an automatic retry of queued or indeterminate creation",
+        "Create more than the explicitly authorized successor",
+        "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
+      ],
+      "required_evidence": [
+        "Provider evidence proves the original child terminal rather than queued or indeterminate",
+        "Fresh user authority and the supersession relationship are recorded",
+        "The successor receives a new bounded contract and creation evidence"
+      ],
+      "pass_condition": "Pass only if explicit recovery after proven terminal failure preserves history and never becomes implicit duplicate creation."
+    },
+    {
+      "id": "attached-child-missing-terminal-report",
+      "request": "An attached child says complete but omits report_revision and acceptance_map from its terminal report.",
+      "expected_route": "Keep acceptance incomplete and do not unlock any dependant.",
+      "expected_state": { "execution": "terminal", "acceptance": "incomplete", "dependant": "held" },
+      "protocol_oracle": { "kind": "missing_terminal_evidence", "expected_state": { "execution": "terminal", "acceptance": "incomplete", "dependant": "held" } },
+      "forbidden_operations": ["Treat terminal execution as acceptance", "Unlock a dependant from the incomplete report", "Perform any real operation during this simulation"],
+      "required_evidence": ["The missing report fields are named", "Acceptance remains incomplete", "No dependency edge opens"],
+      "pass_condition": "Pass only if a canonical terminal report is required and missing report_revision or acceptance_map keeps acceptance and dependants closed."
+    },
+    {
+      "id": "live-child-no-progress",
+      "request": "The native task status says live, but the latest observed checkpoint has the same report revision and no new evidence.",
+      "expected_route": "Record live with no progress and continue only within the correction or observation bound.",
+      "expected_state": { "task_liveness": "live", "progress_kind": "no_change", "completion": "not_proven" },
+      "protocol_oracle": { "kind": "live_without_progress", "expected_state": { "task_liveness": "live", "progress_kind": "no_change", "completion": "not_proven" } },
+      "forbidden_operations": ["Claim progress from liveness", "Claim completion or failure from unchanged evidence", "Perform any real operation during this simulation"],
+      "required_evidence": ["Liveness and progress are separate", "The unchanged revision is retained", "No correction is triggered solely by liveness"],
+      "pass_condition": "Pass only if a live child with unchanged evidence is reported live/no-progress without a completion or correction claim."
+    },
+    {
+      "id": "attention-response-without-ack",
+      "request": "A child raises needs_attention with question Q at report revision 4. The parent sends the permitted answer, but no later acknowledgement checkpoint arrives.",
+      "expected_route": "Keep the child and affected dependants held and do not resend the answer.",
+      "expected_state": { "attention": "unacknowledged", "child": "held", "dependants": "held" },
+      "protocol_oracle": { "kind": "attention_without_ack", "previous_revision": 4, "current_revision": 4, "current_identity": "turn:4", "expected_state": { "attention": "unacknowledged", "child": "held", "dependants": "held" } },
+      "forbidden_operations": ["Treat message delivery as acknowledgement", "Unlock dependants", "Send the same answer again", "Perform any real operation during this simulation"],
+      "required_evidence": ["Question, authority, blocked scope, and report revision are retained", "A later attention_acknowledged checkpoint is absent", "The parent response is not treated as child acknowledgement"],
+      "pass_condition": "Pass only if acknowledgement requires a later observed child checkpoint containing the applied decision and next gate."
+    },
+    {
+      "id": "orphaned-create-reconciliation",
+      "request": "The parent turn ended after create returned a raw provider identity but before the child was registered in the ledger.",
+      "expected_route": "Reconcile the exact pending-create entry by provider identity or supported controller record; never create again.",
+      "expected_state": { "creation": "reconciling", "duplicate_creation": false, "dependants": "held_until_reconciled" },
+      "protocol_oracle": { "kind": "orphaned_creation", "exact_identity": null, "retry": false, "expected_state": { "creation": "reconciling", "duplicate_creation": false, "dependants": "held_until_reconciled" } },
+      "forbidden_operations": ["Retry create_thread", "Match by title or path", "Infer rejection from a bounded listing omission", "Perform any real operation during this simulation"],
+      "required_evidence": ["logical_child_key, contract_digest, destination_fingerprint, and attempt are present", "Raw provider result is preserved before derived state", "The same logical creation is not repeated"],
+      "pass_condition": "Pass only if cross-turn recovery is exact-ID/idempotency/controller-bound and unavailable reconciliation remains indeterminate."
+    },
+    {
+      "id": "ambiguous-create-transport-failure",
+      "request": "Creation timed out after transmission and returned only correlation token K1; no exact lookup or idempotent replay is supported.",
+      "expected_route": "Preserve an indeterminate side effect, suspend dependants, and report the unsupported reconciliation capability.",
+      "expected_state": { "creation": "indeterminate", "retry": false, "dependants": "held" },
+      "protocol_oracle": { "kind": "ambiguous_creation", "exact_identity": null, "retry": false, "expected_state": { "creation": "indeterminate", "retry": false, "dependants": "held" } },
+      "forbidden_operations": ["Retry creation", "Claim proven rejection", "Create a replacement", "Perform any real operation during this simulation"],
+      "required_evidence": ["K1 is retained as correlation evidence", "No supported reconciliation route exists", "The runtime limitation is explicit"],
+      "pass_condition": "Pass only if ambiguous transmission fails closed without duplicate creation or a false failure claim."
+    },
+    {
+      "id": "stale-dependency-evidence",
+      "request": "A dependant opened from source child S report revision 8 and artifact digest D8. The source later produces revision 9 with a changed artifact.",
+      "expected_route": "Mark the old edge superseded, reclose the dependant, and require a fresh mapped edge.",
+      "expected_state": { "old_edge": "superseded", "dependant": "held", "fresh_mapping": "required" },
+      "protocol_oracle": { "kind": "stale_dependency", "edge_revision": 8, "evidence_revision": 9, "edge_superseded": true, "expected_state": { "old_edge": "superseded", "dependant": "held", "fresh_mapping": "required" } },
+      "forbidden_operations": ["Reuse revision 8 evidence", "Treat a later source report as automatically compatible", "Dispatch the dependant", "Perform any real operation during this simulation"],
+      "required_evidence": ["The edge records exact source/report/artifact revisions", "The later observation recloses the edge", "The dependant cannot unlock until remapped"],
+      "pass_condition": "Pass only if dependency admission is bound to the exact evidence revision and stale evidence recloses its dependants."
+    },
+    {
+      "id": "overlapping-resource-claims",
+      "request": "Two writable children claim overlapping generated files and the same external deployment target.",
+      "expected_route": "Hold or serialize the later dispatch until the named integration owner resolves the conflict.",
+      "expected_state": { "claims": "conflicting", "dispatch": "held_or_serialized", "lock_guarantee": "not_implied" },
+      "protocol_oracle": { "kind": "resource_conflict", "left_resource_id": "deploy:staging", "right_resource_id": "deploy:staging", "left_access": "write", "right_access": "write", "expected_state": { "claims": "conflicting", "dispatch": "held_or_serialized", "lock_guarantee": "not_implied" } },
+      "forbidden_operations": ["Dispatch both overlapping writers concurrently", "Treat a timeout as releasing a claim", "Infer ownership from a matching path", "Perform any real operation during this simulation"],
+      "required_evidence": ["Claims cover external and repository resources", "The conflict policy and owner are recorded", "The absence of a real runtime lock is disclosed"],
+      "pass_condition": "Pass only if unknown or overlapping write claims fail closed or serialize safely."
+    },
+    {
+      "id": "unowned-matching-path-claim",
+      "request": "A child's worktree and title match an existing task, but no authoritative resource claim or owner identity exists.",
+      "expected_route": "Hold dispatch and request authoritative ownership evidence.",
+      "expected_state": { "claim": "unknown", "dispatch": "held", "ownership": "unproven" },
+      "protocol_oracle": { "kind": "unowned_claim", "owner": null, "expected_state": { "claim": "unknown", "dispatch": "held", "ownership": "unproven" } },
+      "forbidden_operations": ["Infer ownership from title or path", "Dispatch a writer", "Release another owner's claim", "Perform any real operation during this simulation"],
+      "required_evidence": ["Title/path are treated as leads only", "No authoritative claim is present", "The writer remains held"],
+      "pass_condition": "Pass only if an uncorrelated matching title/path cannot satisfy a resource claim."
+    },
+    {
+      "id": "false-completion-without-verification",
+      "request": "A child reports outcome=complete, but its terminal report lacks an observed verification result for a required criterion.",
+      "expected_route": "Keep execution terminal but acceptance pending and do not unlock dependants.",
+      "expected_state": { "execution": "terminal", "acceptance": "pending", "dependants": "held" },
+      "protocol_oracle": { "kind": "unverified_completion", "outcome": "complete", "verified": false, "expected_state": { "execution": "terminal", "acceptance": "pending", "dependants": "held" } },
+      "forbidden_operations": ["Accept the child's completion prose", "Unlock from an unverified criterion", "Perform any real operation during this simulation"],
+      "required_evidence": ["Required verification is absent", "Terminal outcome is separate from acceptance", "The missing verification is an unmet requirement"],
+      "pass_condition": "Pass only if a child's complete claim cannot replace observed verification evidence."
+    },
+    {
+      "id": "authority-revoked-while-running",
+      "request": "A writable child is still running when its parent authority and integration permission are revoked.",
+      "expected_route": "Hold acceptance, integration, and dependants; use only a supported hold/stop route or report the child uncontrollable.",
+      "expected_state": { "authority": "revoked", "acceptance": "held", "integration": "held", "child": "uncontrollable_or_held" },
+      "protocol_oracle": { "kind": "revoked_authority", "acceptance": "accepted", "authority_revoked": true, "expected_state": { "authority": "revoked", "acceptance": "held", "integration": "held", "child": "uncontrollable_or_held" } },
+      "forbidden_operations": ["Accept later claims as authorized", "Integrate the result", "Assume revocation is a real runtime stop", "Perform any real operation during this simulation"],
+      "required_evidence": ["Revocation is observed", "The runtime's hold/stop support is checked", "Unsupported enforcement is reported"],
+      "pass_condition": "Pass only if authority revocation closes acceptance and integration without implying an unsupported kill or lock."
+    },
+    {
+      "id": "wrong-artifact-revision-review",
+      "request": "A reviewer checked artifact path P at digest D1, but the maker's accepted post-image is digest D2.",
+      "expected_route": "Reject the review evidence and require review of the exact post-image D2.",
+      "expected_state": { "review": "rejected_for_revision_mismatch", "acceptance": "pending", "fresh_review": "required" },
+      "protocol_oracle": { "kind": "wrong_artifact_revision", "maker_digest": "D2", "reviewer_digest": "D1", "path": "P", "expected_state": { "review": "rejected_for_revision_mismatch", "acceptance": "pending", "fresh_review": "required" } },
+      "forbidden_operations": ["Treat a pre-image review as post-image evidence", "Match by path only", "Unlock risky integration", "Perform any real operation during this simulation"],
+      "required_evidence": ["Reviewer path and digest are recorded", "D1 does not match D2", "Fresh review targets the exact post-image"],
+      "pass_condition": "Pass only if checker evidence is rejected when it names the wrong artifact revision."
+    },
+    {
+      "id": "compound-live-stale-conflict",
+      "request": "A child is live but has unchanged evidence; its dependency evidence is stale; and its writable resource claim conflicts with another child.",
+      "expected_route": "Keep progress, dependency admission, and dispatch independently closed where evidence is insufficient or conflicting.",
+      "expected_state": { "liveness": "live", "progress": "no_change", "dependency": "closed", "resource": "held" },
+      "protocol_oracle": { "kind": "compound_closed_gates", "acceptance": "pending", "authority_revoked": false, "same_resource_id": true, "expected_state": { "liveness": "live", "progress": "no_change", "dependency": "closed", "resource": "held" } },
+      "forbidden_operations": ["Let liveness unlock a dependency", "Let stale evidence unlock a dependency", "Dispatch through a resource conflict", "Perform any real operation during this simulation"],
+      "required_evidence": ["All affected dimensions are reported separately", "Stale evidence is superseded", "The write conflict is held or serialized"],
+      "pass_condition": "Pass only if the parent fails closed on each independent gate rather than collapsing them into a single live status."
+    }
+  ]
+}

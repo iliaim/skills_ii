@@ -1,0 +1,7 @@
+interface:
+  display_name: "Delegate to Thread"
+  short_description: "Create one task with explicit ownership"
+  default_prompt: "Use $delegate-to-thread to create one separate task with an explicit independent, coordinated-single, or coordinator-handoff ownership mode."
+
+policy:
+  allow_implicit_invocation: true

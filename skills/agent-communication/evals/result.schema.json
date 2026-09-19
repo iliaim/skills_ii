@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eval_id", "decision", "planned_calls", "facts", "explanation"],
+  "properties": {
+    "eval_id": {"type": "integer"},
+    "decision": {
+      "enum": [
+        "route-delegate-to-thread",
+        "contact-unavailable",
+        "contact",
+        "inspect",
+        "refuse-resume",
+        "refuse-broad-dump",
+        "inspect-bounded-metadata",
+        "handle-current-task",
+        "use-subagent",
+        "route-automation",
+        "schedule-heartbeat"
+      ]
+    },
+    "planned_calls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tool", "arguments"],
+        "properties": {
+          "tool": {"type": "string"},
+          "arguments": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["threadId", "sessionId", "prompt", "limit", "argv", "path", "query", "provider", "destination", "skill", "cadence", "target"],
+            "properties": {
+              "threadId": {"type": ["string", "null"]},
+              "sessionId": {"type": ["string", "null"]},
+              "prompt": {"type": ["string", "null"]},
+              "limit": {"type": ["integer", "null"]},
+              "argv": {"type": "array", "items": {"type": "string"}},
+              "path": {"type": ["string", "null"]},
+              "query": {"type": ["string", "null"]},
+              "provider": {"type": ["string", "null"]},
+              "destination": {"type": ["string", "null"]},
+              "skill": {"type": ["string", "null"]},
+              "cadence": {"type": ["string", "null"]},
+              "target": {"type": ["string", "null"]}
+            }
+          }
+        }
+      }
+    },
+    "facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content_recency", "runtime_liveness", "routeability", "identity_correlated", "backing_kind", "local_transcript", "codex_local_transcript", "chatgpt_local_transcript", "codex_local_transcript_path", "chatgpt_local_transcript_path", "mapping_status", "inventory_scope", "semantic_status_agreement", "contract_drift_detected", "privacy_bounded", "redaction_required", "objective_preserved", "lifecycle_mutation_authorized", "monitor_on_change_only", "heartbeat_scope"],
+      "properties": {
+        "content_recency": {"enum": ["recent", "old", "unknown", "not_applicable"]},
+        "runtime_liveness": {"enum": ["live", "not_live", "unknown", "not_applicable"]},
+        "routeability": {"enum": ["available", "unavailable", "unknown", "not_applicable"]},
+        "identity_correlated": {"type": "boolean"},
+        "backing_kind": {"enum": ["codex", "chatgpt", "claude", "automation", "mixed", "unknown", "not_applicable"]},
+        "local_transcript": {"enum": ["available", "unavailable", "unknown", "not_applicable"]},
+        "codex_local_transcript": {"enum": ["available", "unavailable", "unknown", "not_applicable"]},
+        "chatgpt_local_transcript": {"enum": ["available", "unavailable", "unknown", "not_applicable"]},
+        "codex_local_transcript_path": {"type": ["string", "null"]},
+        "chatgpt_local_transcript_path": {"type": ["string", "null"]},
+        "mapping_status": {"enum": ["resolved", "conflicting", "unknown", "not_applicable"]},
+        "inventory_scope": {"enum": ["active_only", "bounded_recent", "exact_id", "historical", "not_applicable"]},
+        "semantic_status_agreement": {"type": ["boolean", "null"]},
+        "contract_drift_detected": {"type": "boolean"},
+        "privacy_bounded": {"type": "boolean"},
+        "redaction_required": {"type": "boolean"},
+        "objective_preserved": {"type": "boolean"},
+        "lifecycle_mutation_authorized": {"type": "boolean"},
+        "monitor_on_change_only": {"type": "boolean"},
+        "heartbeat_scope": {"enum": ["current_task", "standalone", "not_applicable"]},
+        "task_liveness": {"enum": ["live", "not_live", "unknown", "not_applicable", null]},
+        "observation_health": {"enum": ["connected", "waiting", "reconciling", "unknown", "not_applicable"]},
+        "progress_changed": {"type": ["boolean", "null"]},
+        "progress_kind": {"enum": ["phase_change", "evidence_added", "blocker_opened", "blocker_cleared", "attention_acknowledged", "verification_complete", "no_change", "unknown", "not_applicable", null]},
+        "native_revision_or_turn": {"type": ["string", "null"]},
+        "report_identity_or_digest": {"type": ["string", "null"]},
+        "attention_state": {"enum": ["none", "pending", "acknowledged", "unacknowledged", null]},
+        "evidence_revision_bound": {"type": ["boolean", "null"]},
+        "resource_claim_safe": {"type": ["boolean", "null"]},
+        "orphan_reconciled": {"type": ["boolean", "null"]},
+        "duplicate_creation_prevented": {"type": ["boolean", "null"]},
+        "acceptance_state": {"enum": ["pending", "accepted", "rejected", "incomplete", "not_applicable", null]},
+        "authority_revoked": {"type": ["boolean", "null"]}
+      }
+    },
+    "explanation": {"type": "string"}
+  }
+}
