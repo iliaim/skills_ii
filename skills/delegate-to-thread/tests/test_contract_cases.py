@@ -669,6 +669,7 @@ def _mutation_semantics_passes(control, reason, case=None):
             value.get("tool") == "wait_threads"
             and isinstance(targets, list)
             and len(targets) == 1
+            and isinstance(targets[0], dict)
             and targets[0].get("threadId") in client_handles
         )
     if reason == "title-not-stable-identity":
@@ -1545,6 +1546,9 @@ class DelegateContractCaseTests(unittest.TestCase):
         decoy = copy.deepcopy(control)
         decoy["mutation"]["value"]["args"]["targets"][0]["threadId"] = "ready-thread-id"
         self.assertFalse(_mutation_semantics_passes(decoy, "client-id-not-operable", queued_case))
+        malformed = copy.deepcopy(control)
+        malformed["mutation"]["value"]["args"]["targets"] = [None]
+        self.assertFalse(_mutation_semantics_passes(malformed, "client-id-not-operable", queued_case))
 
     def test_attached_reporting_cases_cover_required_red_controls(self):
         payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
