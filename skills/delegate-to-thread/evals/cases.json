@@ -7607,6 +7607,58 @@
       ]
     }
   ],
+  "setup_recovery_cases": [
+    {
+      "id": "setup-recovery-exact-binding-confirmed",
+      "scenario": "A setup-only create result has one exact local binding in the original creation window and native read corroborates every required identity field.",
+      "expected_state": "ready",
+      "required_invariants": [
+        "Use the resolved threadId and hostId for later operations.",
+        "Call native read_thread before wait, message, or other task operations.",
+        "Do not use clientThreadId as a task ID."
+      ]
+    },
+    {
+      "id": "setup-recovery-binding-absent-or-timeout",
+      "scenario": "The exact binding is absent or remains pending through the finite low-frequency recovery schedule.",
+      "expected_state": "queued/unmonitorable",
+      "required_invariants": [
+        "Preserve the exact clientThreadId as non-operable evidence.",
+        "Do not retry creation or claim rejection.",
+        "Repeat the same bounded gate only when the exact pending entry is resumed."
+      ]
+    },
+    {
+      "id": "setup-recovery-duplicate-or-mismatched-binding",
+      "scenario": "The exact handle maps to multiple candidates or a candidate disagrees on host, time window, provider identity, kind, destination, or assigned worktree.",
+      "expected_state": "queued/unmonitorable",
+      "required_invariants": [
+        "Fail closed on ambiguity or mismatch.",
+        "Do not select by title, path, listing order, or transcript similarity.",
+        "Do not create a replacement."
+      ]
+    },
+    {
+      "id": "setup-recovery-native-read-failure",
+      "scenario": "A unique exact binding exists, but native read_thread fails or does not corroborate the candidate.",
+      "expected_state": "queued/unmonitorable",
+      "required_invariants": [
+        "Do not treat the candidate UUID as operable.",
+        "Record the native failure and keep dependants suspended.",
+        "Do not contact, wait on, or message the candidate."
+      ]
+    },
+    {
+      "id": "setup-recovery-no-title-or-path-fallback",
+      "scenario": "The exact binding cannot be proven, while an unrelated task happens to share a title or worktree path.",
+      "expected_state": "queued/unmonitorable",
+      "required_invariants": [
+        "Never broad-scan transcripts or task listings to infer identity.",
+        "Never match by title or path.",
+        "Never retry or replace the original creation."
+      ]
+    }
+  ],
   "prompt_contract_variants": [
     {
       "id": "r4-incomplete-first-message",

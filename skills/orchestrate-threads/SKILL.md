@@ -26,17 +26,20 @@ mutations.
 - Several existing exact tasks, or a mixed graph of existing and explicitly authorized new tasks:
   this skill. Register existing nodes without creation and use `agent-communication` for their
   supported exact-ID operations.
+- A bounded cold review whose result belongs in the current response: use authorized read-only
+  subagents; do not create a user-visible task merely to obtain an independent review.
 - Bounded work whose result belongs in the current response: authorized subagents. Parallelism alone
   does not justify a user-visible task.
 
 If a coordinated single child expands into a graph, adopt its exact identity and evidence as
 described in the contract; transfer observation ownership once and never recreate it.
 
-Creation handoff has an explicit identity stop: a returned `clientThreadId` is the runtime-owned
-setup handle and is `queued/unmonitorable`, not a live child. Keep its dependants held until the
-runtime resolver or a native exact-ID callback and `read_thread` confirmation produce a real task ID.
-Do not invent a second caller token or search transcripts during normal delegation. Keep the parent
-turn active while observing a ready child; an ended parent requires a normal follow-up.
+Creation handoff runs the delegate contract's automatic exact-handle setup-resolution gate whenever a
+returned `clientThreadId` is present. Keep its dependants held until the bounded resolver or exact
+provider binding and native `read_thread` confirmation produce a real task ID. Do not invent a second
+caller token or search transcripts during normal delegation. If the bounded gate fails, retain
+`queued/unmonitorable` and repeat the gate automatically when the exact pending entry is resumed;
+keep the parent turn active only for supported observation of a ready child.
 
 ## Procedure
 
@@ -63,7 +66,14 @@ turn active while observing a ready child; an ended parent requires a normal fol
    correction bound. Never retry or replace queued or indeterminate creation. After a proven terminal
    failure, a successor is a new explicitly authorized node that preserves the prior identity and
    evidence; it is never an implicit retry.
-7. Integrate only through the named owner and an already-authorized lifecycle procedure. Complete
+7. If creation does not produce a real task ID, apply the delegate contract's bounded automatic
+   setup-resolution gate before classifying the node as `queued/unmonitorable` or `indeterminate`.
+   Preserve the raw provider result and any failed-correlation evidence; do not invent an ID, match
+   by title, scrape transcripts, or create a replacement. Continue independent current-response work
+   and read-only reviews whose dependencies are open, while holding only the affected child and its
+   dependants. When the exact pending entry is resumed, repeat the same gate automatically. Creation
+   uncertainty is not, by itself, a reason to stop the whole root objective.
+8. Integrate only through the named owner and an already-authorized lifecycle procedure. Complete
    the parent only when every cumulative root criterion and required artifact-availability gate has
    evidence.
 
@@ -74,6 +84,20 @@ Every attached child receives a first-message requirement for evidence-bearing c
 canonical terminal report. The parent accepts only observed, revision-bound reports: liveness,
 observation health, progress, acceptance, and artifact availability remain separate, and missing,
 stale, ambiguous, superseded, or unacknowledged evidence keeps the affected gate closed.
+
+When the parent supplies an acceptance contract, the contract is part of the run authority. Read the
+exact file before dispatch, map its cumulative criteria and named checkpoints into the parent ledger,
+and preserve its stop conditions. For a contract with T0–T8 or equivalent IDs, record every task and
+candidate criterion separately with its required status, evidence, and dependency; do not collapse
+the contract into a success-criteria summary. At each named stop checkpoint (for example after
+implementation, cold review, or live integration), re-read the fresh diff and evidence before opening
+the next gate. If it requires an independent challenger before implementation or at a later
+checkpoint, use a cold read-only reviewer (or bounded read-only subagents when the result belongs in
+the current response). The review request must name the exact contract path, candidate revision,
+read-only boundary, checkpoint, and required disposition. Accept the gate only from a report that
+identifies the reviewed revision, maps findings to criteria, records dispositions and unresolved
+blockers, and is bound to a native turn/event identity or report digest; ordinary commentary is not
+review evidence.
 
 Do not merge, publish, hand off, interrupt, archive, clean, retire, start a native goal in the parent,
 or create an automation unless that separate action is authorized and its owning procedure permits

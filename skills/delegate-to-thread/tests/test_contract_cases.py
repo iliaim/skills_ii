@@ -39,12 +39,30 @@ class DelegateContractCaseTests(unittest.TestCase):
         ):
             self.assertIn(phrase, contract)
 
-    def test_setup_only_creation_is_explicitly_unmonitorable(self):
+    def test_setup_only_creation_runs_automatic_exact_handle_recovery(self):
         skill = (SKILL_ROOT / "SKILL.md").read_text()
         contract = (SKILL_ROOT / "references" / "task-contract.md").read_text()
-        self.assertIn("queued/unmonitorable", skill)
-        self.assertIn("queued` is also `unmonitorable", contract)
-        self.assertIn("does not wake or resume an ended parent turn", skill)
+        self.assertIn("automatic exact-handle setup-resolution gate", skill)
+        self.assertIn("mandatory for every ownership mode", skill)
+        self.assertIn("No user request is a prerequisite", contract)
+        self.assertIn("same gate whenever the exact pending-create entry is resumed", contract)
+        self.assertIn("native `read_thread`", contract)
+        self.assertIn("queued/unmonitorable", contract)
+
+    def test_setup_recovery_eval_cases_cover_success_and_fail_closed_paths(self):
+        payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
+        cases = {case["id"]: case for case in payload["setup_recovery_cases"]}
+        expected = {
+            "setup-recovery-exact-binding-confirmed",
+            "setup-recovery-binding-absent-or-timeout",
+            "setup-recovery-duplicate-or-mismatched-binding",
+            "setup-recovery-native-read-failure",
+            "setup-recovery-no-title-or-path-fallback",
+        }
+        self.assertEqual(set(cases), expected)
+        self.assertEqual(cases["setup-recovery-exact-binding-confirmed"]["expected_state"], "ready")
+        for case_id in expected - {"setup-recovery-exact-binding-confirmed"}:
+            self.assertEqual(cases[case_id]["expected_state"], "queued/unmonitorable")
 
     def test_research_note_tracks_minimal_runtime_issue_without_extra_architecture(self):
         research = (SKILL_ROOT / "research" / "thread-coordination-patterns.md").read_text()

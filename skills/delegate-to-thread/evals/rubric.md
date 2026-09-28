@@ -44,6 +44,13 @@ alter the live-case applicability matrix.
 
 ## Attached reporting and recovery controls
 
+Evaluate every `setup_recovery_cases` entry as a read-only protocol simulation. A setup-only result
+must enter the automatic exact-handle recovery gate immediately and on exact pending-entry resume.
+Only one exact same-host candidate whose creation window, provider/app identity, backing kind,
+destination, and applicable worktree match may proceed to native `read_thread` confirmation. A failed,
+ambiguous, stale, mismatched, or uncorroborated candidate remains `queued/unmonitorable`; title/path
+matching, broad transcript search, bounded-list absence, retry, and replacement are failures.
+
 For every `coordinated-single` or coordinator-handoff prompt, require the child-facing reporting
 module from the task contract. The first message must name the checkpoint triggers and the required
 checkpoint fields (`child_id`, `report_revision`, `report_identity_or_digest`, `observed_at`, `execution_state`, `task_liveness`,

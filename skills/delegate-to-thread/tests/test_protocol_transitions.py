@@ -109,9 +109,14 @@ def callback_resolution_is_operable(pending, callback_thread_id, native_read):
         and native_read.get("requested_hostId") == pending.get("hostId")
         and all(
             pending.get(field) is None
-            or native_read.get(field) is None
             or native_read.get(field) == pending.get(field)
-            for field in ("backing_kind", "project_id", "worktree_path")
+            for field in (
+                "backing_kind",
+                "project_id",
+                "worktree_path",
+                "provider_identity",
+                "app_instance_id",
+            )
         )
     )
 
@@ -127,6 +132,47 @@ def runtime_resolution_is_operable(pending, resolution, native_read):
             native_read,
         )
     )
+
+
+def automatic_setup_resolution(pending, bindings, native_read):
+    """Model the bounded exact-handle recovery gate without provider side effects."""
+    candidates = [
+        binding for binding in bindings
+        if binding.get("clientThreadId") == pending.get("clientThreadId")
+    ]
+    if len(candidates) != 1:
+        return {"state": "queued/unmonitorable", "reason": "binding-not-unique"}
+
+    candidate = candidates[0]
+    window = pending.get("creation_window")
+    created_at = candidate.get("created_at")
+    if (
+        not isinstance(window, tuple)
+        or len(window) != 2
+        or not isinstance(created_at, (int, float))
+        or not window[0] <= created_at <= window[1]
+        or candidate.get("hostId") != pending.get("hostId")
+        or any(
+            pending.get(field) is not None
+            and candidate.get(field) != pending.get(field)
+            for field in (
+                "backing_kind",
+                "project_id",
+                "worktree_path",
+                "provider_identity",
+                "app_instance_id",
+            )
+        )
+    ):
+        return {"state": "queued/unmonitorable", "reason": "binding-mismatch"}
+
+    if not callback_resolution_is_operable(
+        pending,
+        candidate.get("threadId"),
+        native_read,
+    ):
+        return {"state": "queued/unmonitorable", "reason": "native-read-unconfirmed"}
+    return {"state": "ready", "threadId": candidate["threadId"]}
 
 
 def attached_callbacks_reach_parent(parent_task_id, route, first_callback, terminal_callback):
@@ -256,6 +302,8 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "threadId": callback_thread_id,
             "requested_hostId": "local",
             "backing_kind": "codex",
+            "project_id": "skills",
+            "worktree_path": "/worktrees/skills-child",
         }
         self.assertTrue(callback_resolution_is_operable(pending, callback_thread_id, native_read))
         self.assertFalse(callback_resolution_is_operable(pending, "setup-37", native_read))
@@ -301,6 +349,94 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             ready,
             dict(native_read, threadId="01a0a4b7-7a3b-70f0-9044-d49469473415"),
         ))
+
+    def test_automatic_setup_resolution_accepts_one_exact_binding_after_native_confirmation(self):
+        pending = {
+            "clientThreadId": "setup-39",
+            "hostId": "local",
+            "creation_window": (100, 110),
+            "backing_kind": "codex",
+            "project_id": "skills",
+            "worktree_path": "/worktrees/skills-child",
+            "provider_identity": "codex-desktop:account-a",
+            "app_instance_id": "app-a",
+        }
+        thread_id = "01a0a4b7-7a3b-70f0-9044-d49469473416"
+        binding = dict(pending, threadId=thread_id, created_at=105)
+        native_read = {
+            "threadId": thread_id,
+            "requested_hostId": "local",
+            "backing_kind": "codex",
+            "project_id": "skills",
+            "worktree_path": "/worktrees/skills-child",
+            "provider_identity": "codex-desktop:account-a",
+            "app_instance_id": "app-a",
+        }
+        self.assertEqual(
+            automatic_setup_resolution(pending, [binding], native_read),
+            {"state": "ready", "threadId": thread_id},
+        )
+
+    def test_automatic_setup_resolution_stays_queued_for_absent_or_timed_out_binding(self):
+        pending = {
+            "clientThreadId": "setup-40",
+            "hostId": "local",
+            "creation_window": (100, 110),
+        }
+        self.assertEqual(
+            automatic_setup_resolution(pending, [], None)["state"],
+            "queued/unmonitorable",
+        )
+        timed_out = dict(pending, clientThreadId="setup-41")
+        binding = dict(timed_out, threadId="01a0a4b7-7a3b-70f0-9044-d49469473417", created_at=111)
+        self.assertEqual(
+            automatic_setup_resolution(timed_out, [binding], None)["reason"],
+            "binding-mismatch",
+        )
+
+    def test_automatic_setup_resolution_rejects_duplicate_or_mismatched_bindings(self):
+        pending = {
+            "clientThreadId": "setup-42",
+            "hostId": "local",
+            "creation_window": (100, 110),
+            "backing_kind": "codex",
+            "project_id": "skills",
+        }
+        first = dict(pending, threadId="01a0a4b7-7a3b-70f0-9044-d49469473418", created_at=105)
+        second = dict(pending, threadId="01a0a4b7-7a3b-70f0-9044-d49469473419", created_at=106)
+        self.assertEqual(
+            automatic_setup_resolution(pending, [first, second], None)["reason"],
+            "binding-not-unique",
+        )
+        mismatched = dict(first, project_id="other-project")
+        self.assertEqual(
+            automatic_setup_resolution(pending, [mismatched], None)["reason"],
+            "binding-mismatch",
+        )
+
+    def test_automatic_setup_resolution_rejects_native_read_failure(self):
+        pending = {
+            "clientThreadId": "setup-43",
+            "hostId": "local",
+            "creation_window": (100, 110),
+            "backing_kind": "codex",
+        }
+        thread_id = "01a0a4b7-7a3b-70f0-9044-d49469473420"
+        binding = dict(pending, threadId=thread_id, created_at=105)
+        self.assertEqual(
+            automatic_setup_resolution(pending, [binding], None)["reason"],
+            "native-read-unconfirmed",
+        )
+
+    def test_automatic_setup_resolution_has_no_title_or_path_fallback(self):
+        skill = (SKILL_ROOT / "SKILL.md").read_text()
+        contract = (SKILL_ROOT / "references" / "task-contract.md").read_text()
+        provider = (SKILL_ROOT.parent / "agent-communication" / "references" / "codex-chatgpt.md").read_text()
+        for text in (skill, contract, provider):
+            self.assertIn("Never", text)
+            self.assertIn("title", text)
+            self.assertIn("path", text)
+        self.assertIn("No user request is a prerequisite", contract)
 
     def test_local_terminal_report_does_not_replace_identity_bearing_parent_callbacks(self):
         parent_task_id = "01a0a74d-parent"

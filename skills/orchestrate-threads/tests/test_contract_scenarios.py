@@ -51,7 +51,7 @@ class OrchestrationContractScenarioTests(unittest.TestCase):
         self.assertIn("cannot be observed,", contract)
         self.assertIn("Keep the parent turn", contract)
         self.assertIn("queued/unmonitorable", agent_contract)
-        self.assertIn("will\nwake or resume the parent", agent_contract)
+        self.assertIn("child message will wake or resume the parent", agent_contract)
 
     def test_evidence_only_gate_does_not_require_an_artifact(self):
         contract = (SKILL_ROOT / "references" / "orchestration-contract.md").read_text()

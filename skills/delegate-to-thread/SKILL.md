@@ -19,12 +19,14 @@ always vetoes creation. Never promise terminal coordination when the backing kin
 terminal-or-attention observer.
 
 Operational boundary: a `clientThreadId` is the runtime's setup handle, not an operable task ID. If
-creation returns only that handle, a coordinated parent cannot observe, message, or report completion
-for the child in the current task surface. Classify the result as `queued/unmonitorable`, say so
-explicitly, and do not describe the child as in flight. Do not invent a second caller token or
-resolve the handle by title, path, or transcript search during normal delegation. Only a real ID
-returned by creation or an exact `wait_thread_creation` result followed by native confirmation can
-make that child operable.
+creation returns only that handle, immediately run the automatic exact-handle setup-resolution gate in
+[the task contract](references/task-contract.md#automatic-exact-handle-setup-resolution). This gate
+is mandatory for every ownership mode and runs again when an exact pending setup result is resumed;
+no user diagnosis request is required. Until a real ID is resolved and native `read_thread` confirms
+it, keep the result queued/unmonitorable, do not describe the child as in flight, and do not pass the
+setup handle to task tools. Never invent a second caller token or resolve by title, path, listing, or
+transcript search. A failed or exhausted bounded attempt remains fail-closed; it never retries
+creation or creates a replacement.
 `send_message_to_thread` is evidence delivery only; it does not wake or resume an ended parent turn.
 
 ## Route once
