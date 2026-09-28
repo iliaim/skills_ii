@@ -143,14 +143,8 @@ class DelegateContractCaseTests(unittest.TestCase):
                     for assertion in base_case["task_operation_assertions"]["required"]
                     if assertion["id"] == target["id"]
                 )
-                mutated_assertion = copy.deepcopy(target_assertion)
-                cursor = mutated_assertion
-                path_parts = target["path"].strip("/").split("/")
-                for path_part in path_parts[:-1]:
-                    self.assertIn(path_part, cursor, case["id"])
-                    cursor = cursor[path_part]
-                self.assertIn(path_parts[-1], cursor, case["id"])
-                cursor[path_parts[-1]] = value
+                mutated_assertion = apply_catalog_mutation(target_assertion, mutation)
+                self.assertNotEqual(mutated_assertion, target_assertion, case["id"])
                 self.assertEqual(mutated_assertion["args_match"]["value"], value, case["id"])
             self.assertTrue(expected_failure.get("criterion_id"), case["id"])
             self.assertTrue(expected_failure.get("assertion_id"), case["id"])

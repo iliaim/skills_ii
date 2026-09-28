@@ -336,7 +336,7 @@ def path_disclosure_admissible(trace, native_transfer_evidence=None):
         if not isinstance(value, str):
             return False
         if field in {"branch_or_ref", "base_revision", "requested_starting_state", "starting_state"} and re.fullmatch(
-            r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", value
+            r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*", value
         ):
             return False
         return (
@@ -345,6 +345,7 @@ def path_disclosure_admissible(trace, native_transfer_evidence=None):
             or bool(re.search(r"(?<![A-Za-z0-9/:])/(?!/)", value))
             or bool(re.match(r"^[^:/\\\s]+(?:[/\\][^/\\]+)+$", value))
             or bool(re.match(r"^[^/\\\s]+\.[A-Za-z0-9]{1,8}$", value))
+            or (bool(re.search(r"\s", value)) and bool(re.search(r"[/\\.]", value)))
         )
 
     return not contains_raw_path(trace)
@@ -430,13 +431,18 @@ def repository_report_fields_admissible(trace, native_post_write_evidence=None):
     if ownership_mode in {"attached", "coordinator-handoff", "coordinated-single"}:
         attached_terminal = trace.get("attached_terminal_report")
         current_child_id = trace.get("child_id", trace.get("execution_context", {}).get("child_id"))
-        if current_child_id and (
-            not isinstance(attached_terminal, dict)
-            or attached_terminal.get("child_id") != current_child_id
-        ):
+        if not isinstance(current_child_id, str) or not current_child_id:
+            return False
+        if not isinstance(attached_terminal, dict) or attached_terminal.get("child_id") != current_child_id:
             return False
         callbacks = trace.get("attached_callbacks")
         if not isinstance(callbacks, list) or len(callbacks) != 2:
+            return False
+        if any(
+            not isinstance(callback.get("report"), dict)
+            or callback["report"].get("child_id") != current_child_id
+            for callback in callbacks
+        ):
             return False
         if not attached_callbacks_reach_parent(
             trace.get("parent_task_id"),
@@ -1115,6 +1121,8 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "worktrees/child/secret.txt",
             "worktrees\\child\\secret.txt",
             "secret.txt",
+            "work tree/file",
+            "foo bar.txt",
         ):
             leaked = {
                 "destination_scope": "cloud",
@@ -1139,6 +1147,29 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
                     "payload_digest": transfer_payload_digest(leaked),
                 },
             ))
+        branch_ref_trace = {
+            "destination_scope": "cloud",
+            "branch_or_ref": "feature/team/child",
+            "path_transfer_authority": {
+                "source_scope": "same-host",
+                "destination_scope": "cloud",
+                "method": "authorized-path-transfer",
+                "evidence_id": "event:branch-ref",
+                "redaction": "opaque-identifiers",
+            },
+        }
+        self.assertTrue(path_disclosure_admissible(
+            branch_ref_trace,
+            native_transfer_evidence={
+                "source": "native-transfer-authorization",
+                "evidence_id": "event:branch-ref",
+                "source_scope": "same-host",
+                "destination_scope": "cloud",
+                "method": "authorized-path-transfer",
+                "redaction": "opaque-identifiers",
+                "payload_digest": transfer_payload_digest(branch_ref_trace),
+            },
+        ))
         transfer_trace = dict(
             trace,
             destination_scope="cloud",
