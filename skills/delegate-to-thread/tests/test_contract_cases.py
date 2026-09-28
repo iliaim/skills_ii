@@ -11,22 +11,40 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 class DelegateContractCaseTests(unittest.TestCase):
     def test_negative_controls_are_complete_executable_mutation_records(self):
         payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
-        operations = {"replace_call_arg", "insert_call", "remove", "replace_terminal_claim"}
-        for case in payload["prompt_contract_variants"]:
+        operations = {"replace", "replace_call_arg", "insert_call", "remove", "replace_terminal_claim"}
+        catalog_sections = ("cases", "observation_variants", "prompt_contract_variants")
+        visited = 0
+        for section in catalog_sections:
+            for case in payload[section]:
+                known_ids = {
+                    assertion.get("id")
+                    for assertion_group in (
+                        case.get("task_operation_assertions", {}).get("required", []),
+                        case.get("task_operation_assertions", {}).get("forbidden", []),
+                        case.get("task_operation_assertions", {}).get("counts", []),
+                        case.get("terminal_assertions", []),
+                        case.get("capability_evidence", []),
+                        case.get("fixtures", []),
+                    )
+                    for assertion in assertion_group
+                }
             controls = case.get("negative_controls", [])
             ids = [control.get("id") for control in controls]
             self.assertEqual(len(ids), len(set(ids)), case["id"])
             for control in controls:
+                visited += 1
                 mutation = control.get("mutation", {})
                 target = mutation.get("target", {})
                 expected_failure = control.get("expected_failure", {})
                 self.assertIn(mutation.get("operation"), operations, control.get("id"))
                 self.assertTrue(target.get("namespace"), control.get("id"))
-                self.assertTrue(target.get("id"), control.get("id"))
+                self.assertIn(target.get("id"), known_ids, control.get("id"))
                 self.assertTrue(target.get("path", "").startswith("/"), control.get("id"))
                 self.assertTrue(expected_failure.get("criterion_id"), control.get("id"))
                 self.assertTrue(expected_failure.get("assertion_id"), control.get("id"))
+                self.assertIn(expected_failure["assertion_id"], known_ids, control.get("id"))
                 self.assertTrue(expected_failure.get("reason_code"), control.get("id"))
+        self.assertGreater(visited, 0)
 
     def test_attached_reporting_cases_cover_required_red_controls(self):
         payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
