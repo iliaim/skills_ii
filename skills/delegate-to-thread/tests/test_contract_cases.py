@@ -1,5 +1,6 @@
 import json
 import copy
+import re
 import unittest
 from pathlib import Path
 
@@ -7,6 +8,67 @@ from test_protocol_transitions import automatic_setup_resolution
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
+
+
+_REASON_CRITERION = {
+    "child-slice-cannot-complete-parent": "R10-parent-authority",
+    "client-id-not-operable": "R7-create-result",
+    "cloud-bound-not-resolved-before-create": "R8-coordination",
+    "cloud-observation-bound-exceeded": "R8-coordination",
+    "cloud-observer-support-missing": "R8-coordination",
+    "codex-wait-not-chat-observer": "R8-coordination",
+    "commitment-duration-missing": "R5-destination-safety",
+    "consent-not-access": "R6-cloud-sources",
+    "continuation-not-creation": "R1-route",
+    "create-only-unsolicited-observation": "R8-coordination",
+    "delegation-default-provenance-missing": "R8-coordination",
+    "dry-run-explicitly-forbids-creation": "R1-route",
+    "error-without-native-guarantee-not-retryable": "R7-create-result",
+    "exclusive-interval-wrong-destination": "R5-destination-safety",
+    "explicit-create-only-override-ignored": "R8-coordination",
+    "explicit-create-only-provenance-missing": "R8-coordination",
+    "explicit-delegation-default-not-coordinated": "R8-coordination",
+    "explicit-no-create-provenance-missing": "R1-route",
+    "explicit-no-create-veto-ignored": "R1-route",
+    "fork-not-clean-create": "R1-route",
+    "git-default-isolation-lost": "R5-destination-safety",
+    "human-notification-not-agent-wakeup": "R8-coordination",
+    "indeterminate-not-retryable": "R7-create-result",
+    "internal-not-sidebar": "R1-route",
+    "invented-project": "R3-live-discovery",
+    "known-writer-conflict": "R5-destination-safety",
+    "lifecycle-authority-not-delegated": "R10-parent-authority",
+    "material-target-ambiguity": "R3-live-discovery",
+    "meta-reference-not-creation-authority": "R1-route",
+    "needs-attention-is-not-terminal-success": "R9-progress",
+    "needs-attention-must-surface-before-continuing": "R9-progress",
+    "needs-attention-signal-missing": "R9-progress",
+    "no-native-parent-auto-resume": "R8-coordination",
+    "nonterminal-cloud-snapshot": "R9-progress",
+    "nonterminal-snapshot-not-complete": "R9-progress",
+    "off-target-read-not-permitted": "R8-coordination",
+    "one-logical-delegation-exceeded": "R7-create-result",
+    "pagination-cursor-not-forward-observer": "R8-coordination",
+    "parent-acceptance-unmapped": "R10-parent-authority",
+    "project-id-not-source-access": "R6-cloud-sources",
+    "queued-coordination-not-fulfilled": "R8-coordination",
+    "risk-waiver-not-exclusivity": "R5-destination-safety",
+    "scheduled-heartbeat-not-event-callback": "R8-coordination",
+    "snapshot-absence-not-lease": "R5-destination-safety",
+    "stale-destination-metadata": "R3-live-discovery",
+    "target-error-not-completion": "R9-progress",
+    "target-error-not-needs-attention": "R9-progress",
+    "technical-support-not-authority": "R6-cloud-sources",
+    "terminal-coordination-unsupported": "R8-coordination",
+    "title-not-stable-identity": "R7-create-result",
+    "unchanged-snapshot-not-progress": "R9-progress",
+    "unchanged-wait-cursor-not-preserved": "R9-progress",
+    "uncommitted-authority-missing": "R5-destination-safety",
+    "user-input-must-be-processed-before-wait": "R9-progress",
+    "user-input-not-child-event": "R9-progress",
+    "visible-message-not-callback": "R8-coordination",
+    "wait-cursor-not-reused": "R8-coordination",
+}
 
 
 def apply_catalog_mutation(target_record, mutation):
@@ -225,6 +287,94 @@ def _resolve_pointer(record, path):
     return cursor, True
 
 
+def _normalise_result_path(path):
+    return path.removeprefix("/raw_result") or "/"
+
+
+def _fixture_provenance_valid(case, records, premise):
+    """Require a fixture to be causally released by its documented operation."""
+    record = records.get(premise.get("fixture_id"))
+    if record is None:
+        return False
+    kind = record.get("kind")
+    if kind not in {"tool_result", "transport_or_tool_failure"}:
+        return kind in {"host_user_event", "contract_snapshot"}
+    release = record.get("release_after")
+    if not isinstance(release, dict) or not release.get("operation"):
+        return False
+    args_match = release.get("args_match")
+    if not isinstance(args_match, dict) or args_match.get("mode") not in {"subset", "exact"}:
+        return False
+    operation = release["operation"]
+    operation_assertions = [
+        assertion
+        for _, assertion in _operation_assertions(case)
+        if assertion.get("tool") == operation
+    ]
+    occurrence = release.get("occurrence")
+    if occurrence is not None:
+        operation_assertions = [
+            assertion
+            for assertion in operation_assertions
+            if assertion.get("occurrence", 1) == occurrence
+        ]
+    expected_args = args_match.get("value", {})
+    if not operation_assertions or not any(
+        (
+            assertion.get("args_match", {}).get("value", {}) == expected_args
+            if args_match.get("mode") == "exact"
+            else _subset_match(assertion.get("args_match", {}).get("value", {}), expected_args)
+        )
+        for assertion in operation_assertions
+    ):
+        return False
+    documented = record.get("documented_decision_paths")
+    path = premise.get("path", "")
+    if kind == "transport_or_tool_failure":
+        return path.startswith("/failure/")
+    if not isinstance(documented, list) or not documented:
+        return False
+    normalised_path = _normalise_result_path(path)
+    for item in documented:
+        if item.get("path") != normalised_path:
+            continue
+        contract_ref = item.get("contract_ref")
+        contract = records.get(contract_ref.get("fixture_id")) if isinstance(contract_ref, dict) else None
+        result_paths = contract.get("snapshot", {}).get("result_paths", []) if contract else []
+        if isinstance(contract_ref, dict) and contract_ref.get("path") == "/snapshot/result_paths":
+            return normalised_path in result_paths
+    return False
+
+
+def _derived_evidence_value(operator, values, expected):
+    if operator == "equal":
+        return bool(values) and values[0] == expected
+    if operator in {"all", "present"}:
+        return bool(values) and all(values)
+    if operator == "same_destination_exclusive_interval":
+        return bool(values) and len(values) >= 2 and all(values) and values[0] == values[1]
+    if operator == "contract_default_when_false":
+        return bool(values) and values[0] is False
+    if operator == "not_supported_by_contract":
+        return False
+    if operator == "selected-path-matches-refreshed-project":
+        return len(values) == 3 and values[0] == values[1] and bool(values[2])
+    if operator == "backing-kind-capability-difference":
+        return (
+            len(values) == 3
+            and values[0] == "chatgpt"
+            and "attention" in str(values[2]).lower()
+            and "attention" not in str(values[1]).lower()
+        )
+    if operator == "clause_absent":
+        # The evidence predicate is "the guarantee is present"; the
+        # catalog operator names the negative test that proves it absent.
+        return bool(values) and str(expected).lower() in str(values[0]).lower()
+    if operator == "pairwise-identical-snapshot":
+        return bool(values) and len(values) % 2 == 0 and values[: len(values) // 2] == values[len(values) // 2 :]
+    return None
+
+
 def _record_groups(case):
     groups = {}
     operation_assertions = case.get("task_operation_assertions", {})
@@ -252,7 +402,7 @@ def _evidence_predicate_valid(case, records, evidence):
         "host_user_event": "/event/",
         "tool_result": "/raw_result/",
         "contract_snapshot": "/snapshot/",
-        "transport_or_tool_failure": "/raw_result/",
+        "transport_or_tool_failure": "/failure/",
     }
     values = []
     for premise in evidence.get("premises", []):
@@ -263,23 +413,18 @@ def _evidence_predicate_valid(case, records, evidence):
         root = permitted_roots.get(record.get("kind"))
         if not root or not path.startswith(root) or path.endswith("/request"):
             return False
+        if not _fixture_provenance_valid(case, records, premise):
+            return False
         value, present = _resolve_pointer(record, path)
         if not present:
             return False
         values.append(value)
     operator = evidence.get("derivation", {}).get("operator")
     expected = evidence.get("derivation", {}).get("expected")
-    if operator == "equal":
-        return bool(values) and values[0] == expected
-    if operator in {"all", "present"}:
-        return bool(values) and all(values)
-    if operator == "same_destination_exclusive_interval":
-        return bool(values) and len(values) >= 2 and all(values) and values[0] == values[1]
-    if operator == "contract_default_when_false":
-        return bool(values) and values[0] is False
-    if operator == "not_supported_by_contract":
+    derived = _derived_evidence_value(operator, values, expected)
+    if derived is None:
         return False
-    return False
+    return derived == evidence.get("value")
 
 
 def _dependent_evidence_fails(case, control):
@@ -360,7 +505,7 @@ def _terminal_claim_failure_reason(case, statement):
         return "explicit-delegation-default-not-coordinated"
     if "broader release-readiness objective is complete" in statement:
         return "child-slice-cannot-complete-parent"
-    if _asserted_phrase(statement, "heartbeat"):
+    if _asserted_phrase(statement, "heartbeat") or _asserted_phrase(statement, "pulse"):
         return "scheduled-heartbeat-not-event-callback"
     if "desktop notification" in statement:
         return "human-notification-not-agent-wakeup"
@@ -435,22 +580,38 @@ def _asserted_phrase(text, phrase):
         index = text.find(phrase, start)
         if index < 0:
             return False
-        sentence_start = max(text.rfind(".", 0, index), text.rfind(";", 0, index)) + 1
-        sentence_end_candidates = [end for end in (text.find(".", index), text.find(";", index)) if end >= 0]
-        sentence_end = min(sentence_end_candidates, default=len(text))
-        sentence = text[sentence_start:sentence_end]
-        if not any(
-            marker in sentence
-            for marker in (" not ", "never ", "do not ", "don't ", "avoid ", "refrain ")
+        clause_start = max(
+            text.rfind(".", 0, index),
+            text.rfind(";", 0, index),
+            text.rfind(",", 0, index),
+        ) + 1
+        clause_end_candidates = [
+            end
+            for end in (text.find(".", index), text.find(";", index), text.find(",", index))
+            if end >= 0
+        ]
+        clause_end = min(clause_end_candidates, default=len(text))
+        before = text[max(clause_start, index - 80) : index]
+        after = text[index + len(phrase) : clause_end]
+        if not re.search(r"\b(?:not|never|do not|don't|isn't|avoid|refrain)\b", before) and not re.search(
+            r"^\s*(?:is|are|was|were|as|should|must)?\s*(?:not|never|isn't)\b", after
         ):
             return True
         start = index + len(phrase)
 
 
 def _omits_term(prompt, term):
-    return term not in prompt or _positive_phrase(prompt, f"omit {term}") or _positive_phrase(
-        prompt, f"without {term}"
+    if term not in prompt:
+        return True
+    term_pattern = re.escape(term).replace(r"_", r"[_ -]?")
+    omission = re.compile(
+        rf"\b(?:omit|skip|exclude|without|missing|leave\s+out)\s+(?:the\s+)?{term_pattern}\b"
     )
+    for match in omission.finditer(prompt):
+        prefix = prompt[max(0, match.start() - 40) : match.start()]
+        if not re.search(r"\b(?:do not|don't|never|avoid|refrain)\b", prefix):
+            return True
+    return False
 
 
 def _prompt_contract_failure_reason(prompt):
@@ -468,7 +629,9 @@ def _prompt_contract_failure_reason(prompt):
         return "one-shot-contract-overbuilt"
     if "without re-reading" in prompt:
         return "mutable-fact-revalidation-missing"
-    if "acceptance_map" in prompt and _omits_term(prompt, "acceptance_map"):
+    if re.search(r"\bacceptance[_ -]?(?:map|mapping)\b", prompt) and _omits_term(
+        prompt, "acceptance_map"
+    ):
         return "canonical-terminal-report-incomplete"
     if "acknowledged" in prompt or "without reporting" in prompt:
         return "attention-acknowledgement-missing"
@@ -529,6 +692,32 @@ class DelegateContractCaseTests(unittest.TestCase):
             "A scheduled heartbeat is not a child-completion callback; wait for the observed child result."
         )
         self.assertFalse(_terminal_claim_fails(heartbeat_case, heartbeat_decoy))
+        heartbeat_decoy["mutation"]["value"] = (
+            "A scheduled pulse isn't a child-completion callback; wait for the observed child result."
+        )
+        self.assertFalse(_terminal_claim_fails(heartbeat_case, heartbeat_decoy))
+        heartbeat_decoy["mutation"]["value"] = (
+            "Schedule a heartbeat as the completion callback instead of waiting for the observed child result."
+        )
+        self.assertTrue(_terminal_claim_fails(heartbeat_case, heartbeat_decoy))
+        self.assertTrue(
+            _prompt_contract_fails(
+                "Complete the objective, leave out the acceptance map, and deliver the report.",
+                "canonical-terminal-report-incomplete",
+            )
+        )
+        self.assertTrue(
+            _prompt_contract_fails(
+                "Complete the objective, exclude the acceptance mapping, and deliver the report.",
+                "canonical-terminal-report-incomplete",
+            )
+        )
+        self.assertTrue(
+            _prompt_contract_fails(
+                "Complete the objective, skip acceptance_map, and deliver the report.",
+                "canonical-terminal-report-incomplete",
+            )
+        )
         evidence_case = next(case for case in payload["cases"] if case["id"] == "explicit-uncommitted-state")
         evidence = next(item for item in evidence_case["capability_evidence"] if item["id"] == "ce-state-authority")
         records = _record_groups(evidence_case)
@@ -606,6 +795,11 @@ class DelegateContractCaseTests(unittest.TestCase):
                     self.assertTrue(expected_failure.get("assertion_id"), control.get("id"))
                     self.assertIn(expected_failure["assertion_id"], known_ids, control.get("id"))
                     self.assertTrue(expected_failure.get("reason_code"), control.get("id"))
+                    self.assertEqual(
+                        _REASON_CRITERION.get(expected_failure["reason_code"]),
+                        expected_failure["criterion_id"],
+                        control.get("id"),
+                    )
                     baseline = known_records[target["id"]]
                     mutated = apply_catalog_mutation(baseline, mutation)
                     self.assertNotEqual(mutated, baseline, control.get("id"))
@@ -723,9 +917,12 @@ class DelegateContractCaseTests(unittest.TestCase):
             self.assertTrue(expected_failure.get("criterion_id"), case["id"])
             self.assertTrue(expected_failure.get("assertion_id"), case["id"])
             self.assertIn(expected_failure["assertion_id"], (*base_ids, *semantic_assertions), case["id"])
-            self.assertIn(expected_failure["criterion_id"], {
-                assertion.get("criterion_id") for assertion in semantic_assertions.values()
-            }, case["id"])
+            self.assertEqual(case["criterion_id"], expected_failure["criterion_id"], case["id"])
+            self.assertEqual(
+                semantic_assertions[expected_failure["assertion_id"]]["criterion_id"],
+                expected_failure["criterion_id"],
+                case["id"],
+            )
             self.assertTrue(expected_failure.get("reason_code"), case["id"])
             prompt = mutation["value"].get("prompt", "")
             base_case = cases_by_id[case["base_case_id"]]
@@ -737,6 +934,9 @@ class DelegateContractCaseTests(unittest.TestCase):
             }
             self.assertEqual(candidate_call["args"].get("target"), base_create["args_match"]["value"].get("target"), case["id"])
             self.assertEqual(candidate_call["args"].get("prompt"), prompt, case["id"])
+            baseline_prompt = case.get("baseline_prompt", "")
+            self.assertTrue(baseline_prompt.strip(), case["id"])
+            self.assertIsNone(_prompt_contract_failure_reason(baseline_prompt), case["id"])
             self.assertTrue(
                 _prompt_contract_fails(prompt, expected_failure["reason_code"]),
                 case["id"],
