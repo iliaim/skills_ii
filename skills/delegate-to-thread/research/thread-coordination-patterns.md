@@ -93,6 +93,20 @@ The dated observations above motivated the current contract, but they do not def
 freshness, and completion. Keeping those rules in one place prevents research snapshots from
 becoming a second, stale workflow.
 
+## Open process issue: execution context and accidental re-delegation
+
+A delegated repository task can appear to make progress while working in the wrong checkout when the
+creation prompt omits the worktree, branch, base revision, and write authority. A child can also
+mistake delegation provenance or copied orchestration context for a new instruction and create a
+second user-visible task. These are handoff-contract failures, not merely implementation mistakes.
+
+The minimal prevention is to make execution context a required first-message and first-checkpoint
+field, fail closed when an isolated checkout is missing and direct-local writing was not authorized,
+and prohibit descendant creation unless the first message grants it explicitly. The terminal report
+must repeat the context and identify changed files and the commit or pull request. This preserves a
+single parent → child ownership boundary and makes a wrong-checkout or re-delegation error visible
+before completion is claimed.
+
 ## Open platform issue: setup-only creation handles
 
 The live desktop runtime can return a `clientThreadId` while worktree setup is still in progress.

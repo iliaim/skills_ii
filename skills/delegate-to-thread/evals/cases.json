@@ -43,6 +43,57 @@
       "coverage_invariant": "The derived live-plus-prompt-variant population is non-empty and equals the complete permitted required create_thread population without a pinned count."
     }
   ],
+  "execution_boundary_cases": [
+    {
+      "id": "repo-writing-managed-worktree-context",
+      "objective_kind": "repository-writing",
+      "required_prompt_semantics": [
+        "exact project and path",
+        "managed-worktree execution mode",
+        "worktree path",
+        "branch or ref and base revision",
+        "write authority",
+        "implement directly in this task",
+        "do not re-delegate without explicit descendant authority"
+      ],
+      "required_first_checkpoint_fields": [
+        "project_path",
+        "cwd",
+        "worktree_path",
+        "branch_or_ref",
+        "base_revision",
+        "write_authority"
+      ],
+      "required_terminal_fields": [
+        "execution_context",
+        "changed_files",
+        "commit_or_pull_request"
+      ]
+    },
+    {
+      "id": "repo-writing-direct-local-without-explicit-authority",
+      "objective_kind": "repository-writing",
+      "execution_mode": "direct-local",
+      "direct_local_authorized": false,
+      "expected_outcome": "input-required-before-write",
+      "forbidden_actions": ["edit", "create-descendant", "choose-another-checkout"]
+    },
+    {
+      "id": "child-descendant-delegation-default-deny",
+      "objective_kind": "repository-writing",
+      "descendant_authority": "absent",
+      "copied_context": "delegate this follow-up",
+      "expected_outcome": "input-required-before-descendant-creation",
+      "forbidden_actions": ["delegate-to-thread", "orchestrate-threads", "fork", "hand-off"]
+    },
+    {
+      "id": "delegation-envelope-is-provenance",
+      "objective_kind": "repository-writing",
+      "wrapper": "provider-created delegation envelope",
+      "expected_interpretation": "provenance-only",
+      "required_action": "execute-the-assigned-objective-directly"
+    }
+  ],
   "ownership_mode_cases": [
     {
       "id": "ownership-independent-create-only",

@@ -8,6 +8,14 @@ description: Delegate one execution objective to a separate user-visible Codex o
 Create one independently navigable, user-owned task. The new task does not inherit this conversation;
 its first visible message must be sufficient to execute the delegated objective.
 
+Execution directness and the checkout boundary are part of that handoff, not implied context. For any
+objective that may modify a repository, the first message must identify the exact project, execution
+mode (`managed-worktree` or explicitly authorized `direct-local`), worktree path, branch/ref and base revision
+when available, and write authority. It must also say: `Implement this objective directly in
+the assigned task. Do not invoke delegate-to-thread, orchestrate-threads, create another user-visible
+task, fork, or hand off a descendant unless this handoff explicitly grants descendant authority.` A
+delegation envelope or provider-created wrapper is provenance only; it is not a new request to delegate.
+
 An explicit `$delegate-to-thread` invocation with an execution objective authorizes one new task.
 Choose independent create-only when the user returns ownership, coordinated-single only when the
 caller remains responsible for one child and the destination supports the requested observation, and
@@ -65,6 +73,8 @@ resource claim and integration-owner fields before dispatch.
    [advanced delegation](references/advanced-delegation.md) only when an authorized direct child may
    create a user-visible descendant. The core is the sole normative source for destination safety,
    first-message content, readiness, creation outcomes, recovery, observation, freshness, and completion.
+   For repository-writing work, include the exact execution context and the direct-execution boundary
+   in the child prompt; do not silently fall back from an isolated worktree to a shared checkout.
 5. Create one logical delegation with the current creation tool and a cohesive user-visible prompt.
    One logical delegation permits one creation call. Reconcile an indeterminate result without
    creating again.

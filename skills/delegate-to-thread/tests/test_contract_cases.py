@@ -64,6 +64,48 @@ class DelegateContractCaseTests(unittest.TestCase):
         self.assertIn("must not return a bare", contract)
         self.assertIn("No separate caller-generated correlation token", contract)
 
+    def test_repository_work_requires_explicit_execution_context(self):
+        skill = (SKILL_ROOT / "SKILL.md").read_text()
+        contract = (SKILL_ROOT / "references" / "task-contract.md").read_text()
+        for text in (skill, contract):
+            self.assertIn("managed-worktree", text)
+            self.assertIn("direct-local", text)
+            self.assertIn("worktree path", text)
+            self.assertIn("base revision", text)
+            self.assertIn("Implement this objective directly", text)
+            self.assertIn("descendant authority", text)
+        self.assertIn("input-required", contract)
+        self.assertIn("first checkpoint and terminal report", contract)
+
+    def test_execution_boundary_eval_cases_cover_the_incident(self):
+        payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
+        cases = {case["id"]: case for case in payload["execution_boundary_cases"]}
+        expected = {
+            "repo-writing-managed-worktree-context",
+            "repo-writing-direct-local-without-explicit-authority",
+            "child-descendant-delegation-default-deny",
+            "delegation-envelope-is-provenance",
+        }
+        self.assertEqual(expected, set(cases))
+        self.assertEqual(
+            "input-required-before-write",
+            cases["repo-writing-direct-local-without-explicit-authority"]["expected_outcome"],
+        )
+        self.assertEqual(
+            "input-required-before-descendant-creation",
+            cases["child-descendant-delegation-default-deny"]["expected_outcome"],
+        )
+        self.assertIn(
+            "execute-the-assigned-objective-directly",
+            cases["delegation-envelope-is-provenance"]["required_action"],
+        )
+
+    def test_research_note_records_checkout_and_redelegation_failure_modes(self):
+        research = (SKILL_ROOT / "research" / "thread-coordination-patterns.md").read_text()
+        self.assertIn("Open process issue: execution context and accidental re-delegation", research)
+        self.assertIn("fail closed", research)
+        self.assertIn("single parent → child ownership boundary", research)
+
 
 if __name__ == "__main__":
     unittest.main()

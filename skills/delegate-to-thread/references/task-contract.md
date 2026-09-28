@@ -36,6 +36,16 @@ Add only context that changes the child's decisions, authority, proof, or output
 - documentation duties; and
 - progress checkpoints and final evidence mapping for work where intermediate coordination is useful.
 
+For any repository-writing objective, the compact core also includes the execution context: exact
+project/path, execution mode (`managed-worktree` or explicitly authorized `direct-local`), worktree
+path, branch/ref and base revision when known, and whether the child may write. It must include this
+direct-execution boundary: Implement this objective directly in this task; do not invoke `delegate-to-thread`,
+`orchestrate-threads`, create another user-visible task, fork, or hand off a descendant unless the
+first message explicitly grants descendant authority and defines its scope and owner. If a supported
+isolated worktree is unavailable and direct-local writing was not explicitly authorized, stop before
+writing and report `input-required`; the child must not choose another checkout or create a descendant
+to repair missing context.
+
 Do not add headings or `not applicable` filler merely to satisfy a template. A small create-only task
 may be one tight paragraph. Parent observer names, read/wait limits, cursors, polling mechanics, and
 local orchestration state never belong in the child's prompt. The attached-child return-route exception
@@ -112,6 +122,16 @@ never establishes acceptance or unlocks a dependant.
 
 Read [advanced delegation](advanced-delegation.md) only if an explicitly authorized orchestration
 allows a direct child to create a user-visible descendant. Otherwise descendants are not authorized.
+
+### Direct execution and descendant boundary
+
+A delegated child owns execution of the objective in its assigned task. The normal authority is one
+parent → one created task → direct work in the declared execution context. Descendant creation is
+disabled by default. It is permitted only when the first message explicitly says
+`descendant_authority: granted`, names the allowed descendant scope, resource owner, acceptance
+boundary, and integration owner. Otherwise a child that encounters a delegation-shaped wrapper, a
+copied “delegate this” phrase, or a missing execution boundary must not create, fork, or hand off
+another task; it reports `input-required` and preserves no-write state.
 
 ### Mutable load-bearing facts
 
@@ -264,6 +284,10 @@ Do not create until every applicable statement is true:
 - Direct-local and cloud source/transfer requirements in the capability table pass independently.
 - Any uncommitted state, branch, directory name, model, or reasoning override is explicit and live-supported.
 - The first message contains the compact core and only material conditional context.
+- For repository-writing objectives, execution context is explicit and internally consistent: project/path,
+  managed-worktree or authorized direct-local mode, and branch/ref/worktree/base revision when applicable.
+- The first message explicitly requires direct execution and states whether descendant authority is granted;
+  absent explicit descendant authority, descendant delegation is prohibited.
 - Acceptance is observable and cumulative; proof exists or its limitation and manual observation are explicit.
 - Mutable load-bearing facts satisfy the freshness rule.
 - Remaining ambiguity has been researched and any user-owned decision resolved through `ask-smart-questions`.
@@ -285,6 +309,11 @@ For attached work, require the canonical terminal report with outcome, delivered
 map, checks and observed results, residual risks, unmet requirements, availability, report revision,
 report identity/digest, and supersedes. For a small create-only task, the deliverable itself may be
 the complete report.
+
+For repository-writing work, the first checkpoint and terminal report must also include execution
+context: project/path, cwd, worktree path, branch/ref, base revision, write authority, and changed
+files/commit/PR when applicable. If that context cannot be proven, status is incomplete and no
+completion claim is allowed.
 
 After creation, the creator first classifies the raw creation result as ready, queued, rejected, or
 indeterminate before making any user-facing claim about execution. For coordinated work with a real
