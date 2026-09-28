@@ -350,7 +350,7 @@ def path_disclosure_admissible(trace, native_transfer_evidence=None):
             or bool(re.search(r"(?<![A-Za-z0-9/:])/(?!/)", value))
             or bool(re.match(r"^[^:/\\\s]+(?:[/\\][^/\\]+)+$", value))
             or bool(re.match(r"^[^/\\\s]+\.[A-Za-z0-9]{1,8}$", value))
-            or (bool(re.search(r"\s", value)) and bool(re.search(r"[/\\.]", value)))
+            or bool(re.search(r"\s", value))
         )
 
     return not contains_raw_path(trace)
@@ -1142,6 +1142,7 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "secret.txt",
             "work tree/file",
             "foo bar.txt",
+            "foo bar",
         ):
             leaked = {
                 "destination_scope": "cloud",
