@@ -47,11 +47,29 @@ immutable source report identity/digest recorded on that edge. Its artifact fiel
 reused, reordered, or absent. Preserve a native identity as `turn:<id>` or `event:<id>`, or a report
 digest as `sha256:<64-hex-digest>`; without one, the edge remains pending/incomplete. A newer or contradictory report, artifact revision, or
 observation supersedes the record and recloses every affected dependant until the edge is remapped.
-The parent retains the matching raw native event/turn or recomputes the digest from the canonical
-source-report payload; an identity-shaped label alone cannot open an edge.
+The parent retains the matching raw native event/turn. A digest path is admissible only when the
+canonical source-report payload is paired with an independently authenticated immutable provenance
+record naming the source child, report revision, criterion, and exact digest; recomputation alone
+is integrity checking, not issuer authentication. An identity-shaped label alone cannot open an edge.
 An `available_artifact` edge additionally requires an exact readable path and commit/HEAD or another
 immutable artifact revision. Missing, stale, ambiguous, superseded, or unacknowledged evidence never
 opens a gate.
+
+## Acceptance-contract and cold-review gates
+
+When the parent supplies an acceptance contract, read the exact file before dispatch and treat it as run
+authority for cumulative criteria, named checkpoints, stop conditions, and required evidence. Map each
+criterion and checkpoint into the transcript-local ledger. For a contract with T0–T8 or equivalent
+IDs, record every task and candidate criterion separately with its required status, evidence, and
+dependency; a success-criteria summary is not a task ledger. At each named stop checkpoint, re-read
+the fresh diff and evidence before opening the next gate. If the contract requires an independent
+challenger before implementation or after a named phase, dispatch a cold read-only reviewer, or use
+bounded read-only subagents when the result belongs in the current response. The review request must
+include the exact contract path, the candidate or artifact revision, the read-only boundary, the
+checkpoint, and the required disposition. A gate opens only from a report that identifies the exact
+reviewed revision, maps findings to criteria, lists dispositions, records unresolved blockers, and is
+bound to a native turn/event identity or a SHA-256 report digest. Commentary or status text alone is
+not review evidence.
 
 Before the first dispatch, resolve the run-specific limits that materially govern:
 
@@ -120,28 +138,42 @@ Supply the bounded outcome, parent relationship, root criterion, scope, authorit
 acceptance and proof, deliverable, stop conditions, and—when the child may write—the integration
 owner, allowed integration action, and evidence it must return. The child prompt must not contain
 the root's observation mechanics, cursors, wait budget, or ledger.
+For a writable child, preserve the delegate contract's exact execution-boundary evidence, including
+`execution_evidence`: the dispatch mode, starting-state rule, observed checkout, write authority, first checkpoint, and
+terminal report must remain bound to the same project/worktree before integration is considered.
 
 Before delegating, the parent records a pending-create entry containing `logical_child_key`,
 `contract_digest`, `destination_fingerprint`, and `attempt`. After the create call, it records the raw
-provider result before deriving state and completing registration. If a turn ends in that interval,
-the next turn reconciles only by exact provider identity, supported idempotency key, or controller
-record. No second create, title/path match, or bounded-list absence inference is permitted; without a
-supported reconciliation route the node remains `indeterminate` and its dependants stay held.
+provider result before deriving state and completing registration. A setup-only result immediately
+enters the delegate contract's bounded automatic exact-handle setup-resolution gate. If a turn ends in
+that interval, the next turn repeats the gate for that exact pending entry. No second create,
+title/path match, or bounded-list absence inference is permitted; without a proven exact identity the
+node remains `queued/unmonitorable` and its dependants stay held. Use `indeterminate` only when a
+provider may have created a side effect without an exact reconciliation route.
 
-Delegate creates once and returns raw and derived creation evidence without waiting:
+Delegate creates once and returns raw and derived creation evidence after the bounded setup-resolution
+gate:
 
 - Ready: register the returned operable identity, including `hostId` when supplied or required;
   exact-ID operations may begin.
-- Queued/unmonitorable: register only the runtime-owned `clientThreadId` setup handle; it is
-  non-operable and cannot be observed, contacted, or used to unlock a dependant. Do not create a
-  second caller token. Hold all dependants unless the runtime resolver or a provider callback supplies
-  a real ID for this exact pending entry and native exact-ID read confirms it, as defined by the
-  delegate task contract; otherwise remain suspended or indeterminate without another create call.
+- Queued/unmonitorable: register only the runtime-owned `clientThreadId` setup handle after the
+  automatic gate is exhausted; it is non-operable and cannot be observed, contacted, or used to
+  unlock a dependant. Do not create a second caller token. On a later exact pending-entry resume,
+  repeat the same bounded gate; otherwise remain suspended without another create
+  call.
 - Indeterminate: retain only returned stable correlation evidence. Reconcile only through a
   supported exact route.
 - Rejected: retain exact proof, leave the node undispatched, and hold dependants.
 
 Never retry creation, match by title, scrape unrelated transcripts, or construct a replacement.
+
+Absence of a real task ID after the bounded automatic gate is not a root-wide stop. Preserve the raw
+provider result and classify the node as `queued/unmonitorable`; use `indeterminate` only when the
+provider may have created a side effect without an exact reconciliation route. Hold that node and
+its dependants only. The parent may continue independent root work and bounded current-response
+read-only reviews whose dependencies are open. Do not observe or contact a `clientThreadId`, invent
+an ID, retry creation, match by title, scrape transcripts, or create a replacement. Reconcile only
+through the same exact-handle gate when the pending entry is resumed.
 
 If one delegate-owned coordinated child grows into a graph, adopt its exact ID, host, cursor,
 delegated-contract reference, execution evidence, acceptance evidence, and availability evidence.

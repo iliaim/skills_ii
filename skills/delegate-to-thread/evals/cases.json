@@ -43,6 +43,492 @@
       "coverage_invariant": "The derived live-plus-prompt-variant population is non-empty and equals the complete permitted required create_thread population without a pinned count."
     }
   ],
+  "execution_boundary_cases": [
+    {
+      "id": "repo-writing-managed-worktree-context",
+      "objective_kind": "repository-writing",
+      "required_prompt_semantics": [
+        "exact project and path",
+        "managed-worktree execution mode",
+        "worktree path",
+        "branch or ref and base revision",
+        "write authority",
+        "implement directly in this task",
+        "do not re-delegate without explicit descendant authority"
+      ],
+      "required_first_checkpoint_fields": [
+        "project_path",
+        "cwd",
+        "worktree_root",
+        "branch_or_ref",
+        "base_revision",
+        "write_authority"
+      ],
+      "required_terminal_fields": [
+        "execution_context",
+        "changed_files",
+        "commit_or_pull_request"
+      ],
+      "protocol_oracle": {
+        "kind": "execution_boundary",
+        "expected": "accept",
+        "trace": {
+          "execution_context": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "requested_starting_state": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "absent"
+          },
+          "direct_execution": true,
+          "pre_write_verified": true,
+          "execution_evidence": {
+            "source": "native-read-only-check",
+            "evidence_id": "event:checkout-1",
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean",
+            "write_authority": "authorized",
+            "starting_state": "origin/main"
+          },
+          "observed_checkout": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean"
+          },
+          "actions": ["execute_directly", "checkpoint", "write", "terminal_report"],
+          "checkpoint_fields_present": [
+            "execution_context", "project_path", "cwd", "worktree_root", "branch_or_ref", "head_revision", "base_revision", "working_tree_status", "write_authority"
+          ],
+          "terminal_fields_present": ["execution_context", "observed_checkout", "changed_files", "commit_or_pull_request"],
+          "checkpoint_payload": {
+            "execution_context": {
+              "project_path": "/repo",
+              "cwd": "/repo/worktrees/child",
+              "worktree_path": "/repo/worktrees/child",
+              "branch_or_ref": "codex/child",
+              "base_revision": "origin/main",
+              "requested_starting_state": "origin/main",
+              "write_authority": "authorized",
+              "execution_mode": "managed-worktree",
+              "descendant_authority": "absent"
+            },
+            "observed_checkout": {
+              "project_path": "/repo",
+              "cwd": "/repo/worktrees/child",
+              "worktree_root": "/repo/worktrees/child",
+              "branch_or_ref": "codex/child",
+              "head_revision": "child-head",
+              "base_revision": "origin/main",
+              "working_tree_status": "clean"
+            },
+            "write_authority": "authorized"
+          },
+          "terminal_report_payload": {
+            "execution_context": {
+              "project_path": "/repo",
+              "cwd": "/repo/worktrees/child",
+              "worktree_path": "/repo/worktrees/child",
+              "branch_or_ref": "codex/child",
+              "base_revision": "origin/main",
+              "requested_starting_state": "origin/main",
+              "write_authority": "authorized",
+              "execution_mode": "managed-worktree",
+              "descendant_authority": "absent"
+            },
+          "observed_checkout": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head-post",
+              "base_revision": "origin/main",
+              "working_tree_status": "clean"
+            },
+            "changed_files": ["src/example.py"],
+            "commit_or_pull_request": "commit:child-head-post"
+          }
+        },
+        "native_execution_evidence": {
+          "source": "native-read-only-check",
+          "evidence_id": "event:checkout-1",
+          "project_path": "/repo",
+          "cwd": "/repo/worktrees/child",
+          "worktree_root": "/repo/worktrees/child",
+          "branch_or_ref": "codex/child",
+          "head_revision": "child-head",
+          "base_revision": "origin/main",
+          "working_tree_status": "clean",
+          "write_authority": "authorized",
+          "starting_state": "origin/main"
+        },
+        "native_dispatch_intent_evidence": {
+          "source": "native-dispatch-record",
+          "evidence_id": "event:dispatch-1",
+          "immutable": true,
+          "dispatch_intent": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "requested_starting_state": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "absent"
+          }
+        },
+        "native_post_write_evidence": {
+          "source": "native-post-write-check",
+          "evidence_id": "event:post-write-1",
+          "execution_context": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "requested_starting_state": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "absent"
+          },
+            "observed_checkout": {
+              "project_path": "/repo",
+              "cwd": "/repo/worktrees/child",
+              "worktree_root": "/repo/worktrees/child",
+              "branch_or_ref": "codex/child",
+              "head_revision": "child-head-post",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean"
+          },
+          "changed_files": ["src/example.py"],
+          "commit_or_pull_request": "commit:child-head-post",
+          "immutable_revision": "child-head-post"
+        }
+      }
+    },
+    {
+      "id": "repo-writing-direct-local-without-explicit-authority",
+      "objective_kind": "repository-writing",
+      "execution_mode": "direct-local",
+      "direct_local_authorized": false,
+      "expected_outcome": "input-required-before-write",
+      "forbidden_actions": ["edit", "create-descendant", "choose-another-checkout"],
+      "protocol_oracle": {
+        "kind": "execution_boundary",
+        "expected": "reject",
+        "trace": {
+          "execution_context": {
+            "project_path": "/repo",
+            "cwd": "/repo",
+            "worktree_path": "/repo",
+            "branch_or_ref": "main",
+            "base_revision": "origin/main",
+            "execution_mode": "direct-local",
+            "write_authority": "not-authorized",
+            "descendant_authority": "absent"
+          },
+          "direct_execution": true,
+          "pre_write_verified": true,
+          "observed_checkout": {
+            "project_path": "/repo",
+            "cwd": "/repo",
+            "worktree_root": "/repo",
+            "branch_or_ref": "main",
+            "head_revision": "main-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean"
+          },
+          "actions": ["edit"]
+        }
+      }
+    },
+    {
+      "id": "child-descendant-delegation-default-deny",
+      "objective_kind": "repository-writing",
+      "descendant_authority": "absent",
+      "copied_context": "delegate this follow-up",
+      "expected_outcome": "input-required-before-descendant-creation",
+      "forbidden_actions": ["delegate-to-thread", "orchestrate-threads", "fork", "hand-off"],
+      "protocol_oracle": {
+        "kind": "execution_boundary",
+        "expected": "reject",
+        "trace": {
+          "execution_context": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "requested_starting_state": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "absent"
+          },
+          "direct_execution": true,
+          "pre_write_verified": true,
+          "observed_checkout": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean"
+          },
+          "actions": ["delegate-to-thread"]
+        }
+      }
+    },
+    {
+      "id": "delegation-envelope-is-provenance",
+      "objective_kind": "repository-writing",
+      "wrapper": "provider-created delegation envelope",
+      "expected_interpretation": "provenance-only",
+      "required_action": "execute-the-assigned-objective-directly",
+      "protocol_oracle": {
+        "kind": "execution_boundary",
+        "expected": "accept",
+        "trace": {
+          "execution_context": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "requested_starting_state": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "absent"
+          },
+          "wrapper_is_provenance": true,
+          "direct_execution": true,
+          "pre_write_verified": true,
+          "execution_evidence": {
+            "source": "provider-assigned-worktree",
+            "evidence_id": "event:checkout-2",
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean",
+            "write_authority": "authorized",
+            "starting_state": "origin/main"
+          },
+          "observed_checkout": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean"
+          },
+          "actions": ["execute_directly"]
+        },
+        "native_execution_evidence": {
+          "source": "provider-assigned-worktree",
+          "evidence_id": "event:checkout-2",
+          "project_path": "/repo",
+          "cwd": "/repo/worktrees/child",
+          "worktree_root": "/repo/worktrees/child",
+          "branch_or_ref": "codex/child",
+          "head_revision": "child-head",
+          "base_revision": "origin/main",
+          "working_tree_status": "clean",
+          "write_authority": "authorized",
+          "starting_state": "origin/main"
+        }
+        ,"native_dispatch_intent_evidence": {
+          "source": "native-dispatch-record",
+          "evidence_id": "event:dispatch-2",
+          "immutable": true,
+          "dispatch_intent": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "requested_starting_state": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "absent"
+          }
+        }
+      }
+    },
+    {
+      "id": "parent-issued-descendant-envelope",
+      "objective_kind": "repository-writing",
+      "descendant_authority": "granted",
+      "expected_outcome": "descendant-creation-authorized",
+      "protocol_oracle": {
+        "kind": "execution_boundary",
+        "expected": "accept",
+        "trace": {
+          "execution_context": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "requested_starting_state": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "granted"
+          },
+          "parent_issued_envelope": {
+            "root_id": "root-1",
+            "parent_id": "parent-1",
+            "child_key": "child-review-1",
+            "scope": "review-only",
+            "depth_limit": 1,
+            "budget": 1,
+            "active_budget": 1,
+            "total_budget": 1,
+            "resource_claim": "child-review",
+            "acceptance_boundary": "return-review",
+            "integration_owner": "parent-1",
+            "stop_rule": "stop-after-review",
+            "issuer_id": "parent-1",
+            "allowed_actions": ["delegate-to-thread"],
+            "destination_fingerprint": "repo:/repo/worktrees/child",
+            "identity_or_digest": "sha256:bda4bcb3bcd068a2e433fc36a55b79959021996a2a4a8b6b1e4eb892f69da866"
+          },
+          "direct_parent_id": "parent-1",
+          "root_id": "root-1",
+          "direct_execution": true,
+          "pre_write_verified": true,
+          "execution_evidence": {
+            "source": "provider-assigned-worktree",
+            "evidence_id": "event:checkout-3",
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean",
+            "write_authority": "authorized",
+            "starting_state": "origin/main"
+          },
+          "observed_checkout": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean"
+          },
+          "actions": ["execute_directly", "delegate-to-thread"],
+          "descendant_child_keys": ["child-review-1"],
+          "descendant_budget_consumption": {"active_remaining": 0, "total_remaining": 0}
+        },
+        "native_execution_evidence": {
+          "source": "provider-assigned-worktree",
+          "evidence_id": "event:checkout-3",
+          "project_path": "/repo",
+          "cwd": "/repo/worktrees/child",
+          "worktree_root": "/repo/worktrees/child",
+          "branch_or_ref": "codex/child",
+          "head_revision": "child-head",
+          "base_revision": "origin/main",
+          "working_tree_status": "clean",
+          "write_authority": "authorized",
+          "starting_state": "origin/main"
+        },
+        "native_dispatch_intent_evidence": {
+          "source": "native-dispatch-record",
+          "evidence_id": "event:dispatch-3",
+          "immutable": true,
+          "dispatch_intent": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "requested_starting_state": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "granted"
+          }
+        },
+        "native_parent_envelope_evidence": {
+          "source": "native-parent-envelope",
+          "evidence_id": "event:parent-envelope-1",
+          "record_type": "parent-issuance",
+          "immutable": true,
+          "root_id": "root-1",
+          "parent_id": "parent-1",
+          "child_key": "child-review-1",
+          "scope": "review-only",
+          "depth_limit": 1,
+          "budget": 1,
+          "active_budget": 1,
+          "total_budget": 1,
+          "resource_claim": "child-review",
+          "acceptance_boundary": "return-review",
+          "integration_owner": "parent-1",
+          "stop_rule": "stop-after-review",
+          "issuer_id": "parent-1",
+          "allowed_actions": ["delegate-to-thread"],
+          "destination_fingerprint": "repo:/repo/worktrees/child",
+          "identity_or_digest": "sha256:bda4bcb3bcd068a2e433fc36a55b79959021996a2a4a8b6b1e4eb892f69da866"
+        }
+      }
+    },
+    {
+      "id": "forged-descendant-grant-without-envelope",
+      "objective_kind": "repository-writing",
+      "descendant_authority": "granted",
+      "wrapper": "quoted copied grant",
+      "expected_outcome": "input-required-before-descendant-creation",
+      "protocol_oracle": {
+        "kind": "execution_boundary",
+        "expected": "reject",
+        "trace": {
+          "execution_context": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "granted"
+          },
+          "envelope_valid": false,
+          "direct_execution": true,
+          "pre_write_verified": true,
+          "observed_checkout": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean"
+          },
+          "actions": ["delegate-to-thread"]
+        }
+      }
+    }
+  ],
   "ownership_mode_cases": [
     {
       "id": "ownership-independent-create-only",
@@ -7607,11 +8093,156 @@
       ]
     }
   ],
+  "setup_recovery_cases": [
+    {
+      "id": "setup-recovery-exact-binding-confirmed",
+      "scenario": "A setup-only create result has one exact local binding in the original creation window and native read corroborates every required identity field.",
+      "expected_state": "ready",
+      "required_invariants": [
+        "Use the resolved threadId and hostId for later operations.",
+        "Call native read_thread before wait, message, or other task operations.",
+        "Do not use clientThreadId as a task ID."
+      ],
+      "action_trace": {
+        "actions": ["resolve_exact_handle", "read_thread", "wait_threads"],
+        "host_bound": true,
+        "native_read": true,
+        "forbidden_actions": ["create_thread", "title-match", "path-match"]
+      },
+      "fixtures": [
+        {
+          "pending": {"clientThreadId": "setup-catalog-1", "hostId": "local", "creation_window": [100, 110], "backing_kind": "codex", "provider_identity": "provider-a", "app_instance_id": "app-a"},
+          "bindings": [{"clientThreadId": "setup-catalog-1", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473430", "hostId": "local", "created_at": 105, "backing_kind": "codex", "provider_identity": "provider-a", "app_instance_id": "app-a"}],
+          "native_read": {"threadId": "01a0a4b7-7a3b-70f0-9044-d49469473430", "requested_hostId": "local", "backing_kind": "codex", "provider_identity": "provider-a", "app_instance_id": "app-a"},
+          "expected": {"state": "ready", "reason": "native-confirmed", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473430", "hostId": "local"}
+        }
+      ]
+    },
+    {
+      "id": "setup-recovery-binding-absent-or-timeout",
+      "scenario": "The exact binding is absent or remains pending through the finite low-frequency recovery schedule.",
+      "expected_state": "queued/unmonitorable",
+      "required_invariants": [
+        "Preserve the exact clientThreadId as non-operable evidence.",
+        "Do not retry creation or claim rejection.",
+        "Repeat the same bounded gate only when the exact pending entry is resumed."
+      ],
+      "action_trace": {
+        "actions": ["resolve_exact_handle"],
+        "host_bound": false,
+        "native_read": false,
+        "forbidden_actions": ["create_thread", "wait_threads", "send_message_to_thread", "title-match", "path-match"]
+      },
+      "fixtures": [
+        {
+          "pending": {"clientThreadId": "setup-catalog-2", "hostId": "local", "creation_window": [100, 110]},
+          "bindings": [],
+          "native_read": null,
+          "expected": {"state": "queued/unmonitorable", "reason": "binding-not-found"}
+        },
+        {
+          "pending": {"clientThreadId": "setup-catalog-2-timeout", "hostId": "local", "creation_window": [100, 110]},
+          "bindings": [{"clientThreadId": "setup-catalog-2-timeout", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473431", "hostId": "local", "created_at": 111}],
+          "native_read": null,
+          "expected": {"state": "queued/unmonitorable", "reason": "binding-mismatch"}
+        }
+      ]
+    },
+    {
+      "id": "setup-recovery-duplicate-or-mismatched-binding",
+      "scenario": "The exact handle maps to multiple candidates or a candidate disagrees on host, time window, provider identity, kind, destination, or assigned worktree.",
+      "expected_state": "queued/unmonitorable",
+      "required_invariants": [
+        "Fail closed on ambiguity or mismatch.",
+        "Do not select by title, path, listing order, or transcript similarity.",
+        "Do not create a replacement."
+      ],
+      "action_trace": {
+        "actions": ["resolve_exact_handle"],
+        "host_bound": false,
+        "native_read": false,
+        "forbidden_actions": ["create_thread", "wait_threads", "send_message_to_thread", "title-match", "path-match", "listing-order"]
+      },
+      "fixtures": [
+        {
+          "pending": {"clientThreadId": "setup-catalog-3", "hostId": "local", "creation_window": [100, 110], "backing_kind": "codex"},
+          "bindings": [
+            {"clientThreadId": "setup-catalog-3", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473432", "hostId": "local", "created_at": 105, "backing_kind": "codex"},
+            {"clientThreadId": "setup-catalog-3", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473433", "hostId": "local", "created_at": 106, "backing_kind": "codex"}
+          ],
+          "native_read": null,
+          "expected": {"state": "queued/unmonitorable", "reason": "binding-not-unique"}
+        },
+        {
+          "pending": {"clientThreadId": "setup-catalog-3-mismatch", "hostId": "local", "creation_window": [100, 110], "backing_kind": "codex", "project_id": "expected"},
+          "bindings": [{"clientThreadId": "setup-catalog-3-mismatch", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473434", "hostId": "local", "created_at": 105, "backing_kind": "codex", "project_id": "other"}],
+          "native_read": null,
+          "expected": {"state": "queued/unmonitorable", "reason": "binding-mismatch"}
+        }
+      ]
+    },
+    {
+      "id": "setup-recovery-native-read-failure",
+      "scenario": "A unique exact binding exists, but native read_thread fails or does not corroborate the candidate.",
+      "expected_state": "queued/unmonitorable",
+      "required_invariants": [
+        "Do not treat the candidate UUID as operable.",
+        "Record the native failure and keep dependants suspended.",
+        "Do not contact, wait on, or message the candidate."
+      ],
+      "action_trace": {
+        "actions": ["resolve_exact_handle", "read_thread"],
+        "host_bound": true,
+        "native_read": false,
+        "forbidden_actions": ["create_thread", "wait_threads", "send_message_to_thread"]
+      },
+      "fixtures": [
+        {
+          "pending": {"clientThreadId": "setup-catalog-4", "hostId": "local", "creation_window": [100, 110], "backing_kind": "codex"},
+          "bindings": [{"clientThreadId": "setup-catalog-4", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473435", "hostId": "local", "created_at": 105, "backing_kind": "codex"}],
+          "native_read": null,
+          "expected": {"state": "queued/unmonitorable", "reason": "native-read-unconfirmed"}
+        },
+        {
+          "pending": {"clientThreadId": "setup-catalog-4-mismatch", "hostId": "local", "creation_window": [100, 110], "backing_kind": "codex"},
+          "bindings": [{"clientThreadId": "setup-catalog-4-mismatch", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473436", "hostId": "local", "created_at": 105, "backing_kind": "codex"}],
+          "native_read": {"threadId": "01a0a4b7-7a3b-70f0-9044-d49469473436", "requested_hostId": "remote", "backing_kind": "codex"},
+          "expected": {"state": "queued/unmonitorable", "reason": "native-read-unconfirmed"}
+        }
+      ]
+    },
+    {
+      "id": "setup-recovery-no-title-or-path-fallback",
+      "scenario": "The exact binding cannot be proven, while an unrelated task happens to share a title or worktree path.",
+      "expected_state": "queued/unmonitorable",
+      "required_invariants": [
+        "Never broad-scan transcripts or task listings to infer identity.",
+        "Never match by title or path.",
+        "Never retry or replace the original creation."
+      ],
+      "action_trace": {
+        "actions": ["resolve_exact_handle"],
+        "host_bound": false,
+        "native_read": false,
+        "forbidden_actions": ["create_thread", "wait_threads", "send_message_to_thread", "title-match", "path-match", "transcript-scan"]
+      },
+      "fixtures": [
+        {
+          "pending": {"clientThreadId": "setup-catalog-5", "hostId": "local", "creation_window": [100, 110]},
+          "bindings": [{"clientThreadId": "unrelated", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473437", "hostId": "local", "created_at": 105}],
+          "native_read": null,
+          "expected": {"state": "queued/unmonitorable", "reason": "binding-not-found"}
+        }
+      ]
+    }
+  ],
+  "prompt_contract_baseline": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
   "prompt_contract_variants": [
     {
       "id": "r4-incomplete-first-message",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -7636,6 +8267,7 @@
       "id": "r4-sensitive-context-leak",
       "base_case_id": "cloud-source-accessible",
       "criterion_id": "R4-execution-contract",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -7661,6 +8293,7 @@
       "id": "r4-durable-artifact-duplicated",
       "base_case_id": "git-project-default-worktree",
       "criterion_id": "R4-execution-contract",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -7689,6 +8322,7 @@
       "id": "r4-one-shot-overbuilt",
       "base_case_id": "projectless-research",
       "criterion_id": "R4-execution-contract",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -7713,6 +8347,7 @@
       "id": "r4-stale-load-bearing-fact",
       "base_case_id": "git-project-default-worktree",
       "criterion_id": "R4-execution-contract",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -7741,6 +8376,7 @@
       "id": "r4-parent-observer-mechanics-leaked",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -7765,6 +8401,7 @@
       "id": "r4-child-slice-parent-omitted",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -7789,6 +8426,7 @@
       "id": "attached-reporting-required",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -7812,6 +8450,7 @@
       "id": "attached-terminal-report-missing-acceptance-map",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -7835,6 +8474,7 @@
       "id": "attached-attention-ack-required",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -7858,6 +8498,7 @@
       "id": "attached-local-terminal-without-parent-callback",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -7881,6 +8522,7 @@
       "id": "writable-resource-claim-required",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {

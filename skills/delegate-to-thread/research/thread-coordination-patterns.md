@@ -93,12 +93,28 @@ The dated observations above motivated the current contract, but they do not def
 freshness, and completion. Keeping those rules in one place prevents research snapshots from
 becoming a second, stale workflow.
 
+## Open process issue: execution context and accidental re-delegation
+
+A delegated repository task can appear to make progress while working in the wrong checkout when the
+creation prompt omits the worktree, branch, base revision, and write authority. A child can also
+mistake delegation provenance or copied orchestration context for a new instruction and create a
+second user-visible task. These are handoff-contract failures, not merely implementation mistakes.
+
+The minimal prevention is a two-stage contract: dispatch intent is explicit before creation, while
+actual `cwd`, worktree root, branch, HEAD, and status are read-only verified in the first checkpoint
+before any edit. Missing or mismatched identity fails closed. Descendant creation is prohibited
+unless a validated immutable parent envelope grants it. The terminal report repeats the observed
+identity and identifies changed files and the commit or pull request. This preserves a single
+parent → child ownership boundary and makes a wrong-checkout or re-delegation error visible before
+completion is claimed.
+
 ## Open platform issue: setup-only creation handles
 
 The live desktop runtime can return a `clientThreadId` while worktree setup is still in progress.
 That value is a setup correlation, not an operable task ID: it cannot be passed to `read_thread`,
-`wait_threads`, or `send_message_to_thread`. The current surface exposes no exact resolver, so a
-parent cannot safely observe that child until creation returns a real ID.
+`wait_threads`, or `send_message_to_thread`. The public task surface still exposes no exact resolver,
+but the local desktop can persist an exact setup-to-task binding that the skill may inspect through its
+bounded recovery gate.
 
 The smallest acceptable runtime fix is one of these:
 
@@ -108,18 +124,19 @@ The smallest acceptable runtime fix is one of these:
    `ready → { threadId, hostId }`, `pending`, or explicit `failed`/`expired`.
 
 The runtime must own the handle namespace and bind each setup handle to one create attempt, host, and
-destination. The resolver must map only that exact handle, return no bare candidate UUID, make setup
-failure explicit, and never require a caller-generated token, title/path matching, or a second create
-call. After resolution, the caller confirms the real ID with `read_thread` and may then use
-`wait_threads`.
+destination. Any runtime resolver or local binding adapter must map only that exact handle, return no
+bare candidate UUID, make setup failure explicit, and never require a caller-generated token,
+title/path matching, or a second create call. After resolution, the caller confirms the real ID with
+`read_thread` and may then use `wait_threads`.
 
 Acceptance checks are intentionally small: immediate creation returns a real ID; delayed creation
-resolves once; failed or expired setup does not create a duplicate; and setup-only IDs remain rejected
-by task operations. No event bus, webhook, parent wake-up, or idempotency infrastructure is required
-for this issue.
+resolves once when an exact binding is available; absent, ambiguous, stale, or failed setup remains
+fail-closed without a duplicate; and setup-only IDs remain rejected by task operations. No event bus,
+webhook, parent wake-up, or idempotency infrastructure is required for this issue.
 
-Until the runtime changes, use native subagents when the parent must consume the result immediately.
-Use separate user-visible tasks only for independent work where delayed ownership is acceptable.
+When no exact binding can be proven, use native subagents when the parent must consume the result
+immediately. Separate user-visible tasks remain valid for independent work, but the delegation skill
+always attempts exact setup recovery before returning a queued/unmonitorable state. No event bus, webhook, parent wake-up, or idempotency infrastructure is required for this issue.
 
 ## Deferred platform alternatives
 

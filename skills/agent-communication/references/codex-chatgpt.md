@@ -36,25 +36,26 @@ answers the observation need.
 If neither a direct exact-ID read nor bounded discovery resolves an exact task, report `contact-unavailable` with the native failure evidence. Do not create, fork, resume, or hand off a replacement.
 
 When the only evidence is a `clientThreadId` returned by new-task creation, distinguish the creation
-state from contact failure: it is `queued/unmonitorable`, not an existing task that can be read or
-contacted. There is no supported observation route until a native exact-ID callback or resolver
-returns a real task UUID and `read_thread` confirms it. Do not imply that a later child message will
-wake or resume the parent; parent observation still requires an active supported waiter.
+state from contact failure: start the automatic exact-handle recovery gate in the delegate task
+contract. There is no supported observation or contact route until a real task UUID is resolved and
+`read_thread` confirms it. Do not pass the setup handle to task tools, and do not imply that a later
+child message will wake or resume the parent; parent observation still requires an active supported
+waiter.
 
-## Reconcile a client setup result during platform diagnosis
+## Provider-specific exact setup recovery
 
 A `clientThreadId` is never an operable task ID. Do not pass it to task tools, title-match a task,
 retry creation, or treat a bounded task listing as proof that no task exists.
 
-The handle itself is the runtime's setup correlation. Do not create a second caller token for normal
-delegation. The runtime must resolve this exact handle to the matching `threadId` and `hostId`; only
-then can native task operations begin.
+The handle itself is the runtime's setup correlation. Do not create a second caller token. The
+universal resolution and native-confirmation rules live in [the delegate task contract](../../delegate-to-thread/references/task-contract.md#automatic-exact-handle-setup-resolution);
+this section only identifies the local provider-specific binding source used when the runtime resolver
+is unavailable.
 
-When the user has expressly asked to diagnose an earlier creation result or the platform behavior,
-an internal local desktop-state/cache record may be inspected as a narrowly scoped correlation lead.
-It is undocumented implementation state, can be stale or version-specific, and is not a message
-route or provider authority. Read only the field needed to match the exact setup ID; never dump,
-copy, or alter the cache.
+For every setup-only result, an internal local desktop-state/cache record may be inspected
+automatically as a narrowly scoped correlation lead when the local Codex surface is available. It is
+undocumented implementation state, can be stale or version-specific, and is not a message route or
+provider authority. Read only the exact setup handle's field; never dump, copy, or alter the cache.
 
 Treat a candidate UUID as usable only when all of these hold:
 
@@ -64,8 +65,31 @@ Treat a candidate UUID as usable only when all of these hold:
 4. the native record corroborates the original creation request's kind, host, destination/project, and creation time; a worktree-bound request also requires its exact assigned worktree.
 
 Use only that resolved UUID for later task calls. Any missing, ambiguous, stale, cross-host, or
-metadata-conflicting signal leaves the setup result queued or indeterminate. Record the native read
-and the correlation limitation; do not create a replacement or contact a title/directory match.
+metadata-conflicting signal leaves the setup result `queued/unmonitorable`. Use `indeterminate` only
+when the provider may have created a side effect but no exact reconciliation route exists. Record the
+native read and the correlation limitation; do not create a replacement or contact a title/directory match.
+
+On the current local Codex desktop runtime, the narrowly scoped binding may be recorded in the
+configured Codex state root under `.codex-global-state.json`, in a `client-thread-bindings-v1`
+entry. The binding can first map the exact setup handle to a local client key such as
+`local:<uuid>`, and then to the provider `threadId`. This is an implementation detail, not a
+public API: read only the exact handle's entry, do not dump the state file or database, and do not
+edit or repair the binding. Preserve both the original `clientThreadId` and resolved `threadId` in the
+evidence record. The minimal recovery sequence is:
+
+1. Read the exact setup handle's binding from local state.
+2. Require one unambiguous same-host candidate and corroborate its creation window, project or
+   worktree, backing kind, and app/provider identity.
+3. Call native `read_thread` with the candidate `threadId` and `hostId`.
+4. Only after that read succeeds and matches the original request may `send_message_to_thread`,
+   `wait_threads`, or other exact-ID operations be used.
+
+If the binding is absent, duplicated, stale, or cannot be corroborated after the bounded automatic
+attempt, return `queued/unmonitorable` with the evidence. Use `contact-unavailable` only after an
+exact task identity exists but its native contact route is unavailable. Never fall back to
+title search, bounded-list absence, broad transcript search, or a replacement task. A later resume of
+the exact pending entry repeats this same bounded lookup automatically; a user diagnosis request is
+not required.
 
 For Codex subagents in the current live task, use the collaboration message route with the known subagent task ID. Never invent an agent from a label. A subagent is not a user-visible task.
 
