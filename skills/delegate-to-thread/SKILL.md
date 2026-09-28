@@ -9,12 +9,14 @@ Create one independently navigable, user-owned task. The new task does not inher
 its first visible message must be sufficient to execute the delegated objective.
 
 Execution directness and the checkout boundary are part of that handoff, not implied context. For any
-objective that may modify a repository, the first message must identify the exact project, execution
-mode (`managed-worktree` or explicitly authorized `direct-local`), worktree path, branch/ref and base revision
-when available, and write authority. It must also say: `Implement this objective directly in
-the assigned task. Do not invoke delegate-to-thread, orchestrate-threads, create another user-visible
-task, fork, or hand off a descendant unless this handoff explicitly grants descendant authority.` A
-delegation envelope or provider-created wrapper is provenance only; it is not a new request to delegate.
+objective that may modify a repository, apply the dispatch and pre-write identity gates in [the task
+contract](references/task-contract.md#repository-execution-context). The first message must identify
+the exact project, execution mode (`managed-worktree` or explicitly authorized `direct-local`),
+requested starting state or provider-default rule, and write authority. The child must then verify the
+actual checkout before editing. It must also say: `Implement this objective directly in the assigned
+task. Do not invoke delegate-to-thread, orchestrate-threads, create another user-visible task, fork,
+or hand off a descendant unless this handoff explicitly grants descendant authority.` A delegation
+envelope or provider-created wrapper is provenance only; it is not a new request to delegate.
 
 An explicit `$delegate-to-thread` invocation with an execution objective authorizes one new task.
 Choose independent create-only when the user returns ownership, coordinated-single only when the
@@ -27,12 +29,14 @@ always vetoes creation. Never promise terminal coordination when the backing kin
 terminal-or-attention observer.
 
 Operational boundary: a `clientThreadId` is the runtime's setup handle, not an operable task ID. If
-creation returns only that handle, a coordinated parent cannot observe, message, or report completion
-for the child in the current task surface. Classify the result as `queued/unmonitorable`, say so
-explicitly, and do not describe the child as in flight. Do not invent a second caller token or
-resolve the handle by title, path, or transcript search during normal delegation. Only a real ID
-returned by creation or an exact `wait_thread_creation` result followed by native confirmation can
-make that child operable.
+creation returns only that handle, immediately run the automatic exact-handle setup-resolution gate in
+[the task contract](references/task-contract.md#automatic-exact-handle-setup-resolution). This gate
+is mandatory for every ownership mode and runs again when an exact pending setup result is resumed;
+no user diagnosis request is required. Until a real ID is resolved and native `read_thread` confirms
+it, keep the result queued/unmonitorable, do not describe the child as in flight, and do not pass the
+setup handle to task tools. Never invent a second caller token or resolve by title, path, listing, or
+transcript search. A failed or exhausted bounded attempt remains fail-closed; it never retries
+creation or creates a replacement.
 `send_message_to_thread` is evidence delivery only; it does not wake or resume an ended parent turn.
 
 ## Route once
@@ -73,8 +77,9 @@ resource claim and integration-owner fields before dispatch.
    [advanced delegation](references/advanced-delegation.md) only when an authorized direct child may
    create a user-visible descendant. The core is the sole normative source for destination safety,
    first-message content, readiness, creation outcomes, recovery, observation, freshness, and completion.
-   For repository-writing work, include the exact execution context and the direct-execution boundary
-   in the child prompt; do not silently fall back from an isolated worktree to a shared checkout.
+   For repository-writing work, include the dispatch intent and direct-execution boundary in the child
+   prompt, then require the child to prove the actual checkout before editing; do not silently fall
+   back from an isolated worktree to a shared checkout.
 5. Create one logical delegation with the current creation tool and a cohesive user-visible prompt.
    One logical delegation permits one creation call. Reconcile an indeterminate result without
    creating again.

@@ -39,6 +39,165 @@ ALLOWED_PROGRESS_KINDS = {
     "attention_acknowledged", "verification_complete", "no_change",
 }
 
+EXECUTION_CONTEXT_FIELDS = {
+    "project_path",
+    "write_authority",
+    "execution_mode",
+    "descendant_authority",
+}
+STARTING_STATE_FIELDS = {"requested_starting_state", "provider_default_rule"}
+OBSERVED_CHECKOUT_FIELDS = {
+    "project_path",
+    "cwd",
+    "worktree_root",
+    "branch_or_ref",
+    "head_revision",
+    "base_revision",
+    "working_tree_status",
+}
+REPOSITORY_CHECKPOINT_FIELDS = {
+    "execution_context",
+    "cwd",
+    "worktree_root",
+    "branch_or_ref",
+    "head_revision",
+    "base_revision",
+    "working_tree_status",
+    "write_authority",
+}
+REPOSITORY_TERMINAL_FIELDS = {
+    "execution_context",
+    "observed_checkout",
+    "changed_files",
+}
+TERMINAL_DELIVERY_FIELDS = {"commit_or_pull_request", "uncommitted_disposition"}
+DESCENDANT_ENVELOPE_FIELDS = {
+    "root_id",
+    "parent_id",
+    "scope",
+    "depth_limit",
+    "budget",
+    "resource_claim",
+    "acceptance_boundary",
+    "integration_owner",
+    "stop_rule",
+    "identity_or_digest",
+}
+MAX_SETUP_RECOVERY_CHECKS = 3
+DESCENDANT_ACTIONS = {
+    "delegate-to-thread",
+    "orchestrate-threads",
+    "fork",
+    "hand-off",
+}
+
+
+def execution_boundary_admissible(trace):
+    context = trace.get("execution_context", {})
+    observed = trace.get("observed_checkout", {})
+    if not trace.get("direct_execution") or not trace.get("pre_write_verified"):
+        return False
+    evidence = trace.get("execution_evidence", {})
+    if evidence.get("source") not in {"native-read-only-check", "provider-assigned-worktree"}:
+        return False
+    if not evidence.get("evidence_id"):
+        return False
+    if not EXECUTION_CONTEXT_FIELDS.issubset(context) or any(
+        not context[field] for field in EXECUTION_CONTEXT_FIELDS
+    ):
+        return False
+    if sum(bool(context.get(field)) for field in STARTING_STATE_FIELDS) != 1:
+        return False
+    if not OBSERVED_CHECKOUT_FIELDS.issubset(observed) or any(
+        not observed[field] for field in OBSERVED_CHECKOUT_FIELDS
+    ):
+        return False
+    if observed["project_path"] != context["project_path"]:
+        return False
+    if context["execution_mode"] == "managed-worktree":
+        if context.get("worktree_path") and observed["worktree_root"] != context["worktree_path"]:
+            return False
+        if context.get("requested_starting_state"):
+            if not context.get("branch_or_ref") or not context.get("base_revision"):
+                return False
+            if observed["branch_or_ref"] != context["branch_or_ref"] or observed["base_revision"] != context["base_revision"]:
+                return False
+    if context.get("cwd") and observed["cwd"] != context["cwd"]:
+        return False
+    if context.get("worktree_path") and observed["worktree_root"] != context["worktree_path"]:
+        return False
+    if context["execution_mode"] == "managed-worktree":
+        if context["write_authority"] != "authorized":
+            return False
+    elif context["execution_mode"] == "direct-local":
+        if context["write_authority"] != "authorized" or not context.get("exclusive_writer_commitment"):
+            return False
+    else:
+        return False
+    if context.get("descendant_authority") == "granted":
+        envelope = trace.get("parent_issued_envelope", {})
+        if not trace.get("envelope_valid") or not DESCENDANT_ENVELOPE_FIELDS.issubset(envelope):
+            return False
+        if any(not envelope[field] for field in DESCENDANT_ENVELOPE_FIELDS):
+            return False
+        if envelope["parent_id"] != trace.get("direct_parent_id"):
+            return False
+        if envelope["root_id"] != trace.get("root_id"):
+            return False
+    if context.get("descendant_authority") != "granted" and any(
+        action in DESCENDANT_ACTIONS for action in trace.get("actions", ())
+    ):
+        return False
+    actions = set(trace.get("actions", ()))
+    if actions.intersection({"edit", "write"}) and "checkpoint" not in actions:
+        return False
+    if actions.intersection({"edit", "write"}) and "terminal_report" not in actions:
+        return False
+    if "checkpoint" in actions and not {
+        "execution_context", "cwd", "worktree_root", "branch_or_ref", "head_revision",
+        "base_revision", "working_tree_status", "write_authority"
+    }.issubset(trace.get("checkpoint_fields_present", ())):
+        return False
+    if "terminal_report" in actions and not repository_report_fields_admissible(trace):
+        return False
+    return True
+
+
+def path_disclosure_admissible(trace):
+    """Reject raw host paths when a trace crosses a broader destination boundary."""
+    if trace.get("destination_scope", "same-host") in {"same-host", "authorized-path-transfer"}:
+        return True
+    values = [
+        trace.get("execution_context", {}).get("project_path"),
+        trace.get("execution_context", {}).get("cwd"),
+        trace.get("execution_context", {}).get("worktree_path"),
+        trace.get("observed_checkout", {}).get("project_path"),
+        trace.get("observed_checkout", {}).get("cwd"),
+        trace.get("observed_checkout", {}).get("worktree_root"),
+    ]
+    return all(not (isinstance(value, str) and value.startswith("/")) for value in values)
+
+
+def setup_recovery_schedule_admissible(checks):
+    return isinstance(checks, list) and 1 <= len(checks) <= MAX_SETUP_RECOVERY_CHECKS
+
+
+def repository_report_fields_admissible(trace):
+    checkpoint_fields = set(trace.get("checkpoint_fields_present", ()))
+    terminal_fields = set(trace.get("terminal_fields_present", ()))
+    if not REPOSITORY_CHECKPOINT_FIELDS.issubset(checkpoint_fields):
+        return False
+    if not REPOSITORY_TERMINAL_FIELDS.issubset(terminal_fields):
+        return False
+    if not terminal_fields.intersection(TERMINAL_DELIVERY_FIELDS):
+        return False
+    status = trace.get("observed_checkout", {}).get("working_tree_status")
+    if status == "clean":
+        return "commit_or_pull_request" in terminal_fields
+    if status == "dirty":
+        return "uncommitted_disposition" in terminal_fields
+    return False
+
 
 def canonical_report_payload(report):
     return json.dumps(
@@ -98,9 +257,14 @@ def attached_report_admissible(report, terminal=False, observed_native_events=()
 
 
 def callback_resolution_is_operable(pending, callback_thread_id, native_read):
+    if not isinstance(native_read, dict):
+        return False
     try:
         UUID(callback_thread_id)
     except (TypeError, ValueError, AttributeError):
+        return False
+    required_identity = ("backing_kind", "provider_identity", "app_instance_id")
+    if any(not pending.get(field) or native_read.get(field) != pending.get(field) for field in required_identity):
         return False
     return bool(
         pending.get("clientThreadId")
@@ -109,9 +273,14 @@ def callback_resolution_is_operable(pending, callback_thread_id, native_read):
         and native_read.get("requested_hostId") == pending.get("hostId")
         and all(
             pending.get(field) is None
-            or native_read.get(field) is None
             or native_read.get(field) == pending.get(field)
-            for field in ("backing_kind", "project_id", "worktree_path")
+            for field in (
+                "backing_kind",
+                "project_id",
+                "worktree_path",
+                "provider_identity",
+                "app_instance_id",
+            )
         )
     )
 
@@ -127,6 +296,47 @@ def runtime_resolution_is_operable(pending, resolution, native_read):
             native_read,
         )
     )
+
+
+def automatic_setup_resolution(pending, bindings, native_read):
+    """Model the bounded exact-handle recovery gate without provider side effects."""
+    candidates = [
+        binding for binding in bindings
+        if binding.get("clientThreadId") == pending.get("clientThreadId")
+    ]
+    if len(candidates) != 1:
+        return {"state": "queued/unmonitorable", "reason": "binding-not-unique"}
+
+    candidate = candidates[0]
+    window = pending.get("creation_window")
+    created_at = candidate.get("created_at")
+    if (
+        not isinstance(window, tuple)
+        or len(window) != 2
+        or not isinstance(created_at, (int, float))
+        or not window[0] <= created_at <= window[1]
+        or candidate.get("hostId") != pending.get("hostId")
+        or any(
+            pending.get(field) is not None
+            and candidate.get(field) != pending.get(field)
+            for field in (
+                "backing_kind",
+                "project_id",
+                "worktree_path",
+                "provider_identity",
+                "app_instance_id",
+            )
+        )
+    ):
+        return {"state": "queued/unmonitorable", "reason": "binding-mismatch"}
+
+    if not callback_resolution_is_operable(
+        pending,
+        candidate.get("threadId"),
+        native_read,
+    ):
+        return {"state": "queued/unmonitorable", "reason": "native-read-unconfirmed"}
+    return {"state": "ready", "threadId": candidate["threadId"], "hostId": candidate["hostId"]}
 
 
 def attached_callbacks_reach_parent(parent_task_id, route, first_callback, terminal_callback):
@@ -250,12 +460,18 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "backing_kind": "codex",
             "project_id": "skills",
             "worktree_path": "/worktrees/skills-child",
+            "provider_identity": "codex-desktop:account-a",
+            "app_instance_id": "app-a",
         }
         callback_thread_id = "01a0a4b7-7a3b-70f0-9044-d49469473413"
         native_read = {
             "threadId": callback_thread_id,
             "requested_hostId": "local",
             "backing_kind": "codex",
+            "project_id": "skills",
+            "worktree_path": "/worktrees/skills-child",
+            "provider_identity": "codex-desktop:account-a",
+            "app_instance_id": "app-a",
         }
         self.assertTrue(callback_resolution_is_operable(pending, callback_thread_id, native_read))
         self.assertFalse(callback_resolution_is_operable(pending, "setup-37", native_read))
@@ -276,15 +492,23 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "clientThreadId": "setup-38",
             "hostId": "local",
             "backing_kind": "codex",
+            "provider_identity": "codex-desktop:account-a",
+            "app_instance_id": "app-a",
         }
         thread_id = "01a0a4b7-7a3b-70f0-9044-d49469473414"
         native_read = {
             "threadId": thread_id,
             "requested_hostId": "local",
             "backing_kind": "codex",
+            "provider_identity": "codex-desktop:account-a",
+            "app_instance_id": "app-a",
         }
         ready = {"status": "ready", "threadId": thread_id, "hostId": "local"}
         self.assertTrue(runtime_resolution_is_operable(pending, ready, native_read))
+        for field in ("provider_identity", "app_instance_id"):
+            incomplete = dict(pending)
+            del incomplete[field]
+            self.assertFalse(runtime_resolution_is_operable(incomplete, ready, native_read))
         for status in ("pending", "failed", "expired"):
             self.assertFalse(runtime_resolution_is_operable(
                 pending,
@@ -301,6 +525,100 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             ready,
             dict(native_read, threadId="01a0a4b7-7a3b-70f0-9044-d49469473415"),
         ))
+
+    def test_automatic_setup_resolution_accepts_one_exact_binding_after_native_confirmation(self):
+        pending = {
+            "clientThreadId": "setup-39",
+            "hostId": "local",
+            "creation_window": (100, 110),
+            "backing_kind": "codex",
+            "project_id": "skills",
+            "worktree_path": "/worktrees/skills-child",
+            "provider_identity": "codex-desktop:account-a",
+            "app_instance_id": "app-a",
+        }
+        thread_id = "01a0a4b7-7a3b-70f0-9044-d49469473416"
+        binding = dict(pending, threadId=thread_id, created_at=105)
+        native_read = {
+            "threadId": thread_id,
+            "requested_hostId": "local",
+            "backing_kind": "codex",
+            "project_id": "skills",
+            "worktree_path": "/worktrees/skills-child",
+            "provider_identity": "codex-desktop:account-a",
+            "app_instance_id": "app-a",
+        }
+        self.assertEqual(
+            automatic_setup_resolution(pending, [binding], native_read),
+            {"state": "ready", "threadId": thread_id, "hostId": "local"},
+        )
+
+    def test_automatic_setup_resolution_stays_queued_for_absent_or_timed_out_binding(self):
+        pending = {
+            "clientThreadId": "setup-40",
+            "hostId": "local",
+            "creation_window": (100, 110),
+        }
+        self.assertEqual(
+            automatic_setup_resolution(pending, [], None)["state"],
+            "queued/unmonitorable",
+        )
+        timed_out = dict(pending, clientThreadId="setup-41")
+        binding = dict(timed_out, threadId="01a0a4b7-7a3b-70f0-9044-d49469473417", created_at=111)
+        self.assertEqual(
+            automatic_setup_resolution(timed_out, [binding], None)["reason"],
+            "binding-mismatch",
+        )
+
+    def test_automatic_setup_resolution_rejects_duplicate_or_mismatched_bindings(self):
+        pending = {
+            "clientThreadId": "setup-42",
+            "hostId": "local",
+            "creation_window": (100, 110),
+            "backing_kind": "codex",
+            "project_id": "skills",
+        }
+        first = dict(pending, threadId="01a0a4b7-7a3b-70f0-9044-d49469473418", created_at=105)
+        second = dict(pending, threadId="01a0a4b7-7a3b-70f0-9044-d49469473419", created_at=106)
+        self.assertEqual(
+            automatic_setup_resolution(pending, [first, second], None)["reason"],
+            "binding-not-unique",
+        )
+        mismatched = dict(first, project_id="other-project")
+        self.assertEqual(
+            automatic_setup_resolution(pending, [mismatched], None)["reason"],
+            "binding-mismatch",
+        )
+
+    def test_automatic_setup_resolution_rejects_native_read_failure(self):
+        pending = {
+            "clientThreadId": "setup-43",
+            "hostId": "local",
+            "creation_window": (100, 110),
+            "backing_kind": "codex",
+        }
+        thread_id = "01a0a4b7-7a3b-70f0-9044-d49469473420"
+        binding = dict(pending, threadId=thread_id, created_at=105)
+        self.assertEqual(
+            automatic_setup_resolution(pending, [binding], None)["reason"],
+            "native-read-unconfirmed",
+        )
+
+    def test_setup_recovery_schedule_is_bounded(self):
+        self.assertTrue(setup_recovery_schedule_admissible(["immediate"]))
+        self.assertTrue(setup_recovery_schedule_admissible(["immediate", "delayed-1", "delayed-2"]))
+        self.assertFalse(setup_recovery_schedule_admissible([]))
+        self.assertFalse(setup_recovery_schedule_admissible(["check"] * 4))
+
+    def test_automatic_setup_resolution_has_no_title_or_path_fallback(self):
+        skill = (SKILL_ROOT / "SKILL.md").read_text()
+        contract = (SKILL_ROOT / "references" / "task-contract.md").read_text()
+        provider = (SKILL_ROOT.parent / "agent-communication" / "references" / "codex-chatgpt.md").read_text()
+        for text in (skill, contract, provider):
+            self.assertIn("Never", text)
+            self.assertIn("title", text)
+            self.assertIn("path", text)
+        self.assertIn("No user request is a prerequisite", contract)
 
     def test_local_terminal_report_does_not_replace_identity_bearing_parent_callbacks(self):
         parent_task_id = "01a0a74d-parent"
@@ -346,6 +664,100 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             dict(first_callback, target_task_id="other-parent"),
             terminal_callback,
         ))
+
+    def test_execution_boundary_cases_run_through_action_trace_oracle(self):
+        cases = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())["execution_boundary_cases"]
+        for case in cases:
+            oracle = case.get("protocol_oracle")
+            self.assertIsInstance(oracle, dict, case["id"])
+            self.assertEqual(oracle["kind"], "execution_boundary")
+            actual = execution_boundary_admissible(oracle["trace"])
+            expected = oracle["expected"] == "accept"
+            self.assertEqual(actual, expected, case["id"])
+            if case["id"] == "repo-writing-managed-worktree-context":
+                self.assertTrue(repository_report_fields_admissible(oracle["trace"]))
+
+        managed = next(case for case in cases if case["id"] == "repo-writing-managed-worktree-context")
+        trace = managed["protocol_oracle"]["trace"]
+        for field in EXECUTION_CONTEXT_FIELDS:
+            missing = dict(trace, execution_context={k: v for k, v in trace["execution_context"].items() if k != field})
+            self.assertFalse(execution_boundary_admissible(missing), field)
+        for field in OBSERVED_CHECKOUT_FIELDS:
+            missing = dict(trace, observed_checkout={k: v for k, v in trace["observed_checkout"].items() if k != field})
+            self.assertFalse(execution_boundary_admissible(missing), field)
+        for field, value in (("cwd", "/wrong/checkout"), ("branch_or_ref", "main"), ("base_revision", "stale")):
+            mismatched = dict(
+                trace,
+                observed_checkout=dict(trace["observed_checkout"], **{field: value}),
+            )
+            self.assertFalse(execution_boundary_admissible(mismatched), field)
+        self.assertFalse(execution_boundary_admissible(dict(
+            trace,
+            execution_evidence={"source": "self-report", "evidence_id": "event:forged"},
+        )))
+        self.assertFalse(path_disclosure_admissible(dict(
+            trace,
+            destination_scope="cloud",
+        )))
+        self.assertTrue(path_disclosure_admissible(dict(
+            trace,
+            destination_scope="cloud",
+            execution_context=dict(
+                trace["execution_context"],
+                project_path="project-id",
+                cwd="worktree-id",
+                worktree_path="worktree-id",
+            ),
+            observed_checkout=dict(
+                trace["observed_checkout"],
+                project_path="project-id",
+                cwd="worktree-id",
+                worktree_root="worktree-id",
+            ),
+        )))
+        self.assertFalse(execution_boundary_admissible(dict(
+            trace,
+            actions=["execute_directly", "write", "checkpoint", "terminal_report"],
+            terminal_fields_present=["execution_context", "changed_files"],
+        )))
+        for field in REPOSITORY_CHECKPOINT_FIELDS:
+            self.assertFalse(repository_report_fields_admissible(dict(
+                trace,
+                checkpoint_fields_present=[
+                    value for value in trace["checkpoint_fields_present"] if value != field
+                ],
+            )))
+        for field in REPOSITORY_TERMINAL_FIELDS:
+            self.assertFalse(repository_report_fields_admissible(dict(
+                trace,
+                terminal_fields_present=[
+                    value for value in trace["terminal_fields_present"] if value != field
+                ],
+            )))
+        self.assertFalse(repository_report_fields_admissible(dict(
+            trace,
+            terminal_fields_present=[
+                value for value in trace["terminal_fields_present"]
+                if value != "commit_or_pull_request"
+            ],
+        )))
+        dirty = dict(
+            trace,
+            observed_checkout=dict(trace["observed_checkout"], working_tree_status="dirty"),
+            terminal_fields_present=[
+                value for value in trace["terminal_fields_present"]
+                if value != "commit_or_pull_request"
+            ] + ["uncommitted_disposition"],
+        )
+        self.assertTrue(repository_report_fields_admissible(dirty))
+        self.assertFalse(repository_report_fields_admissible(dict(
+            dirty,
+            terminal_fields_present=[
+                value for value in dirty["terminal_fields_present"]
+                if value != "uncommitted_disposition"
+            ],
+        )))
+        self.assertFalse(execution_boundary_admissible(dict(trace, actions=["write"])))
 
     def test_adversarial_catalog_cases_execute_against_protocol_oracles(self):
         cases = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())["prompt_contract_variants"]

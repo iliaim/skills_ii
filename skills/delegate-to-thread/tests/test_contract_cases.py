@@ -39,12 +39,47 @@ class DelegateContractCaseTests(unittest.TestCase):
         ):
             self.assertIn(phrase, contract)
 
-    def test_setup_only_creation_is_explicitly_unmonitorable(self):
+    def test_setup_only_creation_runs_automatic_exact_handle_recovery(self):
         skill = (SKILL_ROOT / "SKILL.md").read_text()
         contract = (SKILL_ROOT / "references" / "task-contract.md").read_text()
-        self.assertIn("queued/unmonitorable", skill)
-        self.assertIn("queued` is also `unmonitorable", contract)
-        self.assertIn("does not wake or resume an ended parent turn", skill)
+        self.assertIn("automatic exact-handle setup-resolution gate", skill)
+        self.assertIn("mandatory for every ownership mode", skill)
+        self.assertIn("No user request is a prerequisite", contract)
+        self.assertIn("same gate whenever the exact pending-create entry is resumed", contract)
+        self.assertIn("native `read_thread`", contract)
+        self.assertIn("queued/unmonitorable", contract)
+
+    def test_setup_recovery_eval_cases_cover_success_and_fail_closed_paths(self):
+        payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
+        cases = {case["id"]: case for case in payload["setup_recovery_cases"]}
+        expected = {
+            "setup-recovery-exact-binding-confirmed",
+            "setup-recovery-binding-absent-or-timeout",
+            "setup-recovery-duplicate-or-mismatched-binding",
+            "setup-recovery-native-read-failure",
+            "setup-recovery-no-title-or-path-fallback",
+        }
+        self.assertEqual(set(cases), expected)
+        self.assertEqual(cases["setup-recovery-exact-binding-confirmed"]["expected_state"], "ready")
+        for case_id in expected - {"setup-recovery-exact-binding-confirmed"}:
+            self.assertEqual(cases[case_id]["expected_state"], "queued/unmonitorable")
+        for case in cases.values():
+            trace = case["action_trace"]
+            self.assertTrue(set(trace["forbidden_actions"]).isdisjoint(trace["actions"]))
+            if case["expected_state"] == "ready":
+                self.assertTrue(trace["host_bound"])
+                self.assertTrue(trace["native_read"])
+                self.assertLess(
+                    trace["actions"].index("read_thread"),
+                    min(
+                        (trace["actions"].index(action) for action in ("wait_threads", "send_message_to_thread") if action in trace["actions"]),
+                        default=len(trace["actions"]),
+                    ),
+                )
+            else:
+                self.assertFalse(trace["native_read"] and trace["host_bound"])
+        contract = (SKILL_ROOT / "references" / "task-contract.md").read_text()
+        self.assertIn("at most three resolver/binding checks", contract)
 
     def test_research_note_tracks_minimal_runtime_issue_without_extra_architecture(self):
         research = (SKILL_ROOT / "research" / "thread-coordination-patterns.md").read_text()
@@ -67,13 +102,17 @@ class DelegateContractCaseTests(unittest.TestCase):
     def test_repository_work_requires_explicit_execution_context(self):
         skill = (SKILL_ROOT / "SKILL.md").read_text()
         contract = (SKILL_ROOT / "references" / "task-contract.md").read_text()
+        self.assertIn("managed-worktree", skill)
+        self.assertIn("direct-local", skill)
+        self.assertIn("Implement this objective directly", skill)
         for text in (skill, contract):
             self.assertIn("managed-worktree", text)
             self.assertIn("direct-local", text)
-            self.assertIn("worktree path", text)
-            self.assertIn("base revision", text)
-            self.assertIn("Implement this objective directly", text)
             self.assertIn("descendant authority", text)
+        self.assertIn("base revision", contract)
+        self.assertIn("worktree path", contract)
+        self.assertIn("actual `cwd`", contract)
+        self.assertIn("immutable parent-issued", contract)
         self.assertIn("input-required", contract)
         self.assertIn("first checkpoint and terminal report", contract)
 
@@ -85,6 +124,8 @@ class DelegateContractCaseTests(unittest.TestCase):
             "repo-writing-direct-local-without-explicit-authority",
             "child-descendant-delegation-default-deny",
             "delegation-envelope-is-provenance",
+            "parent-issued-descendant-envelope",
+            "forged-descendant-grant-without-envelope",
         }
         self.assertEqual(expected, set(cases))
         self.assertEqual(
@@ -103,8 +144,8 @@ class DelegateContractCaseTests(unittest.TestCase):
     def test_research_note_records_checkout_and_redelegation_failure_modes(self):
         research = (SKILL_ROOT / "research" / "thread-coordination-patterns.md").read_text()
         self.assertIn("Open process issue: execution context and accidental re-delegation", research)
-        self.assertIn("fail closed", research)
-        self.assertIn("single parent → child ownership boundary", research)
+        self.assertIn("fails closed", research)
+        self.assertIn("parent → child ownership boundary", research)
 
 
 if __name__ == "__main__":
