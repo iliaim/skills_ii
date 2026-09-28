@@ -59,7 +59,7 @@
       "required_first_checkpoint_fields": [
         "project_path",
         "cwd",
-        "worktree_path",
+        "worktree_root",
         "branch_or_ref",
         "base_revision",
         "write_authority"
@@ -110,7 +110,7 @@
           },
           "actions": ["execute_directly", "checkpoint", "write", "terminal_report"],
           "checkpoint_fields_present": [
-            "execution_context", "cwd", "worktree_root", "branch_or_ref", "head_revision", "base_revision", "working_tree_status", "write_authority"
+            "execution_context", "project_path", "cwd", "worktree_root", "branch_or_ref", "head_revision", "base_revision", "working_tree_status", "write_authority"
           ],
           "terminal_fields_present": ["execution_context", "observed_checkout", "changed_files", "commit_or_pull_request"],
           "checkpoint_payload": {
@@ -173,6 +173,22 @@
           "working_tree_status": "clean",
           "write_authority": "authorized",
           "starting_state": "origin/main"
+        },
+        "native_dispatch_intent_evidence": {
+          "source": "native-dispatch-record",
+          "evidence_id": "event:dispatch-1",
+          "immutable": true,
+          "dispatch_intent": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "requested_starting_state": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "absent"
+          }
         },
         "native_post_write_evidence": {
           "source": "native-post-write-check",
@@ -337,6 +353,22 @@
           "write_authority": "authorized",
           "starting_state": "origin/main"
         }
+        ,"native_dispatch_intent_evidence": {
+          "source": "native-dispatch-record",
+          "evidence_id": "event:dispatch-2",
+          "immutable": true,
+          "dispatch_intent": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "requested_starting_state": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "absent"
+          }
+        }
       }
     },
     {
@@ -419,6 +451,22 @@
           "working_tree_status": "clean",
           "write_authority": "authorized",
           "starting_state": "origin/main"
+        },
+        "native_dispatch_intent_evidence": {
+          "source": "native-dispatch-record",
+          "evidence_id": "event:dispatch-3",
+          "immutable": true,
+          "dispatch_intent": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "requested_starting_state": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "granted"
+          }
         },
         "native_parent_envelope_evidence": {
           "source": "native-parent-envelope",

@@ -66,6 +66,7 @@ STABLE_CHECKOUT_IDENTITY_FIELDS = OBSERVED_CHECKOUT_FIELDS - {
 }
 REPOSITORY_CHECKPOINT_FIELDS = {
     "execution_context",
+    "project_path",
     "cwd",
     "worktree_root",
     "branch_or_ref",
@@ -132,6 +133,7 @@ def execution_boundary_admissible(
     native_parent_envelope_evidence=None,
     native_transfer_evidence=None,
     native_post_write_evidence=None,
+    native_dispatch_intent_evidence=None,
 ):
     context = trace.get("execution_context", {})
     observed = trace.get("observed_checkout", {})
@@ -148,6 +150,10 @@ def execution_boundary_admissible(
         return False
     if not EXECUTION_CONTEXT_FIELDS.issubset(context) or any(
         not context[field] for field in EXECUTION_CONTEXT_FIELDS
+    ):
+        return False
+    if context.get("write_authority") == "authorized" and not dispatch_intent_admissible(
+        context, native_dispatch_intent_evidence
     ):
         return False
     if sum(bool(context.get(field)) for field in STARTING_STATE_FIELDS) != 1:
@@ -277,7 +283,7 @@ def execution_boundary_admissible(
         if actions.index("terminal_report") <= max(write_indexes):
             return False
     if "checkpoint" in actions and not {
-        "execution_context", "cwd", "worktree_root", "branch_or_ref", "head_revision",
+        "execution_context", "project_path", "cwd", "worktree_root", "branch_or_ref", "head_revision",
         "base_revision", "working_tree_status", "write_authority"
     }.issubset(trace.get("checkpoint_fields_present", ())):
         return False
@@ -292,6 +298,41 @@ def transfer_payload_digest(trace):
     return "sha256:" + hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
+
+
+def dispatch_intent_admissible(context, native_dispatch_intent_evidence):
+    """Require checkout claims to match an independent immutable dispatch record."""
+    if not isinstance(native_dispatch_intent_evidence, dict):
+        return False
+    if (
+        native_dispatch_intent_evidence.get("source") != "native-dispatch-record"
+        or not native_dispatch_intent_evidence.get("evidence_id")
+        or native_dispatch_intent_evidence.get("immutable") is not True
+    ):
+        return False
+    dispatch_intent = native_dispatch_intent_evidence.get("dispatch_intent")
+    if not isinstance(dispatch_intent, dict):
+        return False
+    required = {
+        "project_path",
+        "execution_mode",
+        "write_authority",
+        "descendant_authority",
+    }
+    if not required.issubset(dispatch_intent):
+        return False
+    comparable = required | {
+        "cwd",
+        "worktree_path",
+        "branch_or_ref",
+        "base_revision",
+        "requested_starting_state",
+        "provider_default_rule",
+    }
+    return all(
+        field not in context or dispatch_intent.get(field) == context[field]
+        for field in comparable
+    )
 
 
 def path_disclosure_admissible(trace, native_transfer_evidence=None):
@@ -428,7 +469,11 @@ def repository_report_fields_admissible(trace, native_post_write_evidence=None):
         if not isinstance(delivery, str) or not delivery.startswith(("commit:", "pr:")):
             return False
         delivery_revision = delivery.split(":", 1)[1]
-        if not delivery_revision or delivery_revision != native_post_write_evidence.get("immutable_revision"):
+        if not delivery_revision:
+            return False
+        if delivery.startswith("commit:") and delivery_revision != native_post_write_evidence.get("immutable_revision"):
+            return False
+        if delivery.startswith("pr:") and not re.fullmatch(r"[1-9][0-9]*", delivery_revision):
             return False
     elif not payload.get("uncommitted_disposition"):
         return False
@@ -1093,10 +1138,16 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
                 oracle.get("native_parent_envelope_evidence"),
                 oracle.get("native_transfer_evidence"),
                 oracle.get("native_post_write_evidence"),
+                oracle.get("native_dispatch_intent_evidence"),
             )
             expected = oracle["expected"] == "accept"
             self.assertEqual(actual, expected, case["id"])
             if case["id"] == "repo-writing-managed-worktree-context":
+                self.assertTrue(
+                    set(case["required_first_checkpoint_fields"]).issubset(
+                        oracle["trace"]["checkpoint_fields_present"]
+                    )
+                )
                 self.assertTrue(repository_report_fields_admissible(
                     oracle["trace"],
                     oracle["native_post_write_evidence"],
@@ -1106,8 +1157,9 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         trace = managed["protocol_oracle"]["trace"]
         native_execution = managed["protocol_oracle"]["native_execution_evidence"]
         native_post_write = managed["protocol_oracle"]["native_post_write_evidence"]
+        native_dispatch = managed["protocol_oracle"]["native_dispatch_intent_evidence"]
         admit = lambda candidate: execution_boundary_admissible(
-            candidate, native_execution, None, None, native_post_write
+            candidate, native_execution, None, None, native_post_write, native_dispatch
         )
         self.assertFalse(execution_boundary_admissible(trace))
         for field in EXECUTION_CONTEXT_FIELDS:
@@ -1122,6 +1174,29 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
                 observed_checkout=dict(trace["observed_checkout"], **{field: value}),
             )
             self.assertFalse(admit(mismatched), field)
+        rewritten = json.loads(
+            json.dumps(trace)
+            .replace("/repo/worktrees/child", "/attacker/worktrees/child")
+            .replace("/repo", "/attacker")
+        )
+        rewritten_native = json.loads(
+            json.dumps(native_execution)
+            .replace("/repo/worktrees/child", "/attacker/worktrees/child")
+            .replace("/repo", "/attacker")
+        )
+        rewritten_post_write = json.loads(
+            json.dumps(native_post_write)
+            .replace("/repo/worktrees/child", "/attacker/worktrees/child")
+            .replace("/repo", "/attacker")
+        )
+        self.assertFalse(execution_boundary_admissible(
+            rewritten,
+            rewritten_native,
+            None,
+            None,
+            rewritten_post_write,
+            native_dispatch,
+        ))
         self.assertFalse(admit(dict(
             trace,
             execution_evidence={"source": "self-report", "evidence_id": "event:forged"},
@@ -1329,6 +1404,21 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             uncommitted_disposition="left-dirty-with-owner",
         )
         self.assertTrue(repository_report_fields_admissible(dirty, dirty_native_post_write))
+        pull_request = dict(
+            trace,
+            terminal_report_payload=dict(
+                trace["terminal_report_payload"],
+                commit_or_pull_request="pr:123",
+            ),
+        )
+        pull_request_native_post_write = dict(
+            native_post_write,
+            commit_or_pull_request="pr:123",
+        )
+        self.assertTrue(repository_report_fields_admissible(
+            pull_request,
+            pull_request_native_post_write,
+        ))
         self.assertFalse(repository_report_fields_admissible(dict(
             trace,
             checkpoint_payload=dict(
@@ -1362,11 +1452,12 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         trace = oracle["trace"]
         native_execution = oracle["native_execution_evidence"]
         native_post_write = oracle["native_post_write_evidence"]
+        native_dispatch = oracle["native_dispatch_intent_evidence"]
         for field in EXECUTION_EVIDENCE_FIELDS:
             mutated = dict(trace, execution_evidence=dict(trace["execution_evidence"], **{field: "forged"}))
-            self.assertFalse(execution_boundary_admissible(mutated, native_execution, None, None, native_post_write), field)
+            self.assertFalse(execution_boundary_admissible(mutated, native_execution, None, None, native_post_write, native_dispatch), field)
             forged_native = dict(native_execution, **{field: "forged"})
-            self.assertFalse(execution_boundary_admissible(trace, forged_native, None, None, native_post_write), f"native:{field}")
+            self.assertFalse(execution_boundary_admissible(trace, forged_native, None, None, native_post_write, native_dispatch), f"native:{field}")
 
     def test_provider_default_and_authorized_direct_local_have_positive_coverage(self):
         import copy
@@ -1375,6 +1466,7 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         managed = next(case for case in cases if case["id"] == "repo-writing-managed-worktree-context")["protocol_oracle"]["trace"]
         managed_native = next(case for case in cases if case["id"] == "repo-writing-managed-worktree-context")["protocol_oracle"]["native_execution_evidence"]
         managed_post_write = next(case for case in cases if case["id"] == "repo-writing-managed-worktree-context")["protocol_oracle"]["native_post_write_evidence"]
+        managed_dispatch = next(case for case in cases if case["id"] == "repo-writing-managed-worktree-context")["protocol_oracle"]["native_dispatch_intent_evidence"]
 
         provider_default = copy.deepcopy(managed)
         provider_default["execution_context"].pop("requested_starting_state")
@@ -1389,11 +1481,13 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         provider_default["checkpoint_payload"]["execution_context"] = provider_default["execution_context"]
         provider_post_write = copy.deepcopy(managed_post_write)
         provider_post_write["execution_context"] = provider_default["execution_context"]
-        self.assertTrue(execution_boundary_admissible(provider_default, provider_native, None, None, provider_post_write))
+        provider_dispatch = copy.deepcopy(managed_dispatch)
+        provider_dispatch["dispatch_intent"] = provider_default["execution_context"]
+        self.assertTrue(execution_boundary_admissible(provider_default, provider_native, None, None, provider_post_write, provider_dispatch))
         self.assertFalse(execution_boundary_admissible(dict(
             provider_default,
             observed_checkout=dict(provider_default["observed_checkout"], branch_or_ref="wrong"),
-        ), provider_native, None, None, provider_post_write))
+        ), provider_native, None, None, provider_post_write, provider_dispatch))
 
         direct_local = copy.deepcopy(managed)
         direct_local["execution_context"].update({
@@ -1418,14 +1512,16 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         direct_post_write["execution_context"] = direct_local["execution_context"]
         direct_post_write["observed_checkout"] = direct_local["terminal_report_payload"]["observed_checkout"]
         direct_post_write["immutable_revision"] = "child-head-post"
-        self.assertTrue(execution_boundary_admissible(direct_local, direct_native, None, None, direct_post_write))
+        direct_dispatch = copy.deepcopy(managed_dispatch)
+        direct_dispatch["dispatch_intent"] = direct_local["execution_context"]
+        self.assertTrue(execution_boundary_admissible(direct_local, direct_native, None, None, direct_post_write, direct_dispatch))
         missing_direct_action = copy.deepcopy(direct_local)
         missing_direct_action["actions"] = ["checkpoint", "write", "terminal_report"]
         self.assertFalse(execution_boundary_admissible(
-            missing_direct_action, direct_native, None, None, direct_post_write
+            missing_direct_action, direct_native, None, None, direct_post_write, direct_dispatch
         ))
         direct_local["execution_context"]["exclusive_writer_commitment"] = False
-        self.assertFalse(execution_boundary_admissible(direct_local, direct_native, None, None, direct_post_write))
+        self.assertFalse(execution_boundary_admissible(direct_local, direct_native, None, None, direct_post_write, direct_dispatch))
 
     def test_parent_envelope_requires_authenticated_digest_and_issuer_binding(self):
         import copy
@@ -1437,6 +1533,9 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             trace,
             oracle["native_execution_evidence"],
             oracle["native_parent_envelope_evidence"],
+            None,
+            None,
+            oracle["native_dispatch_intent_evidence"],
         ))
         forged = copy.deepcopy(trace)
         forged["parent_issued_envelope"]["scope"] = "write-anything"
@@ -1445,6 +1544,9 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             forged,
             oracle["native_execution_evidence"],
             oracle["native_parent_envelope_evidence"],
+            None,
+            None,
+            oracle["native_dispatch_intent_evidence"],
         ))
         forged = copy.deepcopy(trace)
         forged_external = copy.deepcopy(oracle["native_parent_envelope_evidence"])
@@ -1453,6 +1555,9 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             forged,
             oracle["native_execution_evidence"],
             forged_external,
+            None,
+            None,
+            oracle["native_dispatch_intent_evidence"],
         ))
         forged_actions = copy.deepcopy(trace)
         forged_actions["actions"] = ["delegate-to-thread", "fork"]
@@ -1460,6 +1565,9 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             forged_actions,
             oracle["native_execution_evidence"],
             oracle["native_parent_envelope_evidence"],
+            None,
+            None,
+            oracle["native_dispatch_intent_evidence"],
         ))
         over_budget = copy.deepcopy(trace)
         over_budget["actions"] = ["delegate-to-thread", "delegate-to-thread"]
@@ -1467,6 +1575,9 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             over_budget,
             oracle["native_execution_evidence"],
             oracle["native_parent_envelope_evidence"],
+            None,
+            None,
+            oracle["native_dispatch_intent_evidence"],
         ))
 
     def test_adversarial_catalog_cases_execute_against_protocol_oracles(self):
