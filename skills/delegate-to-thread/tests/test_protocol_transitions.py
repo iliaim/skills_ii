@@ -87,6 +87,8 @@ DESCENDANT_ENVELOPE_FIELDS = {
     "scope",
     "depth_limit",
     "budget",
+    "active_budget",
+    "total_budget",
     "resource_claim",
     "acceptance_boundary",
     "integration_owner",
@@ -196,6 +198,8 @@ def execution_boundary_admissible(
     if context["execution_mode"] == "managed-worktree":
         if context.get("worktree_path") and observed["worktree_root"] != context["worktree_path"]:
             return False
+        if not context.get("worktree_path") and observed["worktree_root"] == context["project_path"]:
+            return False
     if context.get("cwd") and observed["cwd"] != context["cwd"]:
         return False
     if context.get("worktree_path") and observed["worktree_root"] != context["worktree_path"]:
@@ -205,6 +209,8 @@ def execution_boundary_admissible(
             return False
     elif context["execution_mode"] == "direct-local":
         if context["write_authority"] != "authorized" or not context.get("exclusive_writer_commitment"):
+            return False
+        if observed["cwd"] != context["project_path"] or observed["worktree_root"] != context["project_path"]:
             return False
     else:
         return False
@@ -221,6 +227,24 @@ def execution_boundary_admissible(
         if not parent_envelope_admissible(trace, envelope, native_parent_envelope_evidence):
             return False
         if len(descendant_actions) > envelope["budget"]:
+            return False
+        if len(descendant_actions) > envelope["active_budget"] or len(descendant_actions) > envelope["total_budget"]:
+            return False
+        if descendant_actions and "execute_directly" not in actions:
+            return False
+        if descendant_actions and actions.index("execute_directly") >= actions.index(descendant_actions[0]):
+            return False
+        child_keys = trace.get("descendant_child_keys")
+        if not isinstance(child_keys, list) or len(child_keys) != len(descendant_actions) or len(set(child_keys)) != len(child_keys):
+            return False
+        if any(not isinstance(key, str) or not key for key in child_keys):
+            return False
+        consumption = trace.get("descendant_budget_consumption")
+        if not isinstance(consumption, dict):
+            return False
+        if consumption.get("active_remaining") != envelope["active_budget"] - len(descendant_actions):
+            return False
+        if consumption.get("total_remaining") != envelope["total_budget"] - len(descendant_actions):
             return False
         descendant_depth = trace.get("descendant_depth", 1)
         if isinstance(descendant_depth, bool) or not isinstance(descendant_depth, int) or not 1 <= descendant_depth <= envelope["depth_limit"]:
@@ -301,23 +325,26 @@ def path_disclosure_admissible(trace, native_transfer_evidence=None):
     if native_transfer_evidence.get("payload_digest") != transfer_payload_digest(trace):
         return False
 
-    def contains_raw_path(value):
+    def contains_raw_path(value, field=None):
         if isinstance(value, dict):
             for key, child in value.items():
-                if key in {"branch_or_ref", "base_revision", "requested_starting_state", "starting_state"}:
-                    continue
-                if contains_raw_path(key) or contains_raw_path(child):
+                if contains_raw_path(key) or contains_raw_path(child, key):
                     return True
             return False
         if isinstance(value, (list, tuple)):
             return any(contains_raw_path(child) for child in value)
         if not isinstance(value, str):
             return False
+        if field in {"branch_or_ref", "base_revision", "requested_starting_state", "starting_state"} and re.fullmatch(
+            r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", value
+        ):
+            return False
         return (
             value.startswith(("/", "~/", "~\\", "\\\\"))
             or bool(re.match(r"^[A-Za-z]:[\\/]", value))
             or bool(re.search(r"(?<![A-Za-z0-9/:])/(?!/)", value))
-            or bool(re.match(r"^[^:/\\\s]+(?:/[^/\\\s]+)+$", value))
+            or bool(re.match(r"^[^:/\\\s]+(?:[/\\][^/\\]+)+$", value))
+            or bool(re.match(r"^[^/\\\s]+\.[A-Za-z0-9]{1,8}$", value))
         )
 
     return not contains_raw_path(trace)
@@ -371,6 +398,8 @@ def repository_report_fields_admissible(trace, native_post_write_evidence=None):
         return False
     if status == "clean" and not payload["changed_files"]:
         return False
+    if status == "clean" and terminal_checkout.get("head_revision") == pre_write_checkout.get("head_revision"):
+        return False
     if (
         not isinstance(native_post_write_evidence, dict)
         or native_post_write_evidence.get("source") != "native-post-write-check"
@@ -400,6 +429,22 @@ def repository_report_fields_admissible(trace, native_post_write_evidence=None):
     ownership_mode = trace.get("ownership_mode", trace.get("execution_context", {}).get("ownership_mode"))
     if ownership_mode in {"attached", "coordinator-handoff", "coordinated-single"}:
         attached_terminal = trace.get("attached_terminal_report")
+        current_child_id = trace.get("child_id", trace.get("execution_context", {}).get("child_id"))
+        if current_child_id and (
+            not isinstance(attached_terminal, dict)
+            or attached_terminal.get("child_id") != current_child_id
+        ):
+            return False
+        callbacks = trace.get("attached_callbacks")
+        if not isinstance(callbacks, list) or len(callbacks) != 2:
+            return False
+        if not attached_callbacks_reach_parent(
+            trace.get("parent_task_id"),
+            trace.get("attached_callback_route"),
+            callbacks[0],
+            callbacks[1],
+        ):
+            return False
         if not attached_report_admissible(
             attached_terminal,
             terminal=True,
@@ -426,7 +471,12 @@ def parent_envelope_admissible(trace, envelope, native_parent_envelope_evidence=
         return False
     if any(not envelope[field] for field in DESCENDANT_ENVELOPE_FIELDS):
         return False
+    if not isinstance(envelope["child_key"], str):
+        return False
     for bound in ("depth_limit", "budget"):
+        if isinstance(envelope[bound], bool) or not isinstance(envelope[bound], int) or envelope[bound] <= 0:
+            return False
+    for bound in ("active_budget", "total_budget"):
         if isinstance(envelope[bound], bool) or not isinstance(envelope[bound], int) or envelope[bound] <= 0:
             return False
     if envelope["parent_id"] != trace.get("direct_parent_id") or envelope["root_id"] != trace.get("root_id"):
@@ -1059,7 +1109,13 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "destination_scope": "same-host",
             "secret": "/private/secret.txt",
         }))
-        for secret in ("/secret", "//server/share", "worktrees/child/secret.txt"):
+        for secret in (
+            "/secret",
+            "//server/share",
+            "worktrees/child/secret.txt",
+            "worktrees\\child\\secret.txt",
+            "secret.txt",
+        ):
             leaked = {
                 "destination_scope": "cloud",
                 "secret": secret,

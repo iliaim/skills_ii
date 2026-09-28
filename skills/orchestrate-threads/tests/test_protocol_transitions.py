@@ -81,6 +81,10 @@ def artifact_edge_opens(edge, evidence, observed_native_records=()):
             and record.get("id") == artifact_observation_id
             and record.get("readable_path") == evidence.get("readable_path")
             and record.get("artifact_revision_or_digest") == evidence.get("source_artifact_revision_or_digest")
+            and record.get("source_child_id") == evidence.get("source_child_id")
+            and record.get("source_report_revision") == evidence.get("source_report_revision")
+            and record.get("criterion") == evidence.get("criterion")
+            and record.get("observer") == "native-filesystem-read"
             for record in observed_native_records
         )
     )
@@ -177,6 +181,10 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
                 "id": "artifact-observation-1",
                 "readable_path": "src/a.py",
                 "artifact_revision_or_digest": "git:post-image",
+                "source_child_id": "child-1",
+                "source_report_revision": 7,
+                "criterion": "criterion-a",
+                "observer": "native-filesystem-read",
             },
         ]
 

@@ -9,6 +9,46 @@ from test_protocol_transitions import automatic_setup_resolution
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 
 
+def apply_catalog_mutation(target_record, mutation):
+    """Apply one catalog mutation to a detached assertion/fixture record."""
+    operation = mutation["operation"]
+    path = mutation["target"]["path"]
+    if operation == "insert_call":
+        if path not in {"/before", "/after"}:
+            raise AssertionError(f"unsupported insertion anchor: {path}")
+        return dict(target_record, **{path.lstrip("/"): copy.deepcopy(mutation["value"])})
+    path_parts = path.strip("/").split("/")
+    mutated = copy.deepcopy(target_record)
+    cursor = mutated
+    for path_part in path_parts[:-1]:
+        if isinstance(cursor, dict) and path_part in cursor:
+            cursor = cursor[path_part]
+        elif isinstance(cursor, list) and path_part.isdigit() and int(path_part) < len(cursor):
+            cursor = cursor[int(path_part)]
+        else:
+            raise AssertionError(f"unresolvable mutation path: {path}")
+    leaf = path_parts[-1]
+    if isinstance(cursor, dict) and leaf in cursor:
+        current = cursor[leaf]
+    elif isinstance(cursor, list) and leaf.isdigit() and int(leaf) < len(cursor):
+        current = cursor[int(leaf)]
+    else:
+        raise AssertionError(f"unresolvable mutation path: {path}")
+    if operation == "remove":
+        if isinstance(cursor, dict):
+            del cursor[leaf]
+        else:
+            del cursor[int(leaf)]
+    elif operation in {"replace", "replace_call_arg", "replace_terminal_claim"}:
+        if isinstance(cursor, dict):
+            cursor[leaf] = copy.deepcopy(mutation["value"])
+        else:
+            cursor[int(leaf)] = copy.deepcopy(mutation["value"])
+    else:
+        raise AssertionError(f"unsupported mutation operation: {operation}")
+    return mutated
+
+
 class DelegateContractCaseTests(unittest.TestCase):
     def test_negative_controls_are_complete_executable_mutation_records(self):
         payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
@@ -19,6 +59,18 @@ class DelegateContractCaseTests(unittest.TestCase):
             for case in payload[section]:
                 known_ids = {
                     assertion.get("id")
+                    for assertion_group in (
+                        case.get("task_operation_assertions", {}).get("required", []),
+                        case.get("task_operation_assertions", {}).get("forbidden", []),
+                        case.get("task_operation_assertions", {}).get("counts", []),
+                        case.get("terminal_assertions", []),
+                        case.get("capability_evidence", []),
+                        case.get("fixtures", []),
+                    )
+                    for assertion in assertion_group
+                }
+                known_records = {
+                    assertion.get("id"): assertion
                     for assertion_group in (
                         case.get("task_operation_assertions", {}).get("required", []),
                         case.get("task_operation_assertions", {}).get("forbidden", []),
@@ -45,6 +97,9 @@ class DelegateContractCaseTests(unittest.TestCase):
                     self.assertTrue(expected_failure.get("assertion_id"), control.get("id"))
                     self.assertIn(expected_failure["assertion_id"], known_ids, control.get("id"))
                     self.assertTrue(expected_failure.get("reason_code"), control.get("id"))
+                    baseline = known_records[target["id"]]
+                    mutated = apply_catalog_mutation(baseline, mutation)
+                    self.assertNotEqual(mutated, baseline, control.get("id"))
         cases_by_id = {case["id"]: case for case in payload["cases"]}
         semantic_assertions = {assertion["id"]: assertion for assertion in payload["semantic_assertions"]}
         expected_visited = sum(

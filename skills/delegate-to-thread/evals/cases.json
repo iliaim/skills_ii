@@ -366,6 +366,8 @@
             "scope": "review-only",
             "depth_limit": 1,
             "budget": 1,
+            "active_budget": 1,
+            "total_budget": 1,
             "resource_claim": "child-review",
             "acceptance_boundary": "return-review",
             "integration_owner": "parent-1",
@@ -373,7 +375,7 @@
             "issuer_id": "parent-1",
             "allowed_actions": ["delegate-to-thread"],
             "destination_fingerprint": "repo:/repo/worktrees/child",
-            "identity_or_digest": "sha256:49aa14c8f166ff8464feacd562f6991496515516245d9ecfef624e6bc3796c9d"
+            "identity_or_digest": "sha256:bda4bcb3bcd068a2e433fc36a55b79959021996a2a4a8b6b1e4eb892f69da866"
           },
           "direct_parent_id": "parent-1",
           "root_id": "root-1",
@@ -401,7 +403,9 @@
             "base_revision": "origin/main",
             "working_tree_status": "clean"
           },
-          "actions": ["delegate-to-thread"]
+          "actions": ["execute_directly", "delegate-to-thread"],
+          "descendant_child_keys": ["child-review-1"],
+          "descendant_budget_consumption": {"active_remaining": 0, "total_remaining": 0}
         },
         "native_execution_evidence": {
           "source": "provider-assigned-worktree",
@@ -427,6 +431,8 @@
           "scope": "review-only",
           "depth_limit": 1,
           "budget": 1,
+          "active_budget": 1,
+          "total_budget": 1,
           "resource_claim": "child-review",
           "acceptance_boundary": "return-review",
           "integration_owner": "parent-1",
@@ -434,7 +440,7 @@
           "issuer_id": "parent-1",
           "allowed_actions": ["delegate-to-thread"],
           "destination_fingerprint": "repo:/repo/worktrees/child",
-          "identity_or_digest": "sha256:49aa14c8f166ff8464feacd562f6991496515516245d9ecfef624e6bc3796c9d"
+          "identity_or_digest": "sha256:bda4bcb3bcd068a2e433fc36a55b79959021996a2a4a8b6b1e4eb892f69da866"
         }
       }
     },
