@@ -150,16 +150,22 @@ Repository-writing delegation has two separate context stages:
    `input-required`/suspended and forbids edits, alternate-checkout selection, or descendant creation.
 
 The first checkpoint must carry the observed identity and `write_authority`; a terminal report repeats
-it and adds `changed_files` plus `commit_or_pull_request` (or an explicit uncommitted disposition).
+the stable checkout identity, records the post-write `head_revision` and `working_tree_status`, and
+adds `changed_files` plus `commit_or_pull_request` (or an explicit uncommitted disposition).
 The execution evidence must bind each observed value, including `head_revision`, to the dispatch
 intent or native provider observation; field names without their observed payload are insufficient.
-The terminal payload must repeat the exact execution context and observed checkout that was
-checkpointed before writing. These are evidence fields, not claims the child may fill from memory
-after editing. A local child may
+The terminal payload must repeat the exact execution context and stable checkout identity that was
+checkpointed before writing; its `head_revision` and `working_tree_status` must come from the native
+post-write check. These are evidence fields, not claims the child may fill from memory after editing.
+A local child may
 use `pwd`, `git rev-parse --show-toplevel`, `git branch --show-current`, `git rev-parse HEAD`, and
 `git status --short` as the read-only proof. A remote or cloud child must use the destination's
 supported equivalent or stop for input. Full local paths remain host-local unless the destination is
 authorized to receive them; redact sensitive path components for broader destinations.
+
+Generic child write authority does not authorize `merge`, `publish`, `deploy`, `release`, `promote`,
+or `integrate`. Those lifecycle actions remain closed here and require the named owner and its
+separate lifecycle procedure.
 
 Use this canonical vocabulary across prompts, checkpoints, terminal reports, rubrics, and observers:
 
@@ -357,8 +363,9 @@ Do not create until every applicable statement is true:
 - Direct-local and cloud source/transfer requirements in the capability table pass independently.
 - Any uncommitted state, branch, directory name, model, or reasoning override is explicit and live-supported.
 - The first message contains the compact core and only material conditional context.
-- For repository-writing objectives, dispatch intent and the observed pre-write checkout identity are
-  explicit and internally consistent under the two-stage repository execution-context contract.
+- For repository-writing objectives, dispatch intent is explicit before creation, and the child’s
+  observed pre-write checkout identity is resolved and internally consistent before the first edit
+  under the two-stage repository execution-context contract.
 - The first message explicitly requires direct execution and states whether descendant authority is granted;
   absent explicit descendant authority, descendant delegation is prohibited.
 - Acceptance is observable and cumulative; proof exists or its limitation and manual observation are explicit.

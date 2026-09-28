@@ -60,6 +60,10 @@ OBSERVED_CHECKOUT_FIELDS = {
     "base_revision",
     "working_tree_status",
 }
+STABLE_CHECKOUT_IDENTITY_FIELDS = OBSERVED_CHECKOUT_FIELDS - {
+    "head_revision",
+    "working_tree_status",
+}
 REPOSITORY_CHECKPOINT_FIELDS = {
     "execution_context",
     "cwd",
@@ -79,6 +83,7 @@ TERMINAL_DELIVERY_FIELDS = {"commit_or_pull_request", "uncommitted_disposition"}
 DESCENDANT_ENVELOPE_FIELDS = {
     "root_id",
     "parent_id",
+    "child_key",
     "scope",
     "depth_limit",
     "budget",
@@ -113,6 +118,9 @@ MUTATING_ACTIONS = {
     "edit", "write", "create", "delete", "rename", "move", "chmod",
     "apply_patch", "mkdir", "remove", "commit", "deploy", "publish", "push",
     "merge", "overwrite", "release", "promote", "integrate", "rebase", "reset",
+}
+LIFECYCLE_ACTIONS = {
+    "deploy", "publish", "merge", "release", "promote", "integrate",
 }
 
 
@@ -172,22 +180,22 @@ def execution_boundary_admissible(
         for field in EXECUTION_EVIDENCE_FIELDS
     ):
         return False
+    if starting_state_name == "requested_starting_state":
+        if not context.get("branch_or_ref") or not context.get("base_revision"):
+            return False
+        if observed["branch_or_ref"] != context["branch_or_ref"] or observed["base_revision"] != context["base_revision"]:
+            return False
+    else:
+        provider_rule = context.get("provider_default_rule")
+        if not isinstance(provider_rule, dict) or not {
+            "branch_or_ref", "base_revision"
+        }.issubset(provider_rule):
+            return False
+        if observed["branch_or_ref"] != provider_rule["branch_or_ref"] or observed["base_revision"] != provider_rule["base_revision"]:
+            return False
     if context["execution_mode"] == "managed-worktree":
         if context.get("worktree_path") and observed["worktree_root"] != context["worktree_path"]:
             return False
-        if starting_state_name == "requested_starting_state":
-            if not context.get("branch_or_ref") or not context.get("base_revision"):
-                return False
-            if observed["branch_or_ref"] != context["branch_or_ref"] or observed["base_revision"] != context["base_revision"]:
-                return False
-        else:
-            provider_rule = context["provider_default_rule"]
-            if not isinstance(provider_rule, dict) or not {
-                "branch_or_ref", "base_revision"
-            }.issubset(provider_rule):
-                return False
-            if observed["branch_or_ref"] != provider_rule["branch_or_ref"] or observed["base_revision"] != provider_rule["base_revision"]:
-                return False
     if context.get("cwd") and observed["cwd"] != context["cwd"]:
         return False
     if context.get("worktree_path") and observed["worktree_root"] != context["worktree_path"]:
@@ -202,24 +210,38 @@ def execution_boundary_admissible(
         return False
     if "destination_scope" in trace and not path_disclosure_admissible(trace, native_transfer_evidence):
         return False
+    actions = trace.get("actions", ())
+    if not isinstance(actions, list):
+        return False
+    descendant_actions = [
+        action for action in actions if action in DESCENDANT_ACTIONS
+    ]
     if context.get("descendant_authority") == "granted":
         envelope = trace.get("parent_issued_envelope", {})
         if not parent_envelope_admissible(trace, envelope, native_parent_envelope_evidence):
+            return False
+        if len(descendant_actions) > envelope["budget"]:
+            return False
+        descendant_depth = trace.get("descendant_depth", 1)
+        if isinstance(descendant_depth, bool) or not isinstance(descendant_depth, int) or not 1 <= descendant_depth <= envelope["depth_limit"]:
             return False
     if context.get("descendant_authority") != "granted" and any(
         action in DESCENDANT_ACTIONS for action in trace.get("actions", ())
     ):
         return False
-    actions = trace.get("actions", ())
-    if not isinstance(actions, list):
-        return False
     if any(action not in {
         "execute_directly", "checkpoint", "terminal_report", *DESCENDANT_ACTIONS, *MUTATING_ACTIONS
     } for action in actions):
         return False
+    if any(action in LIFECYCLE_ACTIONS for action in actions):
+        return False
     write_indexes = [index for index, action in enumerate(actions) if action in MUTATING_ACTIONS]
     if write_indexes:
+        if "execute_directly" not in actions:
+            return False
         if "checkpoint" not in actions or "terminal_report" not in actions:
+            return False
+        if actions.index("execute_directly") >= actions.index("checkpoint"):
             return False
         if actions.index("checkpoint") >= min(write_indexes):
             return False
@@ -281,10 +303,12 @@ def path_disclosure_admissible(trace, native_transfer_evidence=None):
 
     def contains_raw_path(value):
         if isinstance(value, dict):
-            return any(
-                contains_raw_path(child)
-                for child in (*value.keys(), *value.values())
-            )
+            for key, child in value.items():
+                if key in {"branch_or_ref", "base_revision", "requested_starting_state", "starting_state"}:
+                    continue
+                if contains_raw_path(key) or contains_raw_path(child):
+                    return True
+            return False
         if isinstance(value, (list, tuple)):
             return any(contains_raw_path(child) for child in value)
         if not isinstance(value, str):
@@ -293,6 +317,7 @@ def path_disclosure_admissible(trace, native_transfer_evidence=None):
             value.startswith(("/", "~/", "~\\", "\\\\"))
             or bool(re.match(r"^[A-Za-z]:[\\/]", value))
             or bool(re.search(r"(?<![A-Za-z0-9/:])/(?!/)", value))
+            or bool(re.match(r"^[^:/\\\s]+(?:/[^/\\\s]+)+$", value))
         )
 
     return not contains_raw_path(trace)
@@ -311,7 +336,8 @@ def repository_report_fields_admissible(trace, native_post_write_evidence=None):
         return False
     if not terminal_fields.intersection(TERMINAL_DELIVERY_FIELDS):
         return False
-    status = trace.get("observed_checkout", {}).get("working_tree_status")
+    pre_write_checkout = trace.get("observed_checkout", {})
+    status = trace.get("terminal_report_payload", {}).get("observed_checkout", {}).get("working_tree_status")
     if status == "clean":
         if "commit_or_pull_request" not in terminal_fields:
             return False
@@ -334,11 +360,16 @@ def repository_report_fields_admissible(trace, native_post_write_evidence=None):
         return False
     if payload.get("execution_context") != trace.get("execution_context"):
         return False
-    if payload.get("observed_checkout") != trace.get("observed_checkout"):
+    terminal_checkout = payload.get("observed_checkout")
+    if not isinstance(terminal_checkout, dict) or not OBSERVED_CHECKOUT_FIELDS.issubset(terminal_checkout):
         return False
-    if payload.get("execution_context") != checkpoint_payload.get("execution_context") or payload.get("observed_checkout") != checkpoint_payload.get("observed_checkout"):
+    if payload.get("execution_context") != checkpoint_payload.get("execution_context"):
+        return False
+    if any(terminal_checkout[field] != pre_write_checkout[field] for field in STABLE_CHECKOUT_IDENTITY_FIELDS):
         return False
     if not isinstance(payload.get("changed_files"), list):
+        return False
+    if status == "clean" and not payload["changed_files"]:
         return False
     if (
         not isinstance(native_post_write_evidence, dict)
@@ -348,16 +379,34 @@ def repository_report_fields_admissible(trace, native_post_write_evidence=None):
         return False
     if native_post_write_evidence.get("execution_context") != checkpoint_payload.get("execution_context"):
         return False
-    if native_post_write_evidence.get("observed_checkout") != payload.get("observed_checkout"):
+    if native_post_write_evidence.get("observed_checkout") != terminal_checkout:
         return False
     if native_post_write_evidence.get("changed_files") != payload.get("changed_files"):
+        return False
+    if native_post_write_evidence.get("immutable_revision") != terminal_checkout.get("head_revision"):
         return False
     delivery_field = "commit_or_pull_request" if status == "clean" else "uncommitted_disposition"
     if native_post_write_evidence.get(delivery_field) != payload.get(delivery_field):
         return False
     if status == "clean":
-        return bool(payload.get("commit_or_pull_request"))
-    return bool(payload.get("uncommitted_disposition"))
+        delivery = payload.get("commit_or_pull_request")
+        if not isinstance(delivery, str) or not delivery.startswith(("commit:", "pr:")):
+            return False
+        delivery_revision = delivery.split(":", 1)[1]
+        if not delivery_revision or delivery_revision != native_post_write_evidence.get("immutable_revision"):
+            return False
+    elif not payload.get("uncommitted_disposition"):
+        return False
+    ownership_mode = trace.get("ownership_mode", trace.get("execution_context", {}).get("ownership_mode"))
+    if ownership_mode in {"attached", "coordinator-handoff", "coordinated-single"}:
+        attached_terminal = trace.get("attached_terminal_report")
+        if not attached_report_admissible(
+            attached_terminal,
+            terminal=True,
+            observed_native_events=trace.get("attached_native_events", ()),
+        ):
+            return False
+    return True
 
 
 def canonical_envelope_payload(envelope):
@@ -377,6 +426,9 @@ def parent_envelope_admissible(trace, envelope, native_parent_envelope_evidence=
         return False
     if any(not envelope[field] for field in DESCENDANT_ENVELOPE_FIELDS):
         return False
+    for bound in ("depth_limit", "budget"):
+        if isinstance(envelope[bound], bool) or not isinstance(envelope[bound], int) or envelope[bound] <= 0:
+            return False
     if envelope["parent_id"] != trace.get("direct_parent_id") or envelope["root_id"] != trace.get("root_id"):
         return False
     if envelope["issuer_id"] != trace.get("direct_parent_id"):
@@ -395,7 +447,7 @@ def parent_envelope_admissible(trace, envelope, native_parent_envelope_evidence=
         return False
     if not isinstance(native_parent_envelope_evidence, dict) or native_parent_envelope_evidence.get("source") != "native-parent-envelope":
         return False
-    if not native_parent_envelope_evidence.get("evidence_id"):
+    if not native_parent_envelope_evidence.get("evidence_id") or native_parent_envelope_evidence.get("record_type") != "parent-issuance" or native_parent_envelope_evidence.get("immutable") is not True:
         return False
     return {
         key: native_parent_envelope_evidence.get(key) for key in DESCENDANT_ENVELOPE_FIELDS
@@ -447,6 +499,8 @@ def report_identity_is_backed(report, observed_native_events=()):
 
 
 def attached_report_admissible(report, terminal=False, observed_native_events=()):
+    if not isinstance(report, dict):
+        return False
     required = TERMINAL_FIELDS if terminal else CHECKPOINT_FIELDS
     return (
         required.issubset(report)
@@ -1005,7 +1059,7 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "destination_scope": "same-host",
             "secret": "/private/secret.txt",
         }))
-        for secret in ("/secret", "//server/share"):
+        for secret in ("/secret", "//server/share", "worktrees/child/secret.txt"):
             leaked = {
                 "destination_scope": "cloud",
                 "secret": secret,
@@ -1071,7 +1125,7 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
                     "base_revision": "origin/main",
                     "working_tree_status": "clean",
                 },
-                "changed_files": ["src/example.py"],
+                "changed_files": ["file-id-1"],
                 "commit_or_pull_request": "commit:child-head",
             },
         )
@@ -1155,7 +1209,10 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             ] + ["uncommitted_disposition"],
             terminal_report_payload=dict(
                 trace["terminal_report_payload"],
-                observed_checkout=dict(trace["observed_checkout"], working_tree_status="dirty"),
+                observed_checkout=dict(
+                    native_post_write["observed_checkout"],
+                    working_tree_status="dirty",
+                ),
                 uncommitted_disposition="left-dirty-with-owner",
             ),
         )
@@ -1242,15 +1299,24 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         direct_local["observed_checkout"].update({"cwd": "/repo", "worktree_root": "/repo"})
         direct_local["execution_evidence"].update({"cwd": "/repo", "worktree_root": "/repo"})
         direct_local["terminal_report_payload"]["execution_context"] = direct_local["execution_context"]
-        direct_local["terminal_report_payload"]["observed_checkout"] = direct_local["observed_checkout"]
+        direct_local["terminal_report_payload"]["observed_checkout"] = dict(
+            direct_local["observed_checkout"], head_revision="child-head-post"
+        )
+        direct_local["terminal_report_payload"]["commit_or_pull_request"] = "commit:child-head-post"
         direct_native = copy.deepcopy(managed_native)
         direct_native.update({"cwd": "/repo", "worktree_root": "/repo"})
         direct_local["checkpoint_payload"]["execution_context"] = direct_local["execution_context"]
         direct_local["checkpoint_payload"]["observed_checkout"] = direct_local["observed_checkout"]
         direct_post_write = copy.deepcopy(managed_post_write)
         direct_post_write["execution_context"] = direct_local["execution_context"]
-        direct_post_write["observed_checkout"] = direct_local["observed_checkout"]
+        direct_post_write["observed_checkout"] = direct_local["terminal_report_payload"]["observed_checkout"]
+        direct_post_write["immutable_revision"] = "child-head-post"
         self.assertTrue(execution_boundary_admissible(direct_local, direct_native, None, None, direct_post_write))
+        missing_direct_action = copy.deepcopy(direct_local)
+        missing_direct_action["actions"] = ["checkpoint", "write", "terminal_report"]
+        self.assertFalse(execution_boundary_admissible(
+            missing_direct_action, direct_native, None, None, direct_post_write
+        ))
         direct_local["execution_context"]["exclusive_writer_commitment"] = False
         self.assertFalse(execution_boundary_admissible(direct_local, direct_native, None, None, direct_post_write))
 
@@ -1285,6 +1351,13 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         forged_actions["actions"] = ["delegate-to-thread", "fork"]
         self.assertFalse(execution_boundary_admissible(
             forged_actions,
+            oracle["native_execution_evidence"],
+            oracle["native_parent_envelope_evidence"],
+        ))
+        over_budget = copy.deepcopy(trace)
+        over_budget["actions"] = ["delegate-to-thread", "delegate-to-thread"]
+        self.assertFalse(execution_boundary_admissible(
+            over_budget,
             oracle["native_execution_evidence"],
             oracle["native_parent_envelope_evidence"],
         ))

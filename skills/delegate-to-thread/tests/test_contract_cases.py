@@ -1,4 +1,5 @@
 import json
+import copy
 import unittest
 from pathlib import Path
 
@@ -28,30 +29,82 @@ class DelegateContractCaseTests(unittest.TestCase):
                     )
                     for assertion in assertion_group
                 }
-            controls = case.get("negative_controls", [])
-            ids = [control.get("id") for control in controls]
-            self.assertEqual(len(ids), len(set(ids)), case["id"])
-            for control in controls:
-                visited += 1
-                mutation = control.get("mutation", {})
-                target = mutation.get("target", {})
-                expected_failure = control.get("expected_failure", {})
-                self.assertIn(mutation.get("operation"), operations, control.get("id"))
-                self.assertTrue(target.get("namespace"), control.get("id"))
-                self.assertIn(target.get("id"), known_ids, control.get("id"))
-                self.assertTrue(target.get("path", "").startswith("/"), control.get("id"))
-                self.assertTrue(expected_failure.get("criterion_id"), control.get("id"))
-                self.assertTrue(expected_failure.get("assertion_id"), control.get("id"))
-                self.assertIn(expected_failure["assertion_id"], known_ids, control.get("id"))
-                self.assertTrue(expected_failure.get("reason_code"), control.get("id"))
+                controls = case.get("negative_controls", [])
+                ids = [control.get("id") for control in controls]
+                self.assertEqual(len(ids), len(set(ids)), case["id"])
+                for control in controls:
+                    visited += 1
+                    mutation = control.get("mutation", {})
+                    target = mutation.get("target", {})
+                    expected_failure = control.get("expected_failure", {})
+                    self.assertIn(mutation.get("operation"), operations, control.get("id"))
+                    self.assertTrue(target.get("namespace"), control.get("id"))
+                    self.assertIn(target.get("id"), known_ids, control.get("id"))
+                    self.assertTrue(target.get("path", "").startswith("/"), control.get("id"))
+                    self.assertTrue(expected_failure.get("criterion_id"), control.get("id"))
+                    self.assertTrue(expected_failure.get("assertion_id"), control.get("id"))
+                    self.assertIn(expected_failure["assertion_id"], known_ids, control.get("id"))
+                    self.assertTrue(expected_failure.get("reason_code"), control.get("id"))
+        cases_by_id = {case["id"]: case for case in payload["cases"]}
+        semantic_assertions = {assertion["id"]: assertion for assertion in payload["semantic_assertions"]}
+        expected_visited = sum(
+            len(case.get("negative_controls", []))
+            for section in catalog_sections
+            for case in payload[section]
+        )
         for case in payload["prompt_contract_variants"]:
             mutation = case.get("mutation", {})
+            target = mutation.get("target", {})
             expected_failure = case.get("expected_failure", {})
+            base_case = cases_by_id.get(case.get("base_case_id"))
+            self.assertIsNotNone(base_case, case["id"])
+            base_ids = {
+                assertion.get("id")
+                for assertion_group in (
+                    base_case.get("task_operation_assertions", {}).get("required", []),
+                    base_case.get("task_operation_assertions", {}).get("forbidden", []),
+                    base_case.get("task_operation_assertions", {}).get("counts", []),
+                    base_case.get("terminal_assertions", []),
+                    base_case.get("capability_evidence", []),
+                    base_case.get("fixtures", []),
+                )
+                for assertion in assertion_group
+            }
             self.assertIn(mutation.get("operation"), operations, case["id"])
-            self.assertTrue(mutation.get("target"), case["id"])
+            self.assertTrue(target.get("namespace"), case["id"])
+            self.assertIn(target.get("id"), base_ids, case["id"])
+            self.assertTrue(target.get("path", "").startswith("/"), case["id"])
+            if mutation["operation"] in {"replace", "replace_call_arg", "insert_call", "replace_terminal_claim"}:
+                self.assertIn("value", mutation, case["id"])
+            if mutation["operation"] == "replace_call_arg":
+                value = mutation["value"]
+                self.assertIsInstance(value, dict, case["id"])
+                self.assertIsInstance(value.get("target"), dict, case["id"])
+                self.assertTrue(value["target"].get("type"), case["id"])
+                self.assertIsInstance(value.get("prompt"), str, case["id"])
+                self.assertTrue(value["prompt"].strip(), case["id"])
+                target_assertion = next(
+                    assertion
+                    for assertion in base_case["task_operation_assertions"]["required"]
+                    if assertion["id"] == target["id"]
+                )
+                mutated_assertion = copy.deepcopy(target_assertion)
+                cursor = mutated_assertion
+                path_parts = target["path"].strip("/").split("/")
+                for path_part in path_parts[:-1]:
+                    self.assertIn(path_part, cursor, case["id"])
+                    cursor = cursor[path_part]
+                self.assertIn(path_parts[-1], cursor, case["id"])
+                cursor[path_parts[-1]] = value
+                self.assertEqual(mutated_assertion["args_match"]["value"], value, case["id"])
             self.assertTrue(expected_failure.get("criterion_id"), case["id"])
             self.assertTrue(expected_failure.get("assertion_id"), case["id"])
+            self.assertIn(expected_failure["assertion_id"], (*base_ids, *semantic_assertions), case["id"])
+            self.assertIn(expected_failure["criterion_id"], {
+                assertion.get("criterion_id") for assertion in semantic_assertions.values()
+            }, case["id"])
             self.assertTrue(expected_failure.get("reason_code"), case["id"])
+        self.assertEqual(visited, expected_visited)
         self.assertGreater(visited, 0)
 
     def test_attached_reporting_cases_cover_required_red_controls(self):

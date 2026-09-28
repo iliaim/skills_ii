@@ -148,17 +148,17 @@
               "execution_mode": "managed-worktree",
               "descendant_authority": "absent"
             },
-            "observed_checkout": {
-              "project_path": "/repo",
-              "cwd": "/repo/worktrees/child",
-              "worktree_root": "/repo/worktrees/child",
-              "branch_or_ref": "codex/child",
-              "head_revision": "child-head",
+          "observed_checkout": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head-post",
               "base_revision": "origin/main",
               "working_tree_status": "clean"
             },
             "changed_files": ["src/example.py"],
-            "commit_or_pull_request": "commit:child-head"
+            "commit_or_pull_request": "commit:child-head-post"
           }
         },
         "native_execution_evidence": {
@@ -188,17 +188,18 @@
             "execution_mode": "managed-worktree",
             "descendant_authority": "absent"
           },
-          "observed_checkout": {
-            "project_path": "/repo",
-            "cwd": "/repo/worktrees/child",
-            "worktree_root": "/repo/worktrees/child",
-            "branch_or_ref": "codex/child",
-            "head_revision": "child-head",
+            "observed_checkout": {
+              "project_path": "/repo",
+              "cwd": "/repo/worktrees/child",
+              "worktree_root": "/repo/worktrees/child",
+              "branch_or_ref": "codex/child",
+              "head_revision": "child-head-post",
             "base_revision": "origin/main",
             "working_tree_status": "clean"
           },
           "changed_files": ["src/example.py"],
-          "commit_or_pull_request": "commit:child-head"
+          "commit_or_pull_request": "commit:child-head-post",
+          "immutable_revision": "child-head-post"
         }
       }
     },
@@ -361,6 +362,7 @@
           "parent_issued_envelope": {
             "root_id": "root-1",
             "parent_id": "parent-1",
+            "child_key": "child-review-1",
             "scope": "review-only",
             "depth_limit": 1,
             "budget": 1,
@@ -371,7 +373,7 @@
             "issuer_id": "parent-1",
             "allowed_actions": ["delegate-to-thread"],
             "destination_fingerprint": "repo:/repo/worktrees/child",
-            "identity_or_digest": "sha256:f93bea698a35b20a53f1b407ca3b5fbc945e34685594f0d2a9cc270aff7e3603"
+            "identity_or_digest": "sha256:49aa14c8f166ff8464feacd562f6991496515516245d9ecfef624e6bc3796c9d"
           },
           "direct_parent_id": "parent-1",
           "root_id": "root-1",
@@ -417,8 +419,11 @@
         "native_parent_envelope_evidence": {
           "source": "native-parent-envelope",
           "evidence_id": "event:parent-envelope-1",
+          "record_type": "parent-issuance",
+          "immutable": true,
           "root_id": "root-1",
           "parent_id": "parent-1",
+          "child_key": "child-review-1",
           "scope": "review-only",
           "depth_limit": 1,
           "budget": 1,
@@ -429,7 +434,7 @@
           "issuer_id": "parent-1",
           "allowed_actions": ["delegate-to-thread"],
           "destination_fingerprint": "repo:/repo/worktrees/child",
-          "identity_or_digest": "sha256:f93bea698a35b20a53f1b407ca3b5fbc945e34685594f0d2a9cc270aff7e3603"
+          "identity_or_digest": "sha256:49aa14c8f166ff8464feacd562f6991496515516245d9ecfef624e6bc3796c9d"
         }
       }
     },

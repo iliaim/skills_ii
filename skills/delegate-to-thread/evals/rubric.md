@@ -155,7 +155,7 @@ headings, field order, Given/When/Then prose, or `not applicable` filler.
 
 For repository-writing cases, also require the two-stage execution-context and direct-execution
 semantics described above. A prompt that only names a project or says “use the worktree” without the
-dispatch intent and pre-write identity gate is incomplete.
+dispatch intent and the pre-write identity gate after creation is incomplete.
 
 Reject prompts that are missing or generic, leak a fixture-declared sensitive sentinel, copy a
 fixture-declared durable artifact body instead of referencing it, omit point-of-use revalidation for

@@ -69,11 +69,20 @@ def accepted_evidence_opens(edge, evidence, observed_native_records=()):
 
 
 def artifact_edge_opens(edge, evidence, observed_native_records=()):
+    artifact_observation_id = evidence.get("artifact_observation_id")
     return _report_edge_matches(edge, evidence, observed_native_records) and (
         edge["type"] == "available_artifact"
         and edge["source_artifact_revision_or_digest"] == evidence.get("source_artifact_revision_or_digest")
         and edge["readable_path"] == evidence.get("readable_path")
         and bool(evidence.get("readable_path"))
+        and isinstance(artifact_observation_id, str)
+        and any(
+            record.get("kind") == "artifact-post-image"
+            and record.get("id") == artifact_observation_id
+            and record.get("readable_path") == evidence.get("readable_path")
+            and record.get("artifact_revision_or_digest") == evidence.get("source_artifact_revision_or_digest")
+            for record in observed_native_records
+        )
     )
 
 
@@ -161,7 +170,15 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
             },
             "source_artifact_revision_or_digest": "not_applicable",
         }
-        self.native_records = [self.evidence["source_native_evidence"]]
+        self.native_records = [
+            self.evidence["source_native_evidence"],
+            {
+                "kind": "artifact-post-image",
+                "id": "artifact-observation-1",
+                "readable_path": "src/a.py",
+                "artifact_revision_or_digest": "git:post-image",
+            },
+        ]
 
     def test_evidence_only_gate_opens_without_artifact(self):
         edge = dict(self.evidence, type="accepted_evidence")
@@ -231,10 +248,16 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
             source_artifact_revision_or_digest="git:post-image",
             readable_path="src/a.py",
         )
-        available = dict(self.evidence, source_artifact_revision_or_digest="git:post-image", readable_path="src/a.py")
+        available = dict(
+            self.evidence,
+            source_artifact_revision_or_digest="git:post-image",
+            readable_path="src/a.py",
+            artifact_observation_id="artifact-observation-1",
+        )
         self.assertTrue(artifact_edge_opens(edge, available, self.native_records))
         self.assertFalse(artifact_edge_opens(edge, dict(available, source_artifact_revision_or_digest="git:pre-image")))
         self.assertFalse(artifact_edge_opens(edge, dict(available, readable_path=None)))
+        self.assertFalse(artifact_edge_opens(edge, dict(available, artifact_observation_id="missing"), self.native_records))
         self.assertFalse(artifact_edge_opens(dict(edge, superseded=True), available))
 
     def test_attention_requires_observed_acknowledgement_after_response(self):
