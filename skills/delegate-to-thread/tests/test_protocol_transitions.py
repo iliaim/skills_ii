@@ -239,6 +239,8 @@ def execution_boundary_admissible(
             return False
         if any(not isinstance(key, str) or not key for key in child_keys):
             return False
+        if any(key != envelope["child_key"] for key in child_keys):
+            return False
         consumption = trace.get("descendant_budget_consumption")
         if not isinstance(consumption, dict):
             return False
@@ -449,6 +451,12 @@ def repository_report_fields_admissible(trace, native_post_write_evidence=None):
             trace.get("attached_callback_route"),
             callbacks[0],
             callbacks[1],
+        ):
+            return False
+        terminal_callback_report = callbacks[1]["report"]
+        if any(
+            terminal_callback_report.get(field) != attached_terminal.get(field)
+            for field in ("report_identity_or_digest", "report_revision", "supersedes")
         ):
             return False
         if not attached_report_admissible(
