@@ -339,11 +339,25 @@ def _operation_assertion_passes(kind, assertion, trace):
 
 
 def _partial_order_passes(case, trace, catalog=None):
-    if case.get("base_case_id") and not catalog:
+    has_base_case = "base_case_id" in case
+    has_inherit_boundary = "inherit_until" in case
+    base_case_id = case.get("base_case_id")
+    inherit_boundary = case.get("inherit_until")
+    if has_base_case and (not isinstance(base_case_id, str) or not base_case_id):
         return False
-    if case.get("inherit_until") and not case.get("base_case_id"):
+    if has_inherit_boundary and (not isinstance(inherit_boundary, str) or not inherit_boundary):
         return False
-    local_edges = list(case.get("task_operation_assertions", {}).get("partial_order", []))
+    if has_base_case and not catalog:
+        return False
+    if has_inherit_boundary and not has_base_case:
+        return False
+    operation_assertions = case.get("task_operation_assertions", {})
+    if not isinstance(operation_assertions, dict):
+        return False
+    raw_local_edges = operation_assertions.get("partial_order", [])
+    if not isinstance(raw_local_edges, list):
+        return False
+    local_edges = list(raw_local_edges)
     if any(
         not isinstance(edge, dict)
         or not isinstance(edge.get("before"), str)
@@ -353,11 +367,17 @@ def _partial_order_passes(case, trace, catalog=None):
         return False
     edges = local_edges
     inherited_ids = None
-    if catalog and case.get("base_case_id"):
-        base = catalog.get(case["base_case_id"])
+    if catalog and has_base_case:
+        base = catalog.get(base_case_id)
         if base is None:
             return False
-        base_edges = list(base.get("task_operation_assertions", {}).get("partial_order", []))
+        base_operation_assertions = base.get("task_operation_assertions", {})
+        if not isinstance(base_operation_assertions, dict):
+            return False
+        raw_base_edges = base_operation_assertions.get("partial_order", [])
+        if not isinstance(raw_base_edges, list):
+            return False
+        base_edges = list(raw_base_edges)
         if any(
             not isinstance(edge, dict)
             or not isinstance(edge.get("before"), str)
@@ -372,11 +392,11 @@ def _partial_order_passes(case, trace, catalog=None):
             for edge in base_edges
         ):
             return False
-        if case.get("inherit_until"):
+        if has_inherit_boundary:
             base_ids = [call["assertion_id"] for call in base_trace]
-            if case["inherit_until"] not in base_ids:
+            if inherit_boundary not in base_ids:
                 return False
-            inherited_ids = base_ids[: base_ids.index(case["inherit_until"]) + 1]
+            inherited_ids = base_ids[: base_ids.index(inherit_boundary) + 1]
             inherited_id_set = set(inherited_ids)
             base_edges = [
                 edge
@@ -388,15 +408,14 @@ def _partial_order_passes(case, trace, catalog=None):
     if any(edge["before"] not in trace_ids or edge["after"] not in trace_ids for edge in edges):
         return False
     positions = {call["assertion_id"]: index for index, call in enumerate(trace)}
-    if catalog and case.get("base_case_id") and case.get("inherit_until"):
+    if catalog and has_base_case and has_inherit_boundary:
         inherited_ids = inherited_ids or [
             call["assertion_id"]
-            for call in _baseline_trace(catalog[case["base_case_id"]])
+            for call in _baseline_trace(catalog[base_case_id])
         ]
-        if case.get("inherit_until"):
-            if case["inherit_until"] not in inherited_ids:
-                return False
-            inherited_ids = inherited_ids[: inherited_ids.index(case["inherit_until"]) + 1]
+        if inherit_boundary not in inherited_ids:
+            return False
+        inherited_ids = inherited_ids[: inherited_ids.index(inherit_boundary) + 1]
         local_ids = {
             assertion["id"]
             for assertion in case.get("task_operation_assertions", {}).get("required", [])
@@ -1230,6 +1249,29 @@ class DelegateContractCaseTests(unittest.TestCase):
             _partial_order_passes(
                 {"base_case_id": "base", "task_operation_assertions": {}},
                 [{"assertion_id": "call-create"}],
+            )
+        )
+        self.assertFalse(
+            _partial_order_passes(
+                {"base_case_id": "base", "inherit_until": "", "task_operation_assertions": {}},
+                [{"assertion_id": "call-create"}],
+                {"base": {"task_operation_assertions": {"required": [], "partial_order": []}}},
+            )
+        )
+        self.assertFalse(
+            _partial_order_passes(
+                {"task_operation_assertions": {"partial_order": None}},
+                [{"assertion_id": "call-create"}],
+            )
+        )
+        self.assertFalse(
+            _partial_order_passes(
+                {
+                    "base_case_id": "base",
+                    "task_operation_assertions": {"partial_order": []},
+                },
+                [{"assertion_id": "call-create"}],
+                {"base": {"task_operation_assertions": {"partial_order": None}}},
             )
         )
 
