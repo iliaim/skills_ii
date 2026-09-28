@@ -96,6 +96,12 @@ _EXPECTED_CATALOG_ID_DIGESTS = {
     ),
 }
 
+_EXPECTED_PARTIAL_ORDER_DIGESTS = {
+    "cases": "191cb9e259074f9679fdd6067f051cfcccd9b609a345bab6c8aeee02d25987d7",
+    "observation_variants": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "prompt_contract_variants": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+}
+
 
 _REASON_MUTATION_SHAPES = {
     "child-slice-cannot-complete-parent": ("candidate_terminal", "replace_terminal_claim", "/statement"),
@@ -456,19 +462,20 @@ def _fixture_provenance_valid(
         trigger_occurrence = available_at.get("occurrence")
         if not trigger_operation or not isinstance(trigger_occurrence, int) or trigger_occurrence < 1:
             return False
-        if trace is not None and admission_assertion_id is not None:
-            admission_positions = [
-                index for index, call in enumerate(trace)
-                if call.get("assertion_id") == admission_assertion_id
-            ]
-            trigger_positions = [
-                index for index, call in enumerate(trace)
-                if call.get("tool") == trigger_operation
-            ]
-            if not admission_positions or len(trigger_positions) < trigger_occurrence:
-                return False
-            if trigger_positions[trigger_occurrence - 1] >= admission_positions[0]:
-                return False
+        if trace is None or admission_assertion_id is None:
+            return False
+        admission_positions = [
+            index for index, call in enumerate(trace)
+            if call.get("assertion_id") == admission_assertion_id
+        ]
+        trigger_positions = [
+            index for index, call in enumerate(trace)
+            if call.get("tool") == trigger_operation
+        ]
+        if not admission_positions or len(trigger_positions) < trigger_occurrence:
+            return False
+        if trigger_positions[trigger_occurrence - 1] >= admission_positions[0]:
+            return False
     elif available_at.get("kind") != "case_start":
         return False
     documented = record.get("documented_decision_paths")
@@ -580,7 +587,13 @@ def _mutation_semantics_passes(control, reason):
             and mutation.get("value") == "local"
         )
     if reason == "one-logical-delegation-exceeded":
-        return mutation["operation"] == "insert_call" and target["path"] in {"/before", "/after"}
+        return (
+            mutation["operation"] == "insert_call"
+            and target["path"] in {"/before", "/after"}
+            and mutation.get("value", {}).get("tool") == "create_thread"
+        )
+    if reason == "client-id-not-operable":
+        return mutation.get("value", {}).get("tool") == "wait_threads"
     if reason == "title-not-stable-identity":
         return (
             target["namespace"] == "candidate_terminal"
@@ -1132,6 +1145,16 @@ class DelegateContractCaseTests(unittest.TestCase):
                 hashlib.sha256(control_ids.encode()).hexdigest(),
                 _EXPECTED_CATALOG_ID_DIGESTS[section][1],
                 f"{section} control identity drift",
+            )
+            partial_order_ids = "\n".join(
+                f"{case['id']}:{edge['before']}->{edge['after']}"
+                for case in payload[section]
+                for edge in case.get("task_operation_assertions", {}).get("partial_order", [])
+            )
+            self.assertEqual(
+                hashlib.sha256(partial_order_ids.encode()).hexdigest(),
+                _EXPECTED_PARTIAL_ORDER_DIGESTS[section],
+                f"{section} partial-order drift",
             )
         cases_by_id = {case["id"]: case for case in payload["cases"]}
         cases_by_id.update({case["id"]: case for case in payload["observation_variants"]})
