@@ -338,6 +338,23 @@ def _operation_assertion_passes(kind, assertion, trace):
     return assertion.get("min", 0) <= count <= assertion.get("max", float("inf"))
 
 
+def _validated_partial_order_edges(operation_assertions):
+    if not isinstance(operation_assertions, dict):
+        return None
+    raw_edges = operation_assertions.get("partial_order", [])
+    if not isinstance(raw_edges, list):
+        return None
+    edges = list(raw_edges)
+    if any(
+        not isinstance(edge, dict)
+        or not isinstance(edge.get("before"), str)
+        or not isinstance(edge.get("after"), str)
+        for edge in edges
+    ):
+        return None
+    return edges
+
+
 def _partial_order_passes(case, trace, catalog=None):
     has_base_case = "base_case_id" in case
     has_inherit_boundary = "inherit_until" in case
@@ -352,38 +369,18 @@ def _partial_order_passes(case, trace, catalog=None):
     if has_inherit_boundary and not has_base_case:
         return False
     operation_assertions = case.get("task_operation_assertions", {})
-    if not isinstance(operation_assertions, dict):
-        return False
-    raw_local_edges = operation_assertions.get("partial_order", [])
-    if not isinstance(raw_local_edges, list):
-        return False
-    local_edges = list(raw_local_edges)
-    if any(
-        not isinstance(edge, dict)
-        or not isinstance(edge.get("before"), str)
-        or not isinstance(edge.get("after"), str)
-        for edge in local_edges
-    ):
+    local_edges = _validated_partial_order_edges(operation_assertions)
+    if local_edges is None:
         return False
     edges = local_edges
     inherited_ids = None
-    if catalog and has_base_case:
+    if has_base_case:
         base = catalog.get(base_case_id)
         if not isinstance(base, dict):
             return False
         base_operation_assertions = base.get("task_operation_assertions", {})
-        if not isinstance(base_operation_assertions, dict):
-            return False
-        raw_base_edges = base_operation_assertions.get("partial_order", [])
-        if not isinstance(raw_base_edges, list):
-            return False
-        base_edges = list(raw_base_edges)
-        if any(
-            not isinstance(edge, dict)
-            or not isinstance(edge.get("before"), str)
-            or not isinstance(edge.get("after"), str)
-            for edge in base_edges
-        ):
+        base_edges = _validated_partial_order_edges(base_operation_assertions)
+        if base_edges is None:
             return False
         base_trace = _baseline_trace(base)
         base_trace_ids = {call["assertion_id"] for call in base_trace}
@@ -408,17 +405,10 @@ def _partial_order_passes(case, trace, catalog=None):
     if any(edge["before"] not in trace_ids or edge["after"] not in trace_ids for edge in edges):
         return False
     positions = {call["assertion_id"]: index for index, call in enumerate(trace)}
-    if catalog and has_base_case and has_inherit_boundary:
-        inherited_ids = inherited_ids or [
-            call["assertion_id"]
-            for call in _baseline_trace(catalog[base_case_id])
-        ]
-        if inherit_boundary not in inherited_ids:
-            return False
-        inherited_ids = inherited_ids[: inherited_ids.index(inherit_boundary) + 1]
+    if has_base_case and has_inherit_boundary:
         local_ids = {
             assertion["id"]
-            for assertion in case.get("task_operation_assertions", {}).get("required", [])
+            for assertion in operation_assertions.get("required", [])
         }
         inherited_positions = [positions[identifier] for identifier in inherited_ids if identifier in positions]
         if inherited_positions:
