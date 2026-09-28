@@ -339,6 +339,10 @@ def _operation_assertion_passes(kind, assertion, trace):
 
 
 def _partial_order_passes(case, trace, catalog=None):
+    if case.get("base_case_id") and not catalog:
+        return False
+    if case.get("inherit_until") and not case.get("base_case_id"):
+        return False
     local_edges = list(case.get("task_operation_assertions", {}).get("partial_order", []))
     if any(
         not isinstance(edge, dict)
@@ -614,7 +618,7 @@ def _operation_contract_passes(case, trace, catalog=None):
     )
 
 
-def _mutation_semantics_passes(control, reason):
+def _mutation_semantics_passes(control, reason, case=None):
     """Keep high-risk failure labels bound to the mutation they describe."""
     mutation = control["mutation"]
     target = mutation["target"]
@@ -636,11 +640,17 @@ def _mutation_semantics_passes(control, reason):
     if reason == "client-id-not-operable":
         value = mutation.get("value", {})
         targets = value.get("args", {}).get("targets", [])
+        client_handles = {
+            fixture.get("raw_result", {}).get("clientThreadId")
+            for fixture in (case or {}).get("fixtures", [])
+            if fixture.get("kind") == "tool_result"
+            and fixture.get("raw_result", {}).get("clientThreadId")
+        }
         return (
             value.get("tool") == "wait_threads"
             and isinstance(targets, list)
             and len(targets) == 1
-            and targets[0].get("threadId") == "setup-17"
+            and targets[0].get("threadId") in client_handles
         )
     if reason == "title-not-stable-identity":
         return (
@@ -1210,6 +1220,18 @@ class DelegateContractCaseTests(unittest.TestCase):
                 {"base": {"task_operation_assertions": {"required": [], "partial_order": []}}},
             )
         )
+        self.assertFalse(
+            _partial_order_passes(
+                {"inherit_until": "call-missing", "task_operation_assertions": {}},
+                [{"assertion_id": "call-create"}],
+            )
+        )
+        self.assertFalse(
+            _partial_order_passes(
+                {"base_case_id": "base", "task_operation_assertions": {}},
+                [{"assertion_id": "call-create"}],
+            )
+        )
 
     def test_negative_controls_are_complete_executable_mutation_records(self):
         payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
@@ -1299,7 +1321,7 @@ class DelegateContractCaseTests(unittest.TestCase):
                         control.get("id"),
                     )
                     self.assertTrue(
-                        _mutation_semantics_passes(control, expected_failure["reason_code"]),
+                        _mutation_semantics_passes(control, expected_failure["reason_code"], case),
                         control.get("id"),
                     )
                     baseline = known_records[target["id"]]
@@ -1480,7 +1502,7 @@ class DelegateContractCaseTests(unittest.TestCase):
         )
         decoy = copy.deepcopy(control)
         decoy["mutation"]["value"]["args"]["targets"][0]["threadId"] = "ready-thread-id"
-        self.assertFalse(_mutation_semantics_passes(decoy, "client-id-not-operable"))
+        self.assertFalse(_mutation_semantics_passes(decoy, "client-id-not-operable", queued_case))
 
     def test_attached_reporting_cases_cover_required_red_controls(self):
         payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
