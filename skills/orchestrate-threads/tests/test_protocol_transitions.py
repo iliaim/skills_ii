@@ -87,6 +87,7 @@ def checkpoint_identity_is_backed(checkpoint, observed_native_events):
             identity == checkpoint_digest(checkpoint)
             and isinstance(provenance, dict)
             and provenance.get("source") == "native-immutable-report"
+            and bool(provenance.get("evidence_id"))
             and any(
                 event.get("kind") == "immutable-report"
                 and event.get("id") == provenance.get("evidence_id")
@@ -108,12 +109,21 @@ def checkpoint_identity_is_backed(checkpoint, observed_native_events):
 
 
 def attention_acknowledged(response_sent, previous_checkpoint, checkpoint, observed_native_events=()):
+    previous_revision = previous_checkpoint.get("report_revision")
+    current_revision = checkpoint.get("report_revision") if checkpoint else None
+    if (
+        not isinstance(previous_revision, int)
+        or isinstance(previous_revision, bool)
+        or not isinstance(current_revision, int)
+        or isinstance(current_revision, bool)
+    ):
+        return False
     return bool(
         response_sent
         and checkpoint
         and checkpoint.get("child_id") == previous_checkpoint.get("child_id")
         and checkpoint.get("progress_kind") == "attention_acknowledged"
-        and checkpoint.get("report_revision", -1) > previous_checkpoint.get("report_revision", -1)
+        and current_revision > previous_revision
         and checkpoint_identity_is_backed(checkpoint, observed_native_events)
         and checkpoint_identity_is_backed(previous_checkpoint, observed_native_events)
         and checkpoint.get("report_identity_or_digest") != previous_checkpoint.get("report_identity_or_digest")
@@ -258,6 +268,19 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
             dict(acknowledged, child_id="child-2"),
             observed,
         ))
+        for invalid in (None, "4", True):
+            self.assertFalse(attention_acknowledged(
+                True,
+                dict(previous, report_revision=invalid),
+                acknowledged,
+                observed,
+            ))
+            self.assertFalse(attention_acknowledged(
+                True,
+                previous,
+                dict(acknowledged, report_revision=invalid),
+                observed,
+            ))
 
     def test_attention_accepts_authenticated_digest_identity(self):
         previous = {

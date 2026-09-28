@@ -289,7 +289,11 @@ def path_disclosure_admissible(trace, native_transfer_evidence=None):
             return any(contains_raw_path(child) for child in value)
         if not isinstance(value, str):
             return False
-        return bool(re.search(r"(?<![A-Za-z0-9])/(?!/)[^\\s,;]+|~[/\\]|[A-Za-z]:[\\/]|\\\\", value))
+        return (
+            value.startswith(("/", "~/", "~\\", "\\\\"))
+            or bool(re.match(r"^[A-Za-z]:[\\/]", value))
+            or bool(re.search(r"(?<![A-Za-z0-9/:])/(?!/)", value))
+        )
 
     return not contains_raw_path(trace)
 
@@ -448,7 +452,7 @@ def attached_report_admissible(report, terminal=False, observed_native_events=()
         required.issubset(report)
         and isinstance(report["report_revision"], int)
         and report_identity_is_backed(report, observed_native_events)
-        and (terminal or bool(report["child_id"]))
+        and bool(report["child_id"])
         and (terminal or (isinstance(report["evidence_refs"], list) and bool(report["evidence_refs"])))
         and (
             terminal
@@ -638,6 +642,14 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         self.assertTrue(attached_report_admissible(checkpoint, observed_native_events=checkpoint_events))
         self.assertTrue(attached_report_admissible(terminal, terminal=True, observed_native_events=terminal_events))
         self.assertFalse(attached_report_admissible(dict(terminal, authenticated_provenance=None), terminal=True, observed_native_events=terminal_events))
+        for child_id in (None, ""):
+            malformed = dict(terminal, child_id=child_id, report_identity_or_digest=None)
+            malformed["report_identity_or_digest"] = report_digest(malformed)
+            self.assertFalse(attached_report_admissible(
+                malformed,
+                terminal=True,
+                observed_native_events=[dict(terminal_events[0], child_id=child_id, identity_or_digest=malformed["report_identity_or_digest"])],
+            ))
         self.assertFalse(attached_report_admissible(dict(checkpoint, report_identity_or_digest=None)))
         self.assertFalse(attached_report_admissible(dict(checkpoint, report_identity_or_digest="reported-complete")))
         self.assertFalse(attached_report_admissible(dict(
@@ -993,6 +1005,30 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "destination_scope": "same-host",
             "secret": "/private/secret.txt",
         }))
+        for secret in ("/secret", "//server/share"):
+            leaked = {
+                "destination_scope": "cloud",
+                "secret": secret,
+                "path_transfer_authority": {
+                    "source_scope": "same-host",
+                    "destination_scope": "cloud",
+                    "method": "authorized-path-transfer",
+                    "evidence_id": "event:transfer-leak",
+                    "redaction": "opaque-identifiers",
+                },
+            }
+            self.assertFalse(path_disclosure_admissible(
+                leaked,
+                native_transfer_evidence={
+                    "source": "native-transfer-authorization",
+                    "evidence_id": "event:transfer-leak",
+                    "source_scope": "same-host",
+                    "destination_scope": "cloud",
+                    "method": "authorized-path-transfer",
+                    "redaction": "opaque-identifiers",
+                    "payload_digest": transfer_payload_digest(leaked),
+                },
+            ))
         transfer_trace = dict(
             trace,
             destination_scope="cloud",
