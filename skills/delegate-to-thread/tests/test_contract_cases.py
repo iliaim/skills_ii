@@ -1,5 +1,6 @@
 import json
 import copy
+import hashlib
 import re
 import unittest
 from pathlib import Path
@@ -78,6 +79,82 @@ _EXPECTED_CATALOG_COUNTS = {
     "cases": (26, 64),
     "observation_variants": (3, 6),
     "prompt_contract_variants": (12, 0),
+}
+
+_EXPECTED_CATALOG_ID_DIGESTS = {
+    "cases": (
+        "02d23748576865337787aa15c9f2b10ba305649350f236338c286f110ef0baa7",
+        "64615ba68732372a441f0ef0176bdf6be633547f45afb63fc7b49b03a5234c39",
+    ),
+    "observation_variants": (
+        "efc7ae72156a3e68d26bf463c09d574500a6527769fea011914de53514230010",
+        "e04a823099d7fa6555f1b01fd617697344d26f9669f1383dbfa53010f2b8f1ff",
+    ),
+    "prompt_contract_variants": (
+        "ce85052584a6ad4cac936b2dbd65803b03f4e6896ca21a4547dbd8434d950414",
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ),
+}
+
+
+_REASON_MUTATION_SHAPES = {
+    "child-slice-cannot-complete-parent": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "client-id-not-operable": ("candidate_trace", "insert_call", "/after"),
+    "cloud-bound-not-resolved-before-create": ("fixture", "replace", "/event/payload/observation_bound_supplied"),
+    "cloud-observation-bound-exceeded": ("candidate_trace", "insert_call", "/after"),
+    "cloud-observer-support-missing": ("fixture", "remove", "/snapshot/clause"),
+    "codex-wait-not-chat-observer": ("candidate_trace", "insert_call", "/after"),
+    "commitment-duration-missing": ("fixture", "replace", "/event/payload/commit_until_terminal"),
+    "consent-not-access": ("candidate_trace", "insert_call", "/after"),
+    "continuation-not-creation": ("candidate_trace", "insert_call", "/before"),
+    "create-only-unsolicited-observation": ("candidate_trace", "insert_call", "/after"),
+    "delegation-default-provenance-missing": ("fixture", "replace", "/event/payload/explicit_skill_invocation"),
+    "dry-run-explicitly-forbids-creation": ("candidate_trace", "insert_call", "/before"),
+    "error-without-native-guarantee-not-retryable": ("candidate_trace", "insert_call", "/after"),
+    "exclusive-interval-wrong-destination": ("fixture", "replace", "/event/payload/environment"),
+    "explicit-create-only-override-ignored": ("candidate_trace", "insert_call", "/after"),
+    "explicit-create-only-provenance-missing": ("fixture", "replace", "/event/payload/coordination"),
+    "explicit-delegation-default-not-coordinated": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "explicit-no-create-provenance-missing": ("fixture", "replace", "/event/payload/explicit_no_create"),
+    "explicit-no-create-veto-ignored": ("candidate_trace", "insert_call", "/before"),
+    "fork-not-clean-create": ("candidate_trace", "insert_call", "/before"),
+    "git-default-isolation-lost": ("candidate_trace", "replace_call_arg", "/args_match/value/target/environment/type"),
+    "human-notification-not-agent-wakeup": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "indeterminate-not-retryable": ("candidate_trace", "insert_call", "/after"),
+    "internal-not-sidebar": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "invented-project": ("candidate_trace", "replace_call_arg", "/args_match/value/target"),
+    "known-writer-conflict": ("candidate_trace", "insert_call", "/after"),
+    "lifecycle-authority-not-delegated": ("candidate_trace", "insert_call", "/after"),
+    "material-target-ambiguity": ("candidate_trace", "insert_call", "/after"),
+    "meta-reference-not-creation-authority": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "needs-attention-is-not-terminal-success": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "needs-attention-must-surface-before-continuing": ("candidate_trace", "insert_call", "/after"),
+    "needs-attention-signal-missing": ("fixture", "replace", "/raw_result/polls/0/latestTurn/status"),
+    "no-native-parent-auto-resume": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "nonterminal-cloud-snapshot": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "nonterminal-snapshot-not-complete": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "off-target-read-not-permitted": ("candidate_trace", "insert_call", "/after"),
+    "one-logical-delegation-exceeded": ("candidate_trace", "insert_call", "/after"),
+    "pagination-cursor-not-forward-observer": ("candidate_trace", "replace_call_arg", "/args_match/value"),
+    "parent-acceptance-unmapped": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "project-id-not-source-access": ("capability_evidence", "remove", "/premises/0"),
+    "queued-coordination-not-fulfilled": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "risk-waiver-not-exclusivity": ("fixture", "replace", "/event/payload"),
+    "scheduled-heartbeat-not-event-callback": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "snapshot-absence-not-lease": ("candidate_trace", "insert_call", "/after"),
+    "stale-destination-metadata": ("candidate_trace", "replace_call_arg", "/args_match/value/target/projectId"),
+    "target-error-not-completion": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "target-error-not-needs-attention": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "technical-support-not-authority": ("candidate_trace", "insert_call", "/after"),
+    "terminal-coordination-unsupported": ("candidate_trace", "insert_call", "/after"),
+    "title-not-stable-identity": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "unchanged-snapshot-not-progress": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "unchanged-wait-cursor-not-preserved": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "uncommitted-authority-missing": ("capability_evidence", "remove", "/premises/0"),
+    "user-input-must-be-processed-before-wait": ("candidate_trace", "insert_call", "/after"),
+    "user-input-not-child-event": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "visible-message-not-callback": ("candidate_trace", "insert_call", "/after"),
+    "wait-cursor-not-reused": ("candidate_trace", "remove", "/args_match/value/targets/0/afterCursor"),
 }
 
 
@@ -318,19 +395,20 @@ def _fixture_provenance_valid(
             trigger_occurrence = available_at.get("occurrence")
             if not trigger_operation or not isinstance(trigger_occurrence, int) or trigger_occurrence < 1:
                 return False
-            if trace is not None and admission_assertion_id is not None:
-                admission_positions = [
-                    index for index, call in enumerate(trace)
-                    if call.get("assertion_id") == admission_assertion_id
-                ]
-                trigger_positions = [
-                    index for index, call in enumerate(trace)
-                    if call.get("tool") == trigger_operation
-                ]
-                if not admission_positions or len(trigger_positions) < trigger_occurrence:
-                    return False
-                if trigger_positions[trigger_occurrence - 1] >= admission_positions[0]:
-                    return False
+            if trace is None or admission_assertion_id is None:
+                return False
+            admission_positions = [
+                index for index, call in enumerate(trace)
+                if call.get("assertion_id") == admission_assertion_id
+            ]
+            trigger_positions = [
+                index for index, call in enumerate(trace)
+                if call.get("tool") == trigger_operation
+            ]
+            if not admission_positions or len(trigger_positions) < trigger_occurrence:
+                return False
+            if trigger_positions[trigger_occurrence - 1] >= admission_positions[0]:
+                return False
         elif available_at.get("kind") != "case_start":
             return False
         return True
@@ -492,6 +570,9 @@ def _mutation_semantics_passes(control, reason):
     """Keep high-risk failure labels bound to the mutation they describe."""
     mutation = control["mutation"]
     target = mutation["target"]
+    shape = _REASON_MUTATION_SHAPES.get(reason)
+    if shape is None or (target["namespace"], mutation["operation"], target["path"]) != shape:
+        return False
     if reason == "git-default-isolation-lost":
         return (
             target["namespace"] == "candidate_trace"
@@ -751,7 +832,7 @@ def _asserted_phrase(text, phrase):
         sentence_end = len(text) if sentence_end < 0 else sentence_end
         after_comma = text[index + len(phrase) : sentence_end]
         negated_before = re.search(
-            rf"\b(?:not|never|do not|does not|don't|doesn't|isn't|can't|cannot|mustn't|avoid|refrain)\b(?:\W+\w+){{0,5}}\W+{re.escape(phrase)}\s*$",
+            rf"\b(?:no|not|never|do not|does not|don't|doesn't|isn't|can't|cannot|mustn't|avoid|refrain)\b(?:\W+\w+){{0,5}}\W+{re.escape(phrase)}\s*$",
             before + phrase,
         )
         negated_after = re.search(
@@ -871,6 +952,10 @@ class DelegateContractCaseTests(unittest.TestCase):
         )
         self.assertFalse(_terminal_claim_fails(heartbeat_case, heartbeat_decoy))
         heartbeat_decoy["mutation"]["value"] = (
+            "No heartbeat is a child-completion callback; wait for the observed child result."
+        )
+        self.assertFalse(_terminal_claim_fails(heartbeat_case, heartbeat_decoy))
+        heartbeat_decoy["mutation"]["value"] = (
             "The slice is complete. Do not mention the heartbeat but use the heartbeat as the child-completion callback."
         )
         self.assertTrue(_terminal_claim_fails(heartbeat_case, heartbeat_decoy))
@@ -961,6 +1046,14 @@ class DelegateContractCaseTests(unittest.TestCase):
         )
         refresh_records = _record_groups(refresh_case)
         refresh_catalog = {item["id"]: item for item in payload["cases"]}
+        self.assertFalse(
+            _evidence_predicate_valid(
+                refresh_case,
+                refresh_records,
+                refresh_case["capability_evidence"][0],
+                catalog=refresh_catalog,
+            )
+        )
         self.assertTrue(
             _operation_admission_passes(refresh_case, "call-create", refresh_records, refresh_catalog)
         )
@@ -1023,6 +1116,22 @@ class DelegateContractCaseTests(unittest.TestCase):
                 sum(len(case.get("negative_controls", [])) for case in payload[section]),
                 expected_controls,
                 section,
+            )
+            case_ids = "\n".join(case["id"] for case in payload[section])
+            control_ids = "\n".join(
+                f"{case['id']}:{control['id']}"
+                for case in payload[section]
+                for control in case.get("negative_controls", [])
+            )
+            self.assertEqual(
+                hashlib.sha256(case_ids.encode()).hexdigest(),
+                _EXPECTED_CATALOG_ID_DIGESTS[section][0],
+                f"{section} case identity drift",
+            )
+            self.assertEqual(
+                hashlib.sha256(control_ids.encode()).hexdigest(),
+                _EXPECTED_CATALOG_ID_DIGESTS[section][1],
+                f"{section} control identity drift",
             )
         cases_by_id = {case["id"]: case for case in payload["cases"]}
         cases_by_id.update({case["id"]: case for case in payload["observation_variants"]})
@@ -1156,6 +1265,12 @@ class DelegateContractCaseTests(unittest.TestCase):
                     elif target["namespace"] == "candidate_terminal":
                         self.assertEqual(
                             target["id"], expected_failure["assertion_id"], control.get("id")
+                        )
+                        self.assertTrue(
+                            _operation_contract_passes(
+                                case, _baseline_trace(case, cases_by_id), cases_by_id
+                            ),
+                            control.get("id"),
                         )
                         self.assertTrue(
                             _terminal_claim_passes(case, target["id"], expected_failure["reason_code"]),
