@@ -82,10 +82,29 @@ def _assertion_by_id(case, assertion_id):
     return None, None
 
 
-def _baseline_trace(case):
+def _required_assertion(case, assertion_id, catalog=None):
+    for assertion in case.get("task_operation_assertions", {}).get("required", []):
+        if assertion["id"] == assertion_id:
+            return assertion
+    if catalog and case.get("base_case_id"):
+        base_case = catalog[case["base_case_id"]]
+        return _required_assertion(base_case, assertion_id, catalog)
+    return None
+
+
+def _baseline_trace(case, catalog=None):
     """Materialize the expected operation trace as a detached oracle input."""
     trace = []
-    for assertion in case.get("task_operation_assertions", {}).get("required", []):
+    required = case.get("task_operation_assertions", {}).get("required", [])
+    if catalog and case.get("base_case_id"):
+        base_case = catalog[case["base_case_id"]]
+        inherited = []
+        for assertion in base_case.get("task_operation_assertions", {}).get("required", []):
+            inherited.append(assertion)
+            if assertion["id"] == case.get("inherit_until"):
+                break
+        required = [*inherited, *required]
+    for assertion in required:
         args_match = assertion.get("args_match", {})
         trace.append({
             "assertion_id": assertion["id"],
@@ -102,11 +121,11 @@ def _insert_index(trace, target_id, before):
     return 0
 
 
-def _mutated_trace(case, control):
+def _mutated_trace(case, control, catalog=None):
     mutation = control["mutation"]
     target = mutation["target"]
     self_assertion = target["namespace"] == "candidate_trace"
-    trace = _baseline_trace(case)
+    trace = _baseline_trace(case, catalog)
     if not self_assertion:
         return trace
     operation = mutation["operation"]
@@ -125,10 +144,9 @@ def _mutated_trace(case, control):
     )
     if call_index is None:
         raise AssertionError(f"mutation target is not a required call: {control['id']}")
-    assertion = next(
-        assertion for assertion in case["task_operation_assertions"]["required"]
-        if assertion["id"] == target["id"]
-    )
+    assertion = _required_assertion(case, target["id"], catalog)
+    if assertion is None:
+        raise AssertionError(f"unknown required call: {control['id']}")
     mutated_assertion = apply_catalog_mutation(assertion, mutation)
     trace[call_index]["args"] = copy.deepcopy(
         mutated_assertion.get("args_match", {}).get("value", {})
@@ -137,18 +155,47 @@ def _mutated_trace(case, control):
 
 
 def _matching_calls(trace, assertion):
-    expected = assertion.get("args_match", {}).get("value", {})
+    args_match = assertion.get("args_match", {})
+    expected = args_match.get("value", {})
+    mode = args_match.get("mode", "subset")
+    matcher = (lambda actual: actual == expected) if mode == "exact" else (
+        lambda actual: _subset_match(actual, expected)
+    )
     return [
         call for call in trace
-        if call["tool"] == assertion["tool"] and _subset_match(call["args"], expected)
+        if call["tool"] == assertion["tool"] and matcher(call["args"])
     ]
 
 
 def _operation_assertion_passes(kind, assertion, trace):
+    occurrence = assertion.get("occurrence")
+    if occurrence is not None:
+        operation_calls = [call for call in trace if call["tool"] == assertion["tool"]]
+        if occurrence < 1 or occurrence > len(operation_calls):
+            return False
+        expected = assertion.get("args_match", {}).get("value", {})
+        mode = assertion.get("args_match", {}).get("mode", "subset")
+        actual = operation_calls[occurrence - 1]["args"]
+        return actual == expected if mode == "exact" else _subset_match(actual, expected)
     count = len(_matching_calls(trace, assertion))
     if kind == "forbidden":
         return count == 0
     return assertion.get("min", 0) <= count <= assertion.get("max", float("inf"))
+
+
+def _partial_order_passes(case, trace, catalog=None):
+    edges = list(case.get("task_operation_assertions", {}).get("partial_order", []))
+    if catalog and case.get("base_case_id"):
+        edges = [
+            *catalog[case["base_case_id"]].get("task_operation_assertions", {}).get("partial_order", []),
+            *edges,
+        ]
+    positions = {call["assertion_id"]: index for index, call in enumerate(trace)}
+    return all(
+        positions[edge["before"]] < positions[edge["after"]]
+        for edge in edges
+        if edge["before"] in positions and edge["after"] in positions
+    )
 
 
 def _resolve_pointer(record, path):
@@ -185,6 +232,31 @@ def _mutated_records(case, control):
     return records
 
 
+def _evidence_predicate_valid(case, records, evidence):
+    values = []
+    for premise in evidence.get("premises", []):
+        record = records.get(premise.get("fixture_id"))
+        if record is None:
+            return False
+        value, present = _resolve_pointer(record, premise.get("path", ""))
+        if not present:
+            return False
+        values.append(value)
+    operator = evidence.get("derivation", {}).get("operator")
+    expected = evidence.get("derivation", {}).get("expected")
+    if operator == "equal":
+        return bool(values) and values[0] == expected
+    if operator in {"all", "present"}:
+        return bool(values) and all(values)
+    if operator == "same_destination_exclusive_interval":
+        return bool(values) and len(values) >= 2 and all(values) and values[0] == values[1]
+    if operator == "contract_default_when_false":
+        return bool(values) and values[0] is False
+    if operator == "not_supported_by_contract":
+        return False
+    return bool(evidence.get("value"))
+
+
 def _dependent_evidence_fails(case, control):
     """Recompute evidence predicates after a fixture/evidence mutation."""
     target = control["mutation"]["target"]
@@ -195,34 +267,88 @@ def _dependent_evidence_fails(case, control):
     ]
     if target["namespace"] == "capability_evidence":
         baseline = _record_groups(case)[target["id"]]
-        return len(records[target["id"]].get("premises", [])) < len(baseline.get("premises", []))
+        return (
+            len(records[target["id"]].get("premises", [])) < len(baseline.get("premises", []))
+            and not _evidence_predicate_valid(case, records, records[target["id"]])
+        )
     if not dependent:
         return False
     for evidence in dependent:
-        values = []
-        for premise in evidence.get("premises", []):
-            record = records.get(premise.get("fixture_id"))
-            if record is None:
-                values.append(None)
-                continue
-            value, present = _resolve_pointer(record, premise.get("path", ""))
-            values.append(value if present else None)
-        operator = evidence.get("derivation", {}).get("operator")
-        expected = evidence.get("derivation", {}).get("expected")
-        if any(value is None for value in values):
-            return True
-        if operator == "equal" and values and values[0] != expected:
-            return True
-        if operator in {"all", "present"} and not all(values):
-            return True
-        if operator == "same_destination_exclusive_interval":
-            if not all(values) or len(values) < 2 or values[0] != values[1]:
-                return True
-        if operator == "contract_default_when_false" and values[0] is not False:
-            return True
-        if operator == "not_supported_by_contract":
+        if not _evidence_predicate_valid(case, records, records[evidence["id"]]):
             return True
     return False
+
+
+def _terminal_required_signals(reason):
+    return {
+        "queued-coordination-not-fulfilled": ("queued", "suspended"),
+        "nonterminal-snapshot-not-complete": ("slice", "incomplete", "ac-2"),
+        "explicit-delegation-default-not-coordinated": ("slice", "incomplete"),
+        "child-slice-cannot-complete-parent": ("slice", "incomplete"),
+        "scheduled-heartbeat-not-event-callback": ("slice", "complete"),
+        "human-notification-not-agent-wakeup": ("slice", "complete"),
+        "no-native-parent-auto-resume": ("slice", "complete"),
+        "nonterminal-cloud-snapshot": ("ac-c", "before"),
+        "parent-acceptance-unmapped": ("ac-c", "map"),
+        "title-not-stable-identity": ("not", "title"),
+        "needs-attention-is-not-terminal-success": ("blocker", "do not claim"),
+        "meta-reference-not-creation-authority": ("without", "creating"),
+        "internal-not-sidebar": ("parent", "evidence"),
+        "user-input-not-child-event": ("parent", "reassess", "not"),
+        "target-error-not-completion": ("incomplete", "error"),
+        "target-error-not-needs-attention": ("incomplete", "error"),
+        "unchanged-snapshot-not-progress": ("suppress", "identical", "preserve"),
+        "unchanged-wait-cursor-not-preserved": ("preserve", "cursor"),
+    }.get(reason, ())
+
+
+def _terminal_claim_passes(case, assertion_id, reason):
+    statement = _record_groups(case)[assertion_id].get("statement", "").lower()
+    signals = _terminal_required_signals(reason)
+    return bool(signals) and all(signal in statement for signal in signals)
+
+
+def _terminal_claim_failure_reason(case, statement):
+    statement = statement.lower()
+    if "coordinated completion fulfilled" in statement:
+        return "queued-coordination-not-fulfilled"
+    if "complete after" in statement:
+        return (
+            "nonterminal-cloud-snapshot"
+            if case.get("id") == "bounded-ready-cloud-supported"
+            else "nonterminal-snapshot-not-complete"
+        )
+    if "return ownership immediately" in statement:
+        return "explicit-delegation-default-not-coordinated"
+    if "broader release-readiness objective is complete" in statement:
+        return "child-slice-cannot-complete-parent"
+    if "heartbeat" in statement:
+        return "scheduled-heartbeat-not-event-callback"
+    if "desktop notification" in statement:
+        return "human-notification-not-agent-wakeup"
+    if "automatically resume" in statement:
+        return "no-native-parent-auto-resume"
+    if "child reports complete" in statement:
+        return "parent-acceptance-unmapped"
+    if "matching its title" in statement or "select the possible task by title" in statement:
+        return "title-not-stable-identity"
+    if "claim parent completion from the needs-attention" in statement:
+        return "needs-attention-is-not-terminal-success"
+    if "create a new task" in statement:
+        return "meta-reference-not-creation-authority"
+    if "sidebar task" in statement:
+        return "internal-not-sidebar"
+    if "child completion event" in statement:
+        return "user-input-not-child-event"
+    if "claim parent completion and omit the target error" in statement:
+        return "target-error-not-completion"
+    if "child needs-attention event" in statement:
+        return "target-error-not-needs-attention"
+    if "new child progress" in statement:
+        return "unchanged-snapshot-not-progress"
+    if "discard the cur-1 cursor" in statement:
+        return "unchanged-wait-cursor-not-preserved"
+    return None
 
 
 def _terminal_claim_fails(case, control):
@@ -237,67 +363,91 @@ def _terminal_claim_fails(case, control):
     if statement == baseline_statement:
         return False
     reason = control["expected_failure"]["reason_code"]
-    required_valid_signals = {
-        "queued-coordination-not-fulfilled": ("queued", "suspended"),
-        "nonterminal-snapshot-not-complete": ("slice", "incomplete", "ac-2"),
-        "explicit-delegation-default-not-coordinated": ("slice", "incomplete"),
-        "child-slice-cannot-complete-parent": ("slice", "incomplete"),
-        "scheduled-heartbeat-not-event-callback": ("slice", "parent"),
-        "human-notification-not-agent-wakeup": ("slice", "parent"),
-        "no-native-parent-auto-resume": ("slice", "parent"),
-        "nonterminal-cloud-snapshot": ("ac-c", "before"),
-        "parent-acceptance-unmapped": ("ac-c", "map"),
-        "title-not-stable-identity": ("not", "title"),
-        "needs-attention-is-not-terminal-success": ("incomplete", "blocker"),
-        "meta-reference-not-creation-authority": ("without", "creating"),
-        "internal-not-sidebar": ("parent", "evidence"),
-        "user-input-not-child-event": ("parent", "reassess", "not"),
-        "target-error-not-completion": ("incomplete", "error"),
-        "target-error-not-needs-attention": ("incomplete", "error"),
-        "unchanged-snapshot-not-progress": ("suppress", "identical", "preserve"),
-        "unchanged-wait-cursor-not-preserved": ("preserve", "cursor"),
-    }
-    signals = required_valid_signals.get(reason, ())
+    if _terminal_claim_failure_reason(case, statement) != reason:
+        return False
+    if reason == "title-not-stable-identity":
+        return any(
+            phrase in statement
+            for phrase in ("matching its title", "by matching the title", "select the possible task by title")
+        )
+    signals = _terminal_required_signals(reason)
     return bool(signals) and not all(signal in statement for signal in signals)
 
 
-def _prompt_contract_fails(prompt, reason):
+def _positive_phrase(prompt, phrase):
+    start = 0
+    while True:
+        index = prompt.find(phrase, start)
+        if index < 0:
+            return False
+        prefix = prompt[:index].rsplit(".", 1)[-1]
+        if not any(marker in prefix for marker in ("do not", "without", "never", "omit")):
+            return True
+        start = index + len(phrase)
+
+
+def _prompt_contract_failure_reason(prompt):
     prompt = prompt.lower()
-    rules = {
-        "execution-contract-incomplete": lambda: len(prompt.split()) < 8,
-        "prompt-sensitive-data-leak": lambda: "private_sentinel_do_not_transfer" in prompt,
-        "prompt-duplicates-durable-artifact": lambda: "durable_body_sentinel_do_not_copy" in prompt,
-        "one-shot-contract-overbuilt": lambda: any(
-            phrase in prompt for phrase in ("goal registry", "status file", "phase gates", "cursor ledger")
-        ),
-        "mutable-fact-revalidation-missing": lambda: "without re-reading" in prompt,
-        "parent-observer-mechanics-in-child-prompt": lambda: any(
-            phrase in prompt for phrase in ("record useful checkpoints", "status=ready", "wait_threads")
-        ),
-        "child-slice-parent-relationship-missing": lambda: "parent" not in prompt,
-        "attached-reporting-contract-missing": lambda: not all(
-            phrase in prompt for phrase in ("checkpoint", "report", "acceptance")
-        ),
-        "canonical-terminal-report-incomplete": lambda: (
-            "acceptance_map" not in prompt or "omit acceptance_map" in prompt
-        ),
-        "attention-acknowledgement-missing": lambda: (
-            "acknowledged" not in prompt or "without reporting" in prompt
-        ),
-        "attached-parent-callback-route-missing": lambda: "do not send" in prompt or "only in this local" in prompt,
-        "writable-resource-claim-missing": lambda: not all(
-            phrase in prompt for phrase in ("resource claim", "integration owner")
-        ) or "do not declare" in prompt,
-    }
-    rule = rules.get(reason)
-    return bool(rule and rule())
+    if len(prompt.split()) < 8:
+        return "execution-contract-incomplete"
+    if "private_sentinel_do_not_transfer" in prompt:
+        return "prompt-sensitive-data-leak"
+    if "durable_body_sentinel_do_not_copy" in prompt:
+        return "prompt-duplicates-durable-artifact"
+    if any(
+        _positive_phrase(prompt, phrase)
+        for phrase in ("goal registry", "status file", "phase gates", "cursor ledger")
+    ):
+        return "one-shot-contract-overbuilt"
+    if "without re-reading" in prompt:
+        return "mutable-fact-revalidation-missing"
+    if "acceptance_map" in prompt:
+        return "canonical-terminal-report-incomplete"
+    if "acknowledged" in prompt or "without reporting" in prompt:
+        return "attention-acknowledgement-missing"
+    if "do not send" in prompt or "only in this local" in prompt:
+        return "attached-parent-callback-route-missing"
+    if "do not declare" in prompt or "resource claim" in prompt and "integration owner" not in prompt:
+        return "writable-resource-claim-missing"
+    if "parent" not in prompt:
+        return "child-slice-parent-relationship-missing"
+    if any(
+        _positive_phrase(prompt, phrase)
+        for phrase in ("record useful checkpoints", "status=ready", "wait_threads")
+    ):
+        return "parent-observer-mechanics-in-child-prompt"
+    if not all(phrase in prompt for phrase in ("checkpoint", "report", "acceptance")):
+        return "attached-reporting-contract-missing"
+    if not all(phrase in prompt for phrase in ("resource claim", "integration owner")):
+        return "writable-resource-claim-missing"
+    return None
+
+
+def _prompt_contract_fails(prompt, reason):
+    return _prompt_contract_failure_reason(prompt) == reason
 
 
 class DelegateContractCaseTests(unittest.TestCase):
+    def test_semantic_negative_oracles_reject_compliant_lexical_decoys(self):
+        self.assertFalse(
+            _prompt_contract_fails(
+                "Audit the source and do not create a goal registry, status file, phase gates, or cursor ledger.",
+                "one-shot-contract-overbuilt",
+            )
+        )
+        payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
+        case = next(case for case in payload["cases"] if case["id"] == "indeterminate-create-outcome")
+        control = next(control for control in case["negative_controls"] if control["id"] == "nc-title-match")
+        decoy = copy.deepcopy(control)
+        decoy["mutation"]["value"] = "Use the exact native identity rather than a display label."
+        self.assertFalse(_terminal_claim_fails(case, decoy))
+
     def test_negative_controls_are_complete_executable_mutation_records(self):
         payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
         operations = {"replace", "replace_call_arg", "insert_call", "remove", "replace_terminal_claim"}
         catalog_sections = ("cases", "observation_variants", "prompt_contract_variants")
+        cases_by_id = {case["id"]: case for case in payload["cases"]}
+        cases_by_id.update({case["id"]: case for case in payload["observation_variants"]})
         visited = 0
         for section in catalog_sections:
             for case in payload[section]:
@@ -347,18 +497,55 @@ class DelegateContractCaseTests(unittest.TestCase):
                     if target["namespace"] == "candidate_trace":
                         kind, named_assertion = _assertion_by_id(case, expected_failure["assertion_id"])
                         self.assertIsNotNone(named_assertion, control.get("id"))
-                        mutated_trace = _mutated_trace(case, control)
+                        baseline_trace = _baseline_trace(case, cases_by_id)
+                        self.assertTrue(
+                            _operation_assertion_passes(kind, named_assertion, baseline_trace),
+                            f"baseline does not satisfy {expected_failure['assertion_id']}: {control['id']}",
+                        )
+                        self.assertTrue(_partial_order_passes(case, baseline_trace, cases_by_id), control.get("id"))
+                        mutated_trace = _mutated_trace(case, control, cases_by_id)
                         self.assertFalse(
                             _operation_assertion_passes(kind, named_assertion, mutated_trace),
                             control.get("id"),
                         )
+                        self.assertTrue(_partial_order_passes(case, mutated_trace, cases_by_id), control.get("id"))
                     elif target["namespace"] in {"fixture", "capability_evidence"}:
+                        named_id = expected_failure["assertion_id"]
+                        named_evidence = next(
+                            (evidence for evidence in case.get("capability_evidence", []) if evidence["id"] == named_id),
+                            None,
+                        )
+                        if named_evidence is not None:
+                            baseline_records = _record_groups(case)
+                            mutated_records = _mutated_records(case, control)
+                            self.assertTrue(
+                                _evidence_predicate_valid(case, baseline_records, named_evidence),
+                                control.get("id"),
+                            )
+                            self.assertFalse(
+                                _evidence_predicate_valid(case, mutated_records, mutated_records[named_id]),
+                                control.get("id"),
+                            )
+                        else:
+                            kind, named_assertion = _assertion_by_id(case, named_id)
+                            self.assertIsNotNone(named_assertion, control.get("id"))
+                            baseline_trace = _baseline_trace(case, cases_by_id)
+                            self.assertTrue(
+                                _operation_assertion_passes(kind, named_assertion, baseline_trace),
+                                control.get("id"),
+                            )
                         self.assertTrue(_dependent_evidence_fails(case, control), control.get("id"))
                     elif target["namespace"] == "candidate_terminal":
+                        self.assertEqual(
+                            target["id"], expected_failure["assertion_id"], control.get("id")
+                        )
+                        self.assertTrue(
+                            _terminal_claim_passes(case, target["id"], expected_failure["reason_code"]),
+                            control.get("id"),
+                        )
                         self.assertTrue(_terminal_claim_fails(case, control), control.get("id"))
                     else:
                         self.fail(f"unhandled mutation namespace: {target['namespace']}")
-        cases_by_id = {case["id"]: case for case in payload["cases"]}
         semantic_assertions = {assertion["id"]: assertion for assertion in payload["semantic_assertions"]}
         expected_visited = sum(
             len(case.get("negative_controls", []))
