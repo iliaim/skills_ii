@@ -369,7 +369,7 @@ def _partial_order_passes(case, trace, catalog=None):
     inherited_ids = None
     if catalog and has_base_case:
         base = catalog.get(base_case_id)
-        if base is None:
+        if not isinstance(base, dict):
             return False
         base_operation_assertions = base.get("task_operation_assertions", {})
         if not isinstance(base_operation_assertions, dict):
@@ -1273,6 +1273,17 @@ class DelegateContractCaseTests(unittest.TestCase):
                 },
                 [{"assertion_id": "call-create"}],
                 {"base": {"task_operation_assertions": {"partial_order": None}}},
+            )
+        )
+        self.assertFalse(
+            _partial_order_passes(
+                {
+                    "base_case_id": "base",
+                    "inherit_until": "call-create",
+                    "task_operation_assertions": {"partial_order": []},
+                },
+                [{"assertion_id": "call-create"}],
+                {"base": []},
             )
         )
 
