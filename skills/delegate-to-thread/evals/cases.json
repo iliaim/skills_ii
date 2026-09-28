@@ -86,7 +86,19 @@
           },
           "direct_execution": true,
           "pre_write_verified": true,
-          "execution_evidence": {"source": "native-read-only-check", "evidence_id": "event:checkout-1"},
+          "execution_evidence": {
+            "source": "native-read-only-check",
+            "evidence_id": "event:checkout-1",
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean",
+            "write_authority": "authorized",
+            "starting_state": "origin/main"
+          },
           "observed_checkout": {
             "project_path": "/repo",
             "cwd": "/repo/worktrees/child",
@@ -96,11 +108,35 @@
             "base_revision": "origin/main",
             "working_tree_status": "clean"
           },
-          "actions": ["execute_directly", "write", "checkpoint", "terminal_report"],
+          "actions": ["execute_directly", "checkpoint", "write", "terminal_report"],
           "checkpoint_fields_present": [
             "execution_context", "cwd", "worktree_root", "branch_or_ref", "head_revision", "base_revision", "working_tree_status", "write_authority"
           ],
-          "terminal_fields_present": ["execution_context", "observed_checkout", "changed_files", "commit_or_pull_request"]
+          "terminal_fields_present": ["execution_context", "observed_checkout", "changed_files", "commit_or_pull_request"],
+          "terminal_report_payload": {
+            "execution_context": {
+              "project_path": "/repo",
+              "cwd": "/repo/worktrees/child",
+              "worktree_path": "/repo/worktrees/child",
+              "branch_or_ref": "codex/child",
+              "base_revision": "origin/main",
+              "requested_starting_state": "origin/main",
+              "write_authority": "authorized",
+              "execution_mode": "managed-worktree",
+              "descendant_authority": "absent"
+            },
+            "observed_checkout": {
+              "project_path": "/repo",
+              "cwd": "/repo/worktrees/child",
+              "worktree_root": "/repo/worktrees/child",
+              "branch_or_ref": "codex/child",
+              "head_revision": "child-head",
+              "base_revision": "origin/main",
+              "working_tree_status": "clean"
+            },
+            "changed_files": ["src/example.py"],
+            "commit_or_pull_request": "commit:child-head"
+          }
         }
       }
     },
@@ -201,7 +237,19 @@
           "wrapper_is_provenance": true,
           "direct_execution": true,
           "pre_write_verified": true,
-          "execution_evidence": {"source": "provider-assigned-worktree", "evidence_id": "event:checkout-2"},
+          "execution_evidence": {
+            "source": "provider-assigned-worktree",
+            "evidence_id": "event:checkout-2",
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean",
+            "write_authority": "authorized",
+            "starting_state": "origin/main"
+          },
           "observed_checkout": {
             "project_path": "/repo",
             "cwd": "/repo/worktrees/child",
@@ -226,6 +274,7 @@
         "trace": {
           "execution_context": {
             "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
             "worktree_path": "/repo/worktrees/child",
             "branch_or_ref": "codex/child",
             "base_revision": "origin/main",
@@ -244,14 +293,36 @@
             "acceptance_boundary": "return-review",
             "integration_owner": "parent-1",
             "stop_rule": "stop-after-review",
-            "identity_or_digest": "sha256:envelope-1"
+            "issuer_id": "parent-1",
+            "allowed_actions": ["delegate-to-thread"],
+            "destination_fingerprint": "repo:/repo/worktrees/child",
+            "identity_or_digest": "sha256:f93bea698a35b20a53f1b407ca3b5fbc945e34685594f0d2a9cc270aff7e3603"
           },
           "direct_parent_id": "parent-1",
           "root_id": "root-1",
-          "envelope_valid": true,
           "direct_execution": true,
           "pre_write_verified": true,
-          "execution_evidence": {"source": "provider-assigned-worktree", "evidence_id": "event:checkout-3"},
+          "trusted_parent_envelope": {
+            "source": "native-parent-envelope",
+            "evidence_id": "event:parent-envelope-1",
+            "issuer_id": "parent-1",
+            "root_id": "root-1",
+            "parent_id": "parent-1",
+            "identity_or_digest": "sha256:f93bea698a35b20a53f1b407ca3b5fbc945e34685594f0d2a9cc270aff7e3603"
+          },
+          "execution_evidence": {
+            "source": "provider-assigned-worktree",
+            "evidence_id": "event:checkout-3",
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean",
+            "write_authority": "authorized",
+            "starting_state": "origin/main"
+          },
           "observed_checkout": {
             "project_path": "/repo",
             "cwd": "/repo/worktrees/child",
@@ -7881,7 +7952,15 @@
         "host_bound": true,
         "native_read": true,
         "forbidden_actions": ["create_thread", "title-match", "path-match"]
-      }
+      },
+      "fixtures": [
+        {
+          "pending": {"clientThreadId": "setup-catalog-1", "hostId": "local", "creation_window": [100, 110], "backing_kind": "codex", "provider_identity": "provider-a", "app_instance_id": "app-a"},
+          "bindings": [{"clientThreadId": "setup-catalog-1", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473430", "hostId": "local", "created_at": 105, "backing_kind": "codex", "provider_identity": "provider-a", "app_instance_id": "app-a"}],
+          "native_read": {"threadId": "01a0a4b7-7a3b-70f0-9044-d49469473430", "requested_hostId": "local", "backing_kind": "codex", "provider_identity": "provider-a", "app_instance_id": "app-a"},
+          "expected": {"state": "ready", "reason": "native-confirmed", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473430", "hostId": "local"}
+        }
+      ]
     },
     {
       "id": "setup-recovery-binding-absent-or-timeout",
@@ -7897,7 +7976,21 @@
         "host_bound": false,
         "native_read": false,
         "forbidden_actions": ["create_thread", "wait_threads", "send_message_to_thread", "title-match", "path-match"]
-      }
+      },
+      "fixtures": [
+        {
+          "pending": {"clientThreadId": "setup-catalog-2", "hostId": "local", "creation_window": [100, 110]},
+          "bindings": [],
+          "native_read": null,
+          "expected": {"state": "queued/unmonitorable", "reason": "binding-not-unique"}
+        },
+        {
+          "pending": {"clientThreadId": "setup-catalog-2-timeout", "hostId": "local", "creation_window": [100, 110]},
+          "bindings": [{"clientThreadId": "setup-catalog-2-timeout", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473431", "hostId": "local", "created_at": 111}],
+          "native_read": null,
+          "expected": {"state": "queued/unmonitorable", "reason": "binding-mismatch"}
+        }
+      ]
     },
     {
       "id": "setup-recovery-duplicate-or-mismatched-binding",
@@ -7913,7 +8006,24 @@
         "host_bound": false,
         "native_read": false,
         "forbidden_actions": ["create_thread", "wait_threads", "send_message_to_thread", "title-match", "path-match", "listing-order"]
-      }
+      },
+      "fixtures": [
+        {
+          "pending": {"clientThreadId": "setup-catalog-3", "hostId": "local", "creation_window": [100, 110], "backing_kind": "codex"},
+          "bindings": [
+            {"clientThreadId": "setup-catalog-3", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473432", "hostId": "local", "created_at": 105, "backing_kind": "codex"},
+            {"clientThreadId": "setup-catalog-3", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473433", "hostId": "local", "created_at": 106, "backing_kind": "codex"}
+          ],
+          "native_read": null,
+          "expected": {"state": "queued/unmonitorable", "reason": "binding-not-unique"}
+        },
+        {
+          "pending": {"clientThreadId": "setup-catalog-3-mismatch", "hostId": "local", "creation_window": [100, 110], "backing_kind": "codex", "project_id": "expected"},
+          "bindings": [{"clientThreadId": "setup-catalog-3-mismatch", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473434", "hostId": "local", "created_at": 105, "backing_kind": "codex", "project_id": "other"}],
+          "native_read": null,
+          "expected": {"state": "queued/unmonitorable", "reason": "binding-mismatch"}
+        }
+      ]
     },
     {
       "id": "setup-recovery-native-read-failure",
@@ -7929,7 +8039,21 @@
         "host_bound": true,
         "native_read": false,
         "forbidden_actions": ["create_thread", "wait_threads", "send_message_to_thread"]
-      }
+      },
+      "fixtures": [
+        {
+          "pending": {"clientThreadId": "setup-catalog-4", "hostId": "local", "creation_window": [100, 110], "backing_kind": "codex"},
+          "bindings": [{"clientThreadId": "setup-catalog-4", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473435", "hostId": "local", "created_at": 105, "backing_kind": "codex"}],
+          "native_read": null,
+          "expected": {"state": "queued/unmonitorable", "reason": "native-read-unconfirmed"}
+        },
+        {
+          "pending": {"clientThreadId": "setup-catalog-4-mismatch", "hostId": "local", "creation_window": [100, 110], "backing_kind": "codex"},
+          "bindings": [{"clientThreadId": "setup-catalog-4-mismatch", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473436", "hostId": "local", "created_at": 105, "backing_kind": "codex"}],
+          "native_read": {"threadId": "01a0a4b7-7a3b-70f0-9044-d49469473436", "requested_hostId": "remote", "backing_kind": "codex"},
+          "expected": {"state": "queued/unmonitorable", "reason": "native-read-unconfirmed"}
+        }
+      ]
     },
     {
       "id": "setup-recovery-no-title-or-path-fallback",
@@ -7945,7 +8069,15 @@
         "host_bound": false,
         "native_read": false,
         "forbidden_actions": ["create_thread", "wait_threads", "send_message_to_thread", "title-match", "path-match", "transcript-scan"]
-      }
+      },
+      "fixtures": [
+        {
+          "pending": {"clientThreadId": "setup-catalog-5", "hostId": "local", "creation_window": [100, 110]},
+          "bindings": [{"clientThreadId": "unrelated", "threadId": "01a0a4b7-7a3b-70f0-9044-d49469473437", "hostId": "local", "created_at": 105}],
+          "native_read": null,
+          "expected": {"state": "queued/unmonitorable", "reason": "binding-not-unique"}
+        }
+      ]
     }
   ],
   "prompt_contract_variants": [

@@ -84,7 +84,8 @@ evidence record. The minimal recovery sequence is:
    `wait_threads`, or other exact-ID operations be used.
 
 If the binding is absent, duplicated, stale, or cannot be corroborated after the bounded automatic
-attempt, return `queued/unmonitorable` or `contact-unavailable` with the evidence. Never fall back to
+attempt, return `queued/unmonitorable` with the evidence. Use `contact-unavailable` only after an
+exact task identity exists but its native contact route is unavailable. Never fall back to
 title search, bounded-list absence, broad transcript search, or a replacement task. A later resume of
 the exact pending entry repeats this same bounded lookup automatically; a user diagnosis request is
 not required.

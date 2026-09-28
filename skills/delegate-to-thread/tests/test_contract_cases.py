@@ -2,6 +2,8 @@ import json
 import unittest
 from pathlib import Path
 
+from test_protocol_transitions import automatic_setup_resolution
+
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 
@@ -78,6 +80,18 @@ class DelegateContractCaseTests(unittest.TestCase):
                 )
             else:
                 self.assertFalse(trace["native_read"] and trace["host_bound"])
+            fixtures = case.get("fixtures")
+            self.assertIsInstance(fixtures, list, case["id"])
+            self.assertGreater(len(fixtures), 0, case["id"])
+            for fixture in fixtures:
+                pending = dict(fixture["pending"])
+                pending["creation_window"] = tuple(pending["creation_window"])
+                actual = automatic_setup_resolution(
+                    pending,
+                    fixture["bindings"],
+                    fixture.get("native_read"),
+                )
+                self.assertEqual(actual, fixture["expected"], case["id"])
         contract = (SKILL_ROOT / "references" / "task-contract.md").read_text()
         self.assertIn("at most three resolver/binding checks", contract)
 
@@ -98,6 +112,16 @@ class DelegateContractCaseTests(unittest.TestCase):
         self.assertIn("non-operable setup correlation", contract)
         self.assertIn("must not return a bare", contract)
         self.assertIn("No separate caller-generated correlation token", contract)
+
+    def test_cross_skill_recovery_state_vocabulary_is_unambiguous(self):
+        provider = (SKILL_ROOT.parent / "agent-communication" / "references" / "codex-chatgpt.md").read_text()
+        orchestration = (SKILL_ROOT.parent / "orchestrate-threads" / "references" / "orchestration-contract.md").read_text()
+        self.assertIn("return `queued/unmonitorable` with the evidence", provider)
+        self.assertIn("`contact-unavailable` only after an", provider)
+        self.assertIn("without a proven exact identity the\nnode remains `queued/unmonitorable`", orchestration)
+        self.assertIn("`indeterminate` only when a", orchestration)
+        self.assertNotIn("return `queued/unmonitorable` or `contact-unavailable`", provider)
+        self.assertNotIn("classify the node as `queued/unmonitorable` or `indeterminate`", orchestration)
 
     def test_repository_work_requires_explicit_execution_context(self):
         skill = (SKILL_ROOT / "SKILL.md").read_text()

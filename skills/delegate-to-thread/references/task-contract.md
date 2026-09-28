@@ -150,7 +150,11 @@ Repository-writing delegation has two separate context stages:
 
 The first checkpoint must carry the observed identity and `write_authority`; a terminal report repeats
 it and adds `changed_files` plus `commit_or_pull_request` (or an explicit uncommitted disposition).
-These are evidence fields, not claims the child may fill from memory after editing. A local child may
+The execution evidence must bind each observed value, including `head_revision`, to the dispatch
+intent or native provider observation; field names without their observed payload are insufficient.
+The terminal payload must repeat the exact execution context and observed checkout that was
+checkpointed before writing. These are evidence fields, not claims the child may fill from memory
+after editing. A local child may
 use `pwd`, `git rev-parse --show-toplevel`, `git branch --show-current`, `git rev-parse HEAD`, and
 `git status --short` as the read-only proof. A remote or cloud child must use the destination's
 supported equivalent or stop for input. Full local paths remain host-local unless the destination is

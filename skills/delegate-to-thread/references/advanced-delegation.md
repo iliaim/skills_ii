@@ -8,8 +8,10 @@ a user-visible descendant. It adds no authority to ordinary one-task delegation.
 Hierarchical user-visible task creation is not implied by authority to perform a child objective.
 The direct parent must receive a signed or otherwise immutable delegation envelope before it may
 create one. The envelope names the root and direct parent identities, logical child key,
-destination fingerprint, depth, active and total descendant budgets, allowed outcomes,
-writer/resource claims, integration owner, stop rule, and a parent-issued envelope identity or digest.
+destination fingerprint, depth, active and total descendant budgets, allowed actions and outcomes,
+writer/resource claims, integration owner, stop rule, and a parent-issued envelope identity or digest
+bound to native parent-issuance evidence. Recomputing a digest proves integrity only; it does not
+authenticate the issuer.
 The direct parent records a pending-create entry before each descendant creation, performs exactly one
 creation call, and returns raw provider result, immutable report identity/digest, and registration
 evidence to the root coordinator. Without that envelope, or when registration/reconciliation support

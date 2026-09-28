@@ -47,8 +47,10 @@ immutable source report identity/digest recorded on that edge. Its artifact fiel
 reused, reordered, or absent. Preserve a native identity as `turn:<id>` or `event:<id>`, or a report
 digest as `sha256:<64-hex-digest>`; without one, the edge remains pending/incomplete. A newer or contradictory report, artifact revision, or
 observation supersedes the record and recloses every affected dependant until the edge is remapped.
-The parent retains the matching raw native event/turn or recomputes the digest from the canonical
-source-report payload; an identity-shaped label alone cannot open an edge.
+The parent retains the matching raw native event/turn. A digest path is admissible only when the
+canonical source-report payload is paired with an independently authenticated immutable provenance
+record naming the source child, report revision, criterion, and exact digest; recomputation alone
+is integrity checking, not issuer authentication. An identity-shaped label alone cannot open an edge.
 An `available_artifact` edge additionally requires an exact readable path and commit/HEAD or another
 immutable artifact revision. Missing, stale, ambiguous, superseded, or unacknowledged evidence never
 opens a gate.
@@ -136,6 +138,9 @@ Supply the bounded outcome, parent relationship, root criterion, scope, authorit
 acceptance and proof, deliverable, stop conditions, and—when the child may write—the integration
 owner, allowed integration action, and evidence it must return. The child prompt must not contain
 the root's observation mechanics, cursors, wait budget, or ledger.
+For a writable child, preserve the delegate contract's exact execution-boundary evidence, including
+`execution_evidence`: the dispatch mode, starting-state rule, observed checkout, write authority, first checkpoint, and
+terminal report must remain bound to the same project/worktree before integration is considered.
 
 Before delegating, the parent records a pending-create entry containing `logical_child_key`,
 `contract_digest`, `destination_fingerprint`, and `attempt`. After the create call, it records the raw
@@ -143,7 +148,8 @@ provider result before deriving state and completing registration. A setup-only 
 enters the delegate contract's bounded automatic exact-handle setup-resolution gate. If a turn ends in
 that interval, the next turn repeats the gate for that exact pending entry. No second create,
 title/path match, or bounded-list absence inference is permitted; without a proven exact identity the
-node remains `queued/unmonitorable` or `indeterminate` and its dependants stay held.
+node remains `queued/unmonitorable` and its dependants stay held. Use `indeterminate` only when a
+provider may have created a side effect without an exact reconciliation route.
 
 Delegate creates once and returns raw and derived creation evidence after the bounded setup-resolution
 gate:
@@ -153,7 +159,7 @@ gate:
 - Queued/unmonitorable: register only the runtime-owned `clientThreadId` setup handle after the
   automatic gate is exhausted; it is non-operable and cannot be observed, contacted, or used to
   unlock a dependant. Do not create a second caller token. On a later exact pending-entry resume,
-  repeat the same bounded gate; otherwise remain suspended or indeterminate without another create
+  repeat the same bounded gate; otherwise remain suspended without another create
   call.
 - Indeterminate: retain only returned stable correlation evidence. Reconcile only through a
   supported exact route.
@@ -162,7 +168,8 @@ gate:
 Never retry creation, match by title, scrape unrelated transcripts, or construct a replacement.
 
 Absence of a real task ID after the bounded automatic gate is not a root-wide stop. Preserve the raw
-provider result and classify the node as `queued/unmonitorable` or `indeterminate`; hold that node and
+provider result and classify the node as `queued/unmonitorable`; use `indeterminate` only when the
+provider may have created a side effect without an exact reconciliation route. Hold that node and
 its dependants only. The parent may continue independent root work and bounded current-response
 read-only reviews whose dependencies are open. Do not observe or contact a `clientThreadId`, invent
 an ID, retry creation, match by title, scrape transcripts, or create a replacement. Reconcile only

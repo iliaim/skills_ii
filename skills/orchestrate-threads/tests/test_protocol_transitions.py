@@ -26,7 +26,18 @@ def source_identity_is_backed(evidence):
             "source_report_revision": evidence.get("source_report_revision"),
         }
     payload = evidence.get("source_report_payload")
-    return isinstance(payload, dict) and identity == source_report_digest(payload)
+    provenance = evidence.get("source_authenticated_provenance")
+    return (
+        isinstance(payload, dict)
+        and identity == source_report_digest(payload)
+        and isinstance(provenance, dict)
+        and provenance.get("source") == "native-immutable-report"
+        and provenance.get("evidence_id")
+        and provenance.get("source_child_id") == evidence.get("source_child_id")
+        and provenance.get("source_report_revision") == evidence.get("source_report_revision")
+        and provenance.get("criterion") == evidence.get("criterion")
+        and provenance.get("identity_or_digest") == identity
+    )
 
 
 def _report_edge_matches(edge, evidence):
@@ -138,12 +149,28 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
             source_report_identity_or_digest=digest,
             source_native_evidence=None,
             source_report_payload=payload,
+            source_authenticated_provenance={
+                "source": "native-immutable-report",
+                "evidence_id": "event:report-7",
+                "source_child_id": "child-1",
+                "source_report_revision": 7,
+                "criterion": "criterion-a",
+                "identity_or_digest": digest,
+            },
         )
         edge = dict(evidence, type="accepted_evidence")
         self.assertTrue(accepted_evidence_opens(edge, evidence))
         self.assertFalse(accepted_evidence_opens(edge, dict(
             evidence,
             source_report_payload={"outcome": "complete", "checks": ["test: failed"]},
+        )))
+        self.assertFalse(accepted_evidence_opens(edge, dict(evidence, source_authenticated_provenance=None)))
+        self.assertFalse(accepted_evidence_opens(edge, dict(
+            evidence,
+            source_authenticated_provenance=dict(
+                evidence["source_authenticated_provenance"],
+                identity_or_digest="sha256:" + "0" * 64,
+            ),
         )))
 
     def test_artifact_edge_requires_exact_readable_postimage(self):
@@ -198,6 +225,18 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
     def test_ambiguous_creation_and_revoked_authority_cannot_open_gates(self):
         self.assertFalse(bool({"execution": "indeterminate", "exact_identity": None}.get("exact_identity")))
         self.assertFalse(acceptance_gate_opens({"authority_revoked": True, "acceptance": "accepted"}))
+
+    def test_writable_child_handoff_preserves_delegate_execution_boundary(self):
+        contract = (SKILL_ROOT / "references" / "orchestration-contract.md").read_text()
+        delegate = (SKILL_ROOT.parent / "delegate-to-thread" / "tests" / "test_protocol_transitions.py").read_text()
+        self.assertIn("exact execution-boundary evidence", contract)
+        for field in ("execution_evidence", "checkpoint"):
+            self.assertIn(field, contract)
+            self.assertIn(field, delegate)
+        self.assertIn("write authority", contract)
+        self.assertIn("write_authority", delegate)
+        self.assertIn("terminal report", contract)
+        self.assertIn("terminal_report", delegate)
 
     def test_adversarial_catalog_scenarios_execute_against_protocol_oracles(self):
         scenarios = json.loads((SKILL_ROOT / "evals" / "scenarios.json").read_text())["scenarios"]

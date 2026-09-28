@@ -67,7 +67,8 @@ keep the parent turn active only for supported observation of a ready child.
    failure, a successor is a new explicitly authorized node that preserves the prior identity and
    evidence; it is never an implicit retry.
 7. If creation does not produce a real task ID, apply the delegate contract's bounded automatic
-   setup-resolution gate before classifying the node as `queued/unmonitorable` or `indeterminate`.
+   setup-resolution gate before classifying an unresolved handle as `queued/unmonitorable`. Use
+   `indeterminate` only when creation may have occurred but no exact reconciliation evidence exists.
    Preserve the raw provider result and any failed-correlation evidence; do not invent an ID, match
    by title, scrape transcripts, or create a replacement. Continue independent current-response work
    and read-only reviews whose dependencies are open, while holding only the affected child and its
