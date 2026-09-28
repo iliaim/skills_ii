@@ -244,6 +244,9 @@ def execution_boundary_admissible(
         consumption = trace.get("descendant_budget_consumption")
         if not isinstance(consumption, dict):
             return False
+        for counter in ("active_remaining", "total_remaining"):
+            if isinstance(consumption.get(counter), bool) or not isinstance(consumption.get(counter), int) or consumption[counter] < 0:
+                return False
         if consumption.get("active_remaining") != envelope["active_budget"] - len(descendant_actions):
             return False
         if consumption.get("total_remaining") != envelope["total_budget"] - len(descendant_actions):
@@ -457,6 +460,14 @@ def repository_report_fields_admissible(trace, native_post_write_evidence=None):
         if any(
             terminal_callback_report.get(field) != attached_terminal.get(field)
             for field in ("report_identity_or_digest", "report_revision", "supersedes")
+        ):
+            return False
+        if terminal_callback_report.get("delivered_artifact") != attached_terminal.get("delivered_artifact"):
+            return False
+        delivered_artifact = attached_terminal.get("delivered_artifact")
+        if (
+            not isinstance(delivered_artifact, dict)
+            or delivered_artifact.get("revision") != native_post_write_evidence.get("immutable_revision")
         ):
             return False
         if not attached_report_admissible(
