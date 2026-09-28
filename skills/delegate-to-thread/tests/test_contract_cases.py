@@ -593,7 +593,14 @@ def _mutation_semantics_passes(control, reason):
             and mutation.get("value", {}).get("tool") == "create_thread"
         )
     if reason == "client-id-not-operable":
-        return mutation.get("value", {}).get("tool") == "wait_threads"
+        value = mutation.get("value", {})
+        targets = value.get("args", {}).get("targets", [])
+        return (
+            value.get("tool") == "wait_threads"
+            and isinstance(targets, list)
+            and len(targets) == 1
+            and targets[0].get("threadId") == "setup-17"
+        )
     if reason == "title-not-stable-identity":
         return (
             target["namespace"] == "candidate_terminal"
@@ -1377,6 +1384,18 @@ class DelegateContractCaseTests(unittest.TestCase):
             )
         self.assertEqual(visited, expected_visited)
         self.assertGreater(visited, 0)
+
+    def test_client_id_mutation_semantics_rejects_operable_decoy(self):
+        payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
+        queued_case = next(case for case in payload["cases"] if case["id"] == "queued-setup-create-only")
+        control = next(
+            control
+            for control in queued_case["negative_controls"]
+            if control["id"] == "nc-wait-client"
+        )
+        decoy = copy.deepcopy(control)
+        decoy["mutation"]["value"]["args"]["targets"][0]["threadId"] = "ready-thread-id"
+        self.assertFalse(_mutation_semantics_passes(decoy, "client-id-not-operable"))
 
     def test_attached_reporting_cases_cover_required_red_controls(self):
         payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
