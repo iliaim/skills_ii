@@ -12,6 +12,11 @@ def source_report_digest(payload):
     return "sha256:" + hashlib.sha256(canonical).hexdigest()
 
 
+def checkpoint_digest(checkpoint):
+    payload = {key: value for key, value in checkpoint.items() if key != "report_identity_or_digest"}
+    return source_report_digest(payload)
+
+
 def source_identity_is_backed(evidence, observed_native_records=()):
     identity = evidence.get("source_report_identity_or_digest")
     if not isinstance(identity, str):
@@ -74,12 +79,30 @@ def artifact_edge_opens(edge, evidence, observed_native_records=()):
 
 def checkpoint_identity_is_backed(checkpoint, observed_native_events):
     identity = checkpoint.get("report_identity_or_digest")
-    if not isinstance(identity, str) or not identity.startswith(("turn:", "event:")):
+    if not isinstance(identity, str):
+        return False
+    if identity.startswith("sha256:"):
+        provenance = checkpoint.get("authenticated_provenance")
+        return (
+            identity == checkpoint_digest(checkpoint)
+            and isinstance(provenance, dict)
+            and provenance.get("source") == "native-immutable-report"
+            and any(
+                event.get("kind") == "immutable-report"
+                and event.get("id") == provenance.get("evidence_id")
+                and event.get("identity_or_digest") == identity
+                and event.get("child_id") == checkpoint.get("child_id")
+                and event.get("report_revision") == checkpoint.get("report_revision")
+                for event in observed_native_events
+            )
+        )
+    if not identity.startswith(("turn:", "event:")):
         return False
     kind, _, event_id = identity.partition(":")
     return bool(event_id) and {
         "kind": kind,
         "id": event_id,
+        "child_id": checkpoint.get("child_id"),
         "report_revision": checkpoint.get("report_revision"),
     } in observed_native_events
 
@@ -88,6 +111,7 @@ def attention_acknowledged(response_sent, previous_checkpoint, checkpoint, obser
     return bool(
         response_sent
         and checkpoint
+        and checkpoint.get("child_id") == previous_checkpoint.get("child_id")
         and checkpoint.get("progress_kind") == "attention_acknowledged"
         and checkpoint.get("report_revision", -1) > previous_checkpoint.get("report_revision", -1)
         and checkpoint_identity_is_backed(checkpoint, observed_native_events)
@@ -204,8 +228,9 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
         self.assertFalse(artifact_edge_opens(dict(edge, superseded=True), available))
 
     def test_attention_requires_observed_acknowledgement_after_response(self):
-        previous = {"report_revision": 4, "report_identity_or_digest": "turn:4"}
+        previous = {"child_id": "child-1", "report_revision": 4, "report_identity_or_digest": "turn:4"}
         acknowledged = {
+            "child_id": "child-1",
             "report_revision": 5,
             "report_identity_or_digest": "turn:5",
             "progress_kind": "attention_acknowledged",
@@ -213,8 +238,8 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
             "next_gate": "verify",
         }
         observed = [
-            {"kind": "turn", "id": "4", "report_revision": 4},
-            {"kind": "turn", "id": "5", "report_revision": 5},
+            {"kind": "turn", "id": "4", "child_id": "child-1", "report_revision": 4},
+            {"kind": "turn", "id": "5", "child_id": "child-1", "report_revision": 5},
         ]
         self.assertFalse(attention_acknowledged(True, previous, {"progress_kind": "no_change"}))
         self.assertFalse(attention_acknowledged(True, previous, acknowledged))
@@ -227,6 +252,36 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
         ))
         self.assertFalse(attention_acknowledged(True, previous, dict(acknowledged, applied_decision=None), observed))
         self.assertFalse(attention_acknowledged(False, previous, acknowledged, observed))
+        self.assertFalse(attention_acknowledged(
+            True,
+            previous,
+            dict(acknowledged, child_id="child-2"),
+            observed,
+        ))
+
+    def test_attention_accepts_authenticated_digest_identity(self):
+        previous = {
+            "child_id": "child-1",
+            "report_revision": 4,
+            "report_identity_or_digest": None,
+        }
+        current = {
+            "child_id": "child-1",
+            "report_revision": 5,
+            "report_identity_or_digest": None,
+            "progress_kind": "attention_acknowledged",
+            "applied_decision": "continue-with-check",
+            "next_gate": "verify",
+        }
+        previous["authenticated_provenance"] = {"source": "native-immutable-report", "evidence_id": "checkpoint-4"}
+        current["authenticated_provenance"] = {"source": "native-immutable-report", "evidence_id": "checkpoint-5"}
+        previous["report_identity_or_digest"] = checkpoint_digest(previous)
+        current["report_identity_or_digest"] = checkpoint_digest(current)
+        observed = [
+            {"kind": "immutable-report", "id": "checkpoint-4", "identity_or_digest": previous["report_identity_or_digest"], "child_id": "child-1", "report_revision": 4},
+            {"kind": "immutable-report", "id": "checkpoint-5", "identity_or_digest": current["report_identity_or_digest"], "child_id": "child-1", "report_revision": 5},
+        ]
+        self.assertTrue(attention_acknowledged(True, previous, current, observed))
 
     def test_overlapping_writes_conflict_but_disjoint_reads_do_not(self):
         write_a = {"resource_id": "repo:A", "resource_kind": "repository", "destination_fingerprint": "repo:A", "paths_or_scope": ["src/a.py"], "access_mode": "write"}

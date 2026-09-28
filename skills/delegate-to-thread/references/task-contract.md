@@ -95,6 +95,7 @@ next_gate
 The canonical terminal report contains, at minimum:
 
 ```text
+child_id
 outcome
 delivered_artifact
 acceptance_map

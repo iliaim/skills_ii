@@ -24,6 +24,7 @@ CHECKPOINT_FIELDS = {
     "next_gate",
 }
 TERMINAL_FIELDS = {
+    "child_id",
     "outcome",
     "delivered_artifact",
     "acceptance_map",
@@ -38,6 +39,9 @@ TERMINAL_FIELDS = {
 ALLOWED_PROGRESS_KINDS = {
     "phase_change", "evidence_added", "blocker_opened", "blocker_cleared",
     "attention_acknowledged", "verification_complete", "no_change",
+}
+EXECUTION_STATES = {
+    "discovering", "executing", "verifying", "blocked", "complete", "incomplete",
 }
 
 EXECUTION_CONTEXT_FIELDS = {
@@ -107,7 +111,8 @@ DESCENDANT_ACTIONS = {
 }
 MUTATING_ACTIONS = {
     "edit", "write", "create", "delete", "rename", "move", "chmod",
-    "apply_patch", "mkdir", "remove",
+    "apply_patch", "mkdir", "remove", "commit", "deploy", "publish", "push",
+    "merge", "overwrite", "release", "promote", "integrate", "rebase", "reset",
 }
 
 
@@ -115,6 +120,8 @@ def execution_boundary_admissible(
     trace,
     native_execution_evidence=None,
     native_parent_envelope_evidence=None,
+    native_transfer_evidence=None,
+    native_post_write_evidence=None,
 ):
     context = trace.get("execution_context", {})
     observed = trace.get("observed_checkout", {})
@@ -193,6 +200,8 @@ def execution_boundary_admissible(
             return False
     else:
         return False
+    if "destination_scope" in trace and not path_disclosure_admissible(trace, native_transfer_evidence):
+        return False
     if context.get("descendant_authority") == "granted":
         envelope = trace.get("parent_issued_envelope", {})
         if not parent_envelope_admissible(trace, envelope, native_parent_envelope_evidence):
@@ -203,6 +212,10 @@ def execution_boundary_admissible(
         return False
     actions = trace.get("actions", ())
     if not isinstance(actions, list):
+        return False
+    if any(action not in {
+        "execute_directly", "checkpoint", "terminal_report", *DESCENDANT_ACTIONS, *MUTATING_ACTIONS
+    } for action in actions):
         return False
     write_indexes = [index for index, action in enumerate(actions) if action in MUTATING_ACTIONS]
     if write_indexes:
@@ -217,7 +230,7 @@ def execution_boundary_admissible(
         "base_revision", "working_tree_status", "write_authority"
     }.issubset(trace.get("checkpoint_fields_present", ())):
         return False
-    if "terminal_report" in actions and not repository_report_fields_admissible(trace):
+    if "terminal_report" in actions and not repository_report_fields_admissible(trace, native_post_write_evidence):
         return False
     return True
 
@@ -234,7 +247,14 @@ def path_disclosure_admissible(trace, native_transfer_evidence=None):
     """Reject raw host paths when a trace crosses a broader destination boundary."""
     destination_scope = trace.get("destination_scope", "same-host")
     if destination_scope == "same-host":
-        return True
+        if "destination_scope" not in trace:
+            return True
+        return (
+            isinstance(native_transfer_evidence, dict)
+            and native_transfer_evidence.get("source") == "native-destination-observation"
+            and native_transfer_evidence.get("destination_scope") == "same-host"
+            and bool(native_transfer_evidence.get("evidence_id"))
+        )
     authority = trace.get("path_transfer_authority", {})
     if not isinstance(authority, dict) or {
         "source_scope", "destination_scope", "method", "evidence_id", "redaction"
@@ -261,12 +281,15 @@ def path_disclosure_admissible(trace, native_transfer_evidence=None):
 
     def contains_raw_path(value):
         if isinstance(value, dict):
-            return any(contains_raw_path(child) for child in value.values())
+            return any(
+                contains_raw_path(child)
+                for child in (*value.keys(), *value.values())
+            )
         if isinstance(value, (list, tuple)):
             return any(contains_raw_path(child) for child in value)
         if not isinstance(value, str):
             return False
-        return bool(re.match(r"^(?:/|~[/\\]|[A-Za-z]:[\\/]|\\\\|//)", value))
+        return bool(re.search(r"(?<![A-Za-z0-9])/(?!/)[^\\s,;]+|~[/\\]|[A-Za-z]:[\\/]|\\\\", value))
 
     return not contains_raw_path(trace)
 
@@ -275,7 +298,7 @@ def setup_recovery_schedule_admissible(checks):
     return isinstance(checks, list) and 1 <= len(checks) <= MAX_SETUP_RECOVERY_CHECKS
 
 
-def repository_report_fields_admissible(trace):
+def repository_report_fields_admissible(trace, native_post_write_evidence=None):
     checkpoint_fields = set(trace.get("checkpoint_fields_present", ()))
     terminal_fields = set(trace.get("terminal_fields_present", ()))
     if not REPOSITORY_CHECKPOINT_FIELDS.issubset(checkpoint_fields):
@@ -313,6 +336,21 @@ def repository_report_fields_admissible(trace):
         return False
     if not isinstance(payload.get("changed_files"), list):
         return False
+    if (
+        not isinstance(native_post_write_evidence, dict)
+        or native_post_write_evidence.get("source") != "native-post-write-check"
+        or not native_post_write_evidence.get("evidence_id")
+    ):
+        return False
+    if native_post_write_evidence.get("execution_context") != checkpoint_payload.get("execution_context"):
+        return False
+    if native_post_write_evidence.get("observed_checkout") != payload.get("observed_checkout"):
+        return False
+    if native_post_write_evidence.get("changed_files") != payload.get("changed_files"):
+        return False
+    delivery_field = "commit_or_pull_request" if status == "clean" else "uncommitted_disposition"
+    if native_post_write_evidence.get(delivery_field) != payload.get(delivery_field):
+        return False
     if status == "clean":
         return bool(payload.get("commit_or_pull_request"))
     return bool(payload.get("uncommitted_disposition"))
@@ -339,8 +377,11 @@ def parent_envelope_admissible(trace, envelope, native_parent_envelope_evidence=
         return False
     if envelope["issuer_id"] != trace.get("direct_parent_id"):
         return False
-    if not isinstance(envelope["allowed_actions"], list) or not any(
-        action in envelope["allowed_actions"] for action in trace.get("actions", ()) if action in DESCENDANT_ACTIONS
+    descendant_actions = [
+        action for action in trace.get("actions", ()) if action in DESCENDANT_ACTIONS
+    ]
+    if not isinstance(envelope["allowed_actions"], list) or not descendant_actions or any(
+        action not in envelope["allowed_actions"] for action in descendant_actions
     ):
         return False
     digest = envelope.get("identity_or_digest")
@@ -414,6 +455,7 @@ def attached_report_admissible(report, terminal=False, observed_native_events=()
             or all(bool(report[field]) for field in (
                 "observed_at", "execution_state", "task_liveness", "progress_kind", "next_gate"
             ))
+            and report["execution_state"] in EXECUTION_STATES
             and report["progress_kind"] in ALLOWED_PROGRESS_KINDS
         )
         and (
@@ -529,6 +571,16 @@ def attached_callbacks_reach_parent(parent_task_id, route, first_callback, termi
         for callback in callbacks
     ):
         return False
+    first_report = first_callback.get("report", {})
+    terminal_report = terminal_callback.get("report", {})
+    if (
+        first_report.get("child_id") != terminal_report.get("child_id")
+        or not isinstance(first_report.get("report_revision"), int)
+        or not isinstance(terminal_report.get("report_revision"), int)
+        or terminal_report["report_revision"] <= first_report["report_revision"]
+        or terminal_report.get("supersedes") != first_report["report_revision"]
+    ):
+        return False
     return (
         attached_report_admissible(
             first_callback["report"],
@@ -549,7 +601,7 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "report_revision": 4,
             "report_identity_or_digest": "turn:42",
             "observed_at": "2026-09-15T10:00:00Z",
-            "execution_state": "running",
+            "execution_state": "executing",
             "task_liveness": "live",
             "progress_kind": "verification_complete",
             "evidence_refs": ["turn:42"],
@@ -605,7 +657,7 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "report_revision": 4,
             "report_identity_or_digest": "turn:42",
             "observed_at": "2026-09-15T10:00:00Z",
-            "execution_state": "running",
+            "execution_state": "executing",
             "task_liveness": "live",
             "progress_kind": "evidence_added",
             "evidence_refs": ["turn:42"],
@@ -613,6 +665,7 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "next_gate": "parent-review",
         }
         terminal = {
+            "child_id": "child-1",
             "outcome": "complete",
             "delivered_artifact": None,
             "acceptance_map": {},
@@ -637,7 +690,7 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "report_revision": 4,
             "report_identity_or_digest": None,
             "observed_at": "2026-09-15T10:00:00Z",
-            "execution_state": "running",
+            "execution_state": "executing",
             "task_liveness": "live",
             "progress_kind": "evidence_added",
             "evidence_refs": ["turn:old"],
@@ -874,6 +927,18 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             dict(first_callback, target_task_id="other-parent"),
             terminal_callback,
         ))
+        self.assertFalse(attached_callbacks_reach_parent(
+            parent_task_id,
+            "send_message_to_thread",
+            first_callback,
+            dict(terminal_callback, report=dict(terminal, child_id="child-2")),
+        ))
+        self.assertFalse(attached_callbacks_reach_parent(
+            parent_task_id,
+            "send_message_to_thread",
+            first_callback,
+            dict(terminal_callback, report=dict(terminal, supersedes=999)),
+        ))
 
     def test_execution_boundary_cases_run_through_action_trace_oracle(self):
         cases = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())["execution_boundary_cases"]
@@ -885,36 +950,49 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
                 oracle["trace"],
                 oracle.get("native_execution_evidence"),
                 oracle.get("native_parent_envelope_evidence"),
+                oracle.get("native_transfer_evidence"),
+                oracle.get("native_post_write_evidence"),
             )
             expected = oracle["expected"] == "accept"
             self.assertEqual(actual, expected, case["id"])
             if case["id"] == "repo-writing-managed-worktree-context":
-                self.assertTrue(repository_report_fields_admissible(oracle["trace"]))
+                self.assertTrue(repository_report_fields_admissible(
+                    oracle["trace"],
+                    oracle["native_post_write_evidence"],
+                ))
 
         managed = next(case for case in cases if case["id"] == "repo-writing-managed-worktree-context")
         trace = managed["protocol_oracle"]["trace"]
         native_execution = managed["protocol_oracle"]["native_execution_evidence"]
+        native_post_write = managed["protocol_oracle"]["native_post_write_evidence"]
+        admit = lambda candidate: execution_boundary_admissible(
+            candidate, native_execution, None, None, native_post_write
+        )
         self.assertFalse(execution_boundary_admissible(trace))
         for field in EXECUTION_CONTEXT_FIELDS:
             missing = dict(trace, execution_context={k: v for k, v in trace["execution_context"].items() if k != field})
-            self.assertFalse(execution_boundary_admissible(missing, native_execution), field)
+            self.assertFalse(admit(missing), field)
         for field in OBSERVED_CHECKOUT_FIELDS:
             missing = dict(trace, observed_checkout={k: v for k, v in trace["observed_checkout"].items() if k != field})
-            self.assertFalse(execution_boundary_admissible(missing, native_execution), field)
+            self.assertFalse(admit(missing), field)
         for field, value in (("cwd", "/wrong/checkout"), ("branch_or_ref", "main"), ("base_revision", "stale")):
             mismatched = dict(
                 trace,
                 observed_checkout=dict(trace["observed_checkout"], **{field: value}),
             )
-            self.assertFalse(execution_boundary_admissible(mismatched, native_execution), field)
-        self.assertFalse(execution_boundary_admissible(dict(
+            self.assertFalse(admit(mismatched), field)
+        self.assertFalse(admit(dict(
             trace,
             execution_evidence={"source": "self-report", "evidence_id": "event:forged"},
-        ), native_execution))
+        )))
         self.assertFalse(path_disclosure_admissible(dict(
             trace,
             destination_scope="cloud",
         )))
+        self.assertFalse(path_disclosure_admissible({
+            "destination_scope": "same-host",
+            "secret": "/private/secret.txt",
+        }))
         transfer_trace = dict(
             trace,
             destination_scope="cloud",
@@ -1002,11 +1080,11 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             },
             terminal_report_payload={"changed_files": ["/private/secret.txt"]},
         )))
-        self.assertFalse(execution_boundary_admissible(dict(
+        self.assertFalse(admit(dict(
             trace,
             actions=["execute_directly", "write", "checkpoint", "terminal_report"],
             terminal_fields_present=["execution_context", "changed_files"],
-        ), native_execution))
+        )))
         for field in REPOSITORY_CHECKPOINT_FIELDS:
             self.assertFalse(repository_report_fields_admissible(dict(
                 trace,
@@ -1045,7 +1123,12 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
                 uncommitted_disposition="left-dirty-with-owner",
             ),
         )
-        self.assertTrue(repository_report_fields_admissible(dirty))
+        dirty_native_post_write = dict(
+            native_post_write,
+            observed_checkout=dict(native_post_write["observed_checkout"], working_tree_status="dirty"),
+            uncommitted_disposition="left-dirty-with-owner",
+        )
+        self.assertTrue(repository_report_fields_admissible(dirty, dirty_native_post_write))
         self.assertFalse(repository_report_fields_admissible(dict(
             trace,
             checkpoint_payload=dict(
@@ -1060,20 +1143,30 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
                 if value != "uncommitted_disposition"
             ],
         )))
-        self.assertFalse(execution_boundary_admissible(dict(trace, actions=["write"]), native_execution))
-        self.assertFalse(execution_boundary_admissible(dict(
+        self.assertFalse(admit(dict(trace, actions=["write"])))
+        self.assertFalse(admit(dict(
             trace, actions=["execute_directly", "write", "checkpoint", "terminal_report"]
-        ), native_execution))
-        self.assertFalse(execution_boundary_admissible(dict(
+        )))
+        self.assertFalse(admit(dict(
             trace, actions=["execute_directly", "checkpoint", "terminal_report", "write"]
-        ), native_execution))
+        )))
+        for action in ("modify", "append", "update", "copy", "commit", "deploy", "publish", "merge", "overwrite"):
+            with self.subTest(action=action):
+                self.assertFalse(admit(
+                    dict(trace, actions=["execute_directly", action]),
+                ))
 
     def test_execution_boundary_binds_each_checkout_evidence_field(self):
         cases = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())["execution_boundary_cases"]
-        trace = next(case for case in cases if case["id"] == "repo-writing-managed-worktree-context")["protocol_oracle"]["trace"]
+        oracle = next(case for case in cases if case["id"] == "repo-writing-managed-worktree-context")["protocol_oracle"]
+        trace = oracle["trace"]
+        native_execution = oracle["native_execution_evidence"]
+        native_post_write = oracle["native_post_write_evidence"]
         for field in EXECUTION_EVIDENCE_FIELDS:
             mutated = dict(trace, execution_evidence=dict(trace["execution_evidence"], **{field: "forged"}))
-            self.assertFalse(execution_boundary_admissible(mutated), field)
+            self.assertFalse(execution_boundary_admissible(mutated, native_execution, None, None, native_post_write), field)
+            forged_native = dict(native_execution, **{field: "forged"})
+            self.assertFalse(execution_boundary_admissible(trace, forged_native, None, None, native_post_write), f"native:{field}")
 
     def test_provider_default_and_authorized_direct_local_have_positive_coverage(self):
         import copy
@@ -1081,6 +1174,7 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         cases = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())["execution_boundary_cases"]
         managed = next(case for case in cases if case["id"] == "repo-writing-managed-worktree-context")["protocol_oracle"]["trace"]
         managed_native = next(case for case in cases if case["id"] == "repo-writing-managed-worktree-context")["protocol_oracle"]["native_execution_evidence"]
+        managed_post_write = next(case for case in cases if case["id"] == "repo-writing-managed-worktree-context")["protocol_oracle"]["native_post_write_evidence"]
 
         provider_default = copy.deepcopy(managed)
         provider_default["execution_context"].pop("requested_starting_state")
@@ -1093,11 +1187,13 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         provider_native["starting_state"] = provider_default["execution_context"]["provider_default_rule"]
         provider_default["terminal_report_payload"]["execution_context"] = provider_default["execution_context"]
         provider_default["checkpoint_payload"]["execution_context"] = provider_default["execution_context"]
-        self.assertTrue(execution_boundary_admissible(provider_default, provider_native))
+        provider_post_write = copy.deepcopy(managed_post_write)
+        provider_post_write["execution_context"] = provider_default["execution_context"]
+        self.assertTrue(execution_boundary_admissible(provider_default, provider_native, None, None, provider_post_write))
         self.assertFalse(execution_boundary_admissible(dict(
             provider_default,
             observed_checkout=dict(provider_default["observed_checkout"], branch_or_ref="wrong"),
-        ), provider_native))
+        ), provider_native, None, None, provider_post_write))
 
         direct_local = copy.deepcopy(managed)
         direct_local["execution_context"].update({
@@ -1115,9 +1211,12 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         direct_native.update({"cwd": "/repo", "worktree_root": "/repo"})
         direct_local["checkpoint_payload"]["execution_context"] = direct_local["execution_context"]
         direct_local["checkpoint_payload"]["observed_checkout"] = direct_local["observed_checkout"]
-        self.assertTrue(execution_boundary_admissible(direct_local, direct_native))
+        direct_post_write = copy.deepcopy(managed_post_write)
+        direct_post_write["execution_context"] = direct_local["execution_context"]
+        direct_post_write["observed_checkout"] = direct_local["observed_checkout"]
+        self.assertTrue(execution_boundary_admissible(direct_local, direct_native, None, None, direct_post_write))
         direct_local["execution_context"]["exclusive_writer_commitment"] = False
-        self.assertFalse(execution_boundary_admissible(direct_local, direct_native))
+        self.assertFalse(execution_boundary_admissible(direct_local, direct_native, None, None, direct_post_write))
 
     def test_parent_envelope_requires_authenticated_digest_and_issuer_binding(self):
         import copy
@@ -1146,6 +1245,13 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             oracle["native_execution_evidence"],
             forged_external,
         ))
+        forged_actions = copy.deepcopy(trace)
+        forged_actions["actions"] = ["delegate-to-thread", "fork"]
+        self.assertFalse(execution_boundary_admissible(
+            forged_actions,
+            oracle["native_execution_evidence"],
+            oracle["native_parent_envelope_evidence"],
+        ))
 
     def test_adversarial_catalog_cases_execute_against_protocol_oracles(self):
         cases = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())["prompt_contract_variants"]
@@ -1161,11 +1267,12 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         by_id = {case["id"]: case for case in cases if case["id"] in adversarial}
         checkpoint = {
             "child_id": "child-1", "report_revision": 1, "report_identity_or_digest": "turn:1",
-            "observed_at": "now", "execution_state": "running", "task_liveness": "live",
+            "observed_at": "now", "execution_state": "executing", "task_liveness": "live",
             "progress_kind": "phase_change", "evidence_refs": ["turn:1"], "blocker_or_decision": None,
             "next_gate": "verify",
         }
         terminal = {
+            "child_id": "child-1",
             "outcome": "complete", "delivered_artifact": None, "acceptance_map": {"criterion-a": "pending"},
             "checks_and_observed_results": [], "residual_risks": [], "unmet_requirements": [],
             "availability": "available", "report_revision": 2, "report_identity_or_digest": "turn:2", "supersedes": 1,

@@ -173,6 +173,32 @@
           "working_tree_status": "clean",
           "write_authority": "authorized",
           "starting_state": "origin/main"
+        },
+        "native_post_write_evidence": {
+          "source": "native-post-write-check",
+          "evidence_id": "event:post-write-1",
+          "execution_context": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_path": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "base_revision": "origin/main",
+            "requested_starting_state": "origin/main",
+            "write_authority": "authorized",
+            "execution_mode": "managed-worktree",
+            "descendant_authority": "absent"
+          },
+          "observed_checkout": {
+            "project_path": "/repo",
+            "cwd": "/repo/worktrees/child",
+            "worktree_root": "/repo/worktrees/child",
+            "branch_or_ref": "codex/child",
+            "head_revision": "child-head",
+            "base_revision": "origin/main",
+            "working_tree_status": "clean"
+          },
+          "changed_files": ["src/example.py"],
+          "commit_or_pull_request": "commit:child-head"
         }
       }
     },
@@ -351,14 +377,6 @@
           "root_id": "root-1",
           "direct_execution": true,
           "pre_write_verified": true,
-          "trusted_parent_envelope": {
-            "source": "native-parent-envelope",
-            "evidence_id": "event:parent-envelope-1",
-            "issuer_id": "parent-1",
-            "root_id": "root-1",
-            "parent_id": "parent-1",
-            "identity_or_digest": "sha256:f93bea698a35b20a53f1b407ca3b5fbc945e34685594f0d2a9cc270aff7e3603"
-          },
           "execution_evidence": {
             "source": "provider-assigned-worktree",
             "evidence_id": "event:checkout-3",
