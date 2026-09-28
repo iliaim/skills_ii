@@ -44,6 +44,14 @@ class DelegateContractCaseTests(unittest.TestCase):
                 self.assertTrue(expected_failure.get("assertion_id"), control.get("id"))
                 self.assertIn(expected_failure["assertion_id"], known_ids, control.get("id"))
                 self.assertTrue(expected_failure.get("reason_code"), control.get("id"))
+        for case in payload["prompt_contract_variants"]:
+            mutation = case.get("mutation", {})
+            expected_failure = case.get("expected_failure", {})
+            self.assertIn(mutation.get("operation"), operations, case["id"])
+            self.assertTrue(mutation.get("target"), case["id"])
+            self.assertTrue(expected_failure.get("criterion_id"), case["id"])
+            self.assertTrue(expected_failure.get("assertion_id"), case["id"])
+            self.assertTrue(expected_failure.get("reason_code"), case["id"])
         self.assertGreater(visited, 0)
 
     def test_attached_reporting_cases_cover_required_red_controls(self):
