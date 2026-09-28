@@ -65,8 +65,9 @@ Treat a candidate UUID as usable only when all of these hold:
 4. the native record corroborates the original creation request's kind, host, destination/project, and creation time; a worktree-bound request also requires its exact assigned worktree.
 
 Use only that resolved UUID for later task calls. Any missing, ambiguous, stale, cross-host, or
-metadata-conflicting signal leaves the setup result queued or indeterminate. Record the native read
-and the correlation limitation; do not create a replacement or contact a title/directory match.
+metadata-conflicting signal leaves the setup result `queued/unmonitorable`. Use `indeterminate` only
+when the provider may have created a side effect but no exact reconciliation route exists. Record the
+native read and the correlation limitation; do not create a replacement or contact a title/directory match.
 
 On the current local Codex desktop runtime, the narrowly scoped binding may be recorded in the
 configured Codex state root under `.codex-global-state.json`, in a `client-thread-bindings-v1`

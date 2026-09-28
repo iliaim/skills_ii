@@ -12,19 +12,18 @@ def source_report_digest(payload):
     return "sha256:" + hashlib.sha256(canonical).hexdigest()
 
 
-def source_identity_is_backed(evidence):
+def source_identity_is_backed(evidence, observed_native_records=()):
     identity = evidence.get("source_report_identity_or_digest")
     if not isinstance(identity, str):
         return False
     if identity.startswith(("turn:", "event:")):
         kind, _, event_id = identity.partition(":")
-        native = evidence.get("source_native_evidence")
-        return bool(event_id) and native == {
+        return bool(event_id) and {
             "kind": kind,
             "id": event_id,
             "source_child_id": evidence.get("source_child_id"),
             "source_report_revision": evidence.get("source_report_revision"),
-        }
+        } in observed_native_records
     payload = evidence.get("source_report_payload")
     provenance = evidence.get("source_authenticated_provenance")
     return (
@@ -37,27 +36,35 @@ def source_identity_is_backed(evidence):
         and provenance.get("source_report_revision") == evidence.get("source_report_revision")
         and provenance.get("criterion") == evidence.get("criterion")
         and provenance.get("identity_or_digest") == identity
+        and {
+            "kind": "immutable-report",
+            "id": provenance.get("evidence_id"),
+            "source_child_id": provenance.get("source_child_id"),
+            "source_report_revision": provenance.get("source_report_revision"),
+            "criterion": provenance.get("criterion"),
+            "identity_or_digest": identity,
+        } in observed_native_records
     )
 
 
-def _report_edge_matches(edge, evidence):
+def _report_edge_matches(edge, evidence, observed_native_records=()):
     return (
         edge["source_child_id"] == evidence["source_child_id"]
         and edge["criterion"] == evidence["criterion"]
         and edge["source_report_identity_or_digest"] == evidence["source_report_identity_or_digest"]
         and edge["source_report_revision"] == evidence["source_report_revision"]
-        and source_identity_is_backed(evidence)
+        and source_identity_is_backed(evidence, observed_native_records)
         and not edge.get("superseded", False)
         and not evidence.get("superseded", False)
     )
 
 
-def accepted_evidence_opens(edge, evidence):
-    return edge["type"] == "accepted_evidence" and edge["source_artifact_revision_or_digest"] == "not_applicable" and _report_edge_matches(edge, evidence)
+def accepted_evidence_opens(edge, evidence, observed_native_records=()):
+    return edge["type"] == "accepted_evidence" and edge["source_artifact_revision_or_digest"] == "not_applicable" and _report_edge_matches(edge, evidence, observed_native_records)
 
 
-def artifact_edge_opens(edge, evidence):
-    return _report_edge_matches(edge, evidence) and (
+def artifact_edge_opens(edge, evidence, observed_native_records=()):
+    return _report_edge_matches(edge, evidence, observed_native_records) and (
         edge["type"] == "available_artifact"
         and edge["source_artifact_revision_or_digest"] == evidence.get("source_artifact_revision_or_digest")
         and edge["readable_path"] == evidence.get("readable_path")
@@ -120,10 +127,11 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
             },
             "source_artifact_revision_or_digest": "not_applicable",
         }
+        self.native_records = [self.evidence["source_native_evidence"]]
 
     def test_evidence_only_gate_opens_without_artifact(self):
         edge = dict(self.evidence, type="accepted_evidence")
-        self.assertTrue(accepted_evidence_opens(edge, self.evidence))
+        self.assertTrue(accepted_evidence_opens(edge, self.evidence, self.native_records))
 
     def test_stale_or_missing_identity_recloses_dependant(self):
         edge = dict(self.evidence, type="accepted_evidence")
@@ -159,12 +167,20 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
             },
         )
         edge = dict(evidence, type="accepted_evidence")
-        self.assertTrue(accepted_evidence_opens(edge, evidence))
+        digest_records = [{
+            "kind": "immutable-report",
+            "id": "event:report-7",
+            "source_child_id": "child-1",
+            "source_report_revision": 7,
+            "criterion": "criterion-a",
+            "identity_or_digest": digest,
+        }]
+        self.assertTrue(accepted_evidence_opens(edge, evidence, digest_records))
         self.assertFalse(accepted_evidence_opens(edge, dict(
             evidence,
             source_report_payload={"outcome": "complete", "checks": ["test: failed"]},
         )))
-        self.assertFalse(accepted_evidence_opens(edge, dict(evidence, source_authenticated_provenance=None)))
+        self.assertFalse(accepted_evidence_opens(edge, dict(evidence, source_authenticated_provenance=None), digest_records))
         self.assertFalse(accepted_evidence_opens(edge, dict(
             evidence,
             source_authenticated_provenance=dict(
@@ -172,6 +188,7 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
                 identity_or_digest="sha256:" + "0" * 64,
             ),
         )))
+        self.assertFalse(accepted_evidence_opens(edge, evidence, []))
 
     def test_artifact_edge_requires_exact_readable_postimage(self):
         edge = dict(
@@ -181,7 +198,7 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
             readable_path="src/a.py",
         )
         available = dict(self.evidence, source_artifact_revision_or_digest="git:post-image", readable_path="src/a.py")
-        self.assertTrue(artifact_edge_opens(edge, available))
+        self.assertTrue(artifact_edge_opens(edge, available, self.native_records))
         self.assertFalse(artifact_edge_opens(edge, dict(available, source_artifact_revision_or_digest="git:pre-image")))
         self.assertFalse(artifact_edge_opens(edge, dict(available, readable_path=None)))
         self.assertFalse(artifact_edge_opens(dict(edge, superseded=True), available))

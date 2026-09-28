@@ -171,6 +171,18 @@ terminal: execution_context, observed_checkout, changed_files,
           commit_or_pull_request|uncommitted_disposition
 ```
 
+The execution evidence and immutable parent envelope are independently read-only native records;
+matching fields or recomputing a digest is integrity checking, not issuer authentication. A writable
+trace must bind its checkout evidence, parent envelope, and any broader-destination path transfer to
+those external records. The checkpoint payload must preserve the exact execution context and observed
+checkout later repeated by the terminal payload.
+
+Delegate execution states map to the orchestration vocabulary as follows: `discovering` and
+`executing` remain active execution; `verifying` is the orchestration verification phase;
+`blocked` maps to `needs_attention` when a decision or user input is required; `complete` maps to
+`terminal` only after the canonical terminal report is accepted; and `incomplete` remains
+`incomplete` whenever evidence or observation is missing.
+
 Descendant authority is valid only when the first message is backed by the immutable parent-issued
 envelope defined in [advanced delegation](advanced-delegation.md): exact root/parent identities,
 scope, depth/budget, resource claim, acceptance boundary, integration owner, and envelope identity or
