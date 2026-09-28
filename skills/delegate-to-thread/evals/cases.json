@@ -8188,12 +8188,13 @@
       ]
     }
   ],
+  "prompt_contract_baseline": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
   "prompt_contract_variants": [
     {
       "id": "r4-incomplete-first-message",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
-      "baseline_prompt": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -8218,7 +8219,7 @@
       "id": "r4-sensitive-context-leak",
       "base_case_id": "cloud-source-accessible",
       "criterion_id": "R4-execution-contract",
-      "baseline_prompt": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -8244,7 +8245,7 @@
       "id": "r4-durable-artifact-duplicated",
       "base_case_id": "git-project-default-worktree",
       "criterion_id": "R4-execution-contract",
-      "baseline_prompt": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -8273,7 +8274,7 @@
       "id": "r4-one-shot-overbuilt",
       "base_case_id": "projectless-research",
       "criterion_id": "R4-execution-contract",
-      "baseline_prompt": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -8298,7 +8299,7 @@
       "id": "r4-stale-load-bearing-fact",
       "base_case_id": "git-project-default-worktree",
       "criterion_id": "R4-execution-contract",
-      "baseline_prompt": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -8327,7 +8328,7 @@
       "id": "r4-parent-observer-mechanics-leaked",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
-      "baseline_prompt": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -8352,7 +8353,7 @@
       "id": "r4-child-slice-parent-omitted",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
-      "baseline_prompt": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -8377,7 +8378,7 @@
       "id": "attached-reporting-required",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
-      "baseline_prompt": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -8401,7 +8402,7 @@
       "id": "attached-terminal-report-missing-acceptance-map",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
-      "baseline_prompt": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -8425,7 +8426,7 @@
       "id": "attached-attention-ack-required",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
-      "baseline_prompt": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -8449,7 +8450,7 @@
       "id": "attached-local-terminal-without-parent-callback",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
-      "baseline_prompt": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
@@ -8473,7 +8474,7 @@
       "id": "writable-resource-claim-required",
       "base_case_id": "coordinated-ready-codex",
       "criterion_id": "R4-execution-contract",
-      "baseline_prompt": "Complete the assigned slice within the parent objective. Follow the stated authority and constraints, make the resource claim explicit with its integration owner, record a useful checkpoint, revalidate mutable inputs at point of use, and report acceptance_map with evidence. Stop for input when a decision is required and stop incomplete when the same blocker repeats.",
+      "baseline_prompt_ref": "prompt_contract_baseline",
       "mutation": {
         "operation": "replace_call_arg",
         "target": {
