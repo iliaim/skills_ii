@@ -191,6 +191,21 @@ def _partial_order_passes(case, trace, catalog=None):
             *edges,
         ]
     positions = {call["assertion_id"]: index for index, call in enumerate(trace)}
+    if catalog and case.get("base_case_id") and case.get("inherit_until"):
+        base_ids = [
+            call["assertion_id"]
+            for call in _baseline_trace(catalog[case["base_case_id"]])
+        ]
+        inherited_ids = base_ids[: base_ids.index(case["inherit_until"]) + 1]
+        local_ids = {
+            assertion["id"]
+            for assertion in case.get("task_operation_assertions", {}).get("required", [])
+        }
+        inherited_positions = [positions[identifier] for identifier in inherited_ids if identifier in positions]
+        if inherited_positions:
+            boundary = max(inherited_positions)
+            if any(positions[identifier] <= boundary for identifier in local_ids if identifier in positions):
+                return False
     return all(
         positions[edge["before"]] < positions[edge["after"]]
         for edge in edges
@@ -233,12 +248,22 @@ def _mutated_records(case, control):
 
 
 def _evidence_predicate_valid(case, records, evidence):
+    permitted_roots = {
+        "host_user_event": "/event/",
+        "tool_result": "/raw_result/",
+        "contract_snapshot": "/snapshot/",
+        "transport_or_tool_failure": "/raw_result/",
+    }
     values = []
     for premise in evidence.get("premises", []):
         record = records.get(premise.get("fixture_id"))
         if record is None:
             return False
-        value, present = _resolve_pointer(record, premise.get("path", ""))
+        path = premise.get("path", "")
+        root = permitted_roots.get(record.get("kind"))
+        if not root or not path.startswith(root) or path.endswith("/request"):
+            return False
+        value, present = _resolve_pointer(record, path)
         if not present:
             return False
         values.append(value)
@@ -254,7 +279,7 @@ def _evidence_predicate_valid(case, records, evidence):
         return bool(values) and values[0] is False
     if operator == "not_supported_by_contract":
         return False
-    return bool(evidence.get("value"))
+    return False
 
 
 def _dependent_evidence_fails(case, control):
@@ -277,6 +302,19 @@ def _dependent_evidence_fails(case, control):
         if not _evidence_predicate_valid(case, records, records[evidence["id"]]):
             return True
     return False
+
+
+def _operation_admission_passes(case, assertion_id, records, catalog=None):
+    kind, assertion = _assertion_by_id(case, assertion_id)
+    if assertion is None:
+        return False
+    trace = _baseline_trace(case, catalog)
+    if not _operation_assertion_passes(kind, assertion, trace):
+        return False
+    return all(
+        _evidence_predicate_valid(case, records, records[evidence["id"]])
+        for evidence in case.get("capability_evidence", [])
+    )
 
 
 def _terminal_required_signals(reason):
@@ -322,7 +360,7 @@ def _terminal_claim_failure_reason(case, statement):
         return "explicit-delegation-default-not-coordinated"
     if "broader release-readiness objective is complete" in statement:
         return "child-slice-cannot-complete-parent"
-    if "heartbeat" in statement:
+    if _asserted_phrase(statement, "heartbeat"):
         return "scheduled-heartbeat-not-event-callback"
     if "desktop notification" in statement:
         return "human-notification-not-agent-wakeup"
@@ -330,7 +368,9 @@ def _terminal_claim_failure_reason(case, statement):
         return "no-native-parent-auto-resume"
     if "child reports complete" in statement:
         return "parent-acceptance-unmapped"
-    if "matching its title" in statement or "select the possible task by title" in statement:
+    if _asserted_phrase(statement, "matching its title") or _asserted_phrase(
+        statement, "select the possible task by title"
+    ):
         return "title-not-stable-identity"
     if "claim parent completion from the needs-attention" in statement:
         return "needs-attention-is-not-terminal-success"
@@ -367,7 +407,7 @@ def _terminal_claim_fails(case, control):
         return False
     if reason == "title-not-stable-identity":
         return any(
-            phrase in statement
+            _asserted_phrase(statement, phrase)
             for phrase in ("matching its title", "by matching the title", "select the possible task by title")
         )
     signals = _terminal_required_signals(reason)
@@ -381,9 +421,36 @@ def _positive_phrase(prompt, phrase):
         if index < 0:
             return False
         prefix = prompt[:index].rsplit(".", 1)[-1]
-        if not any(marker in prefix for marker in ("do not", "without", "never", "omit")):
+        if not any(
+            marker in prefix
+            for marker in ("do not", "don't", "avoid", "refrain", "without", "never", "omit")
+        ):
             return True
         start = index + len(phrase)
+
+
+def _asserted_phrase(text, phrase):
+    start = 0
+    while True:
+        index = text.find(phrase, start)
+        if index < 0:
+            return False
+        sentence_start = max(text.rfind(".", 0, index), text.rfind(";", 0, index)) + 1
+        sentence_end_candidates = [end for end in (text.find(".", index), text.find(";", index)) if end >= 0]
+        sentence_end = min(sentence_end_candidates, default=len(text))
+        sentence = text[sentence_start:sentence_end]
+        if not any(
+            marker in sentence
+            for marker in (" not ", "never ", "do not ", "don't ", "avoid ", "refrain ")
+        ):
+            return True
+        start = index + len(phrase)
+
+
+def _omits_term(prompt, term):
+    return term not in prompt or _positive_phrase(prompt, f"omit {term}") or _positive_phrase(
+        prompt, f"without {term}"
+    )
 
 
 def _prompt_contract_failure_reason(prompt):
@@ -401,7 +468,7 @@ def _prompt_contract_failure_reason(prompt):
         return "one-shot-contract-overbuilt"
     if "without re-reading" in prompt:
         return "mutable-fact-revalidation-missing"
-    if "acceptance_map" in prompt:
+    if "acceptance_map" in prompt and _omits_term(prompt, "acceptance_map"):
         return "canonical-terminal-report-incomplete"
     if "acknowledged" in prompt or "without reporting" in prompt:
         return "attention-acknowledgement-missing"
@@ -435,12 +502,60 @@ class DelegateContractCaseTests(unittest.TestCase):
                 "one-shot-contract-overbuilt",
             )
         )
+        self.assertFalse(
+            _prompt_contract_fails(
+                "Audit the source, avoid creating a goal registry, and deliver a one-shot memo.",
+                "one-shot-contract-overbuilt",
+            )
+        )
+        self.assertFalse(
+            _prompt_contract_fails(
+                "At completion, do not omit acceptance_map; include it in the terminal report.",
+                "canonical-terminal-report-incomplete",
+            )
+        )
         payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
         case = next(case for case in payload["cases"] if case["id"] == "indeterminate-create-outcome")
         control = next(control for control in case["negative_controls"] if control["id"] == "nc-title-match")
         decoy = copy.deepcopy(control)
-        decoy["mutation"]["value"] = "Use the exact native identity rather than a display label."
+        decoy["mutation"]["value"] = "Never select the possible task by matching its title; use exact native identity."
         self.assertFalse(_terminal_claim_fails(case, decoy))
+        heartbeat_case = next(case for case in payload["cases"] if case["id"] == "coordinated-ready-codex")
+        heartbeat_control = next(
+            control for control in heartbeat_case["negative_controls"] if control["id"] == "nc-heartbeat-callback"
+        )
+        heartbeat_decoy = copy.deepcopy(heartbeat_control)
+        heartbeat_decoy["mutation"]["value"] = (
+            "A scheduled heartbeat is not a child-completion callback; wait for the observed child result."
+        )
+        self.assertFalse(_terminal_claim_fails(heartbeat_case, heartbeat_decoy))
+        evidence_case = next(case for case in payload["cases"] if case["id"] == "explicit-uncommitted-state")
+        evidence = next(item for item in evidence_case["capability_evidence"] if item["id"] == "ce-state-authority")
+        records = _record_groups(evidence_case)
+        forged = copy.deepcopy(evidence)
+        forged["premises"][0]["path"] = "/event/payload/request"
+        self.assertFalse(_evidence_predicate_valid(evidence_case, records, forged))
+        unsupported = copy.deepcopy(evidence)
+        unsupported["derivation"]["operator"] = "unknown-operator"
+        self.assertFalse(_evidence_predicate_valid(evidence_case, records, unsupported))
+        observation_case = next(
+            case for case in payload["observation_variants"] if case["id"] == "wait-interrupted-by-new-user-input"
+        )
+        inherited_trace = _baseline_trace(observation_case, {
+            **{item["id"]: item for item in payload["cases"]},
+            **{item["id"]: item for item in payload["observation_variants"]},
+        })
+        reversed_trace = [inherited_trace[-1], *inherited_trace[:-1]]
+        self.assertFalse(
+            _partial_order_passes(
+                observation_case,
+                reversed_trace,
+                {
+                    **{item["id"]: item for item in payload["cases"]},
+                    **{item["id"]: item for item in payload["observation_variants"]},
+                },
+            )
+        )
 
     def test_negative_controls_are_complete_executable_mutation_records(self):
         payload = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
@@ -534,6 +649,20 @@ class DelegateContractCaseTests(unittest.TestCase):
                                 _operation_assertion_passes(kind, named_assertion, baseline_trace),
                                 control.get("id"),
                             )
+                            baseline_records = _record_groups(case)
+                            mutated_records = _mutated_records(case, control)
+                            self.assertTrue(
+                                _operation_admission_passes(
+                                    case, named_id, baseline_records, cases_by_id
+                                ),
+                                control.get("id"),
+                            )
+                            self.assertFalse(
+                                _operation_admission_passes(
+                                    case, named_id, mutated_records, cases_by_id
+                                ),
+                                control.get("id"),
+                            )
                         self.assertTrue(_dependent_evidence_fails(case, control), control.get("id"))
                     elif target["namespace"] == "candidate_terminal":
                         self.assertEqual(
@@ -599,6 +728,15 @@ class DelegateContractCaseTests(unittest.TestCase):
             }, case["id"])
             self.assertTrue(expected_failure.get("reason_code"), case["id"])
             prompt = mutation["value"].get("prompt", "")
+            base_case = cases_by_id[case["base_case_id"]]
+            base_create = _required_assertion(base_case, target["id"], cases_by_id)
+            self.assertIsNotNone(base_create, case["id"])
+            candidate_call = {
+                "tool": "create_thread",
+                "args": copy.deepcopy(mutation["value"]),
+            }
+            self.assertEqual(candidate_call["args"].get("target"), base_create["args_match"]["value"].get("target"), case["id"])
+            self.assertEqual(candidate_call["args"].get("prompt"), prompt, case["id"])
             self.assertTrue(
                 _prompt_contract_fails(prompt, expected_failure["reason_code"]),
                 case["id"],
