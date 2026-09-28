@@ -339,19 +339,33 @@ def _operation_assertion_passes(kind, assertion, trace):
 
 
 def _partial_order_passes(case, trace, catalog=None):
-    edges = list(case.get("task_operation_assertions", {}).get("partial_order", []))
+    local_edges = list(case.get("task_operation_assertions", {}).get("partial_order", []))
+    edges = local_edges
+    inherited_ids = None
     if catalog and case.get("base_case_id"):
-        edges = [
-            *catalog[case["base_case_id"]].get("task_operation_assertions", {}).get("partial_order", []),
-            *edges,
-        ]
+        base = catalog[case["base_case_id"]]
+        base_edges = list(base.get("task_operation_assertions", {}).get("partial_order", []))
+        if case.get("inherit_until"):
+            base_ids = [call["assertion_id"] for call in _baseline_trace(base)]
+            inherited_ids = base_ids[: base_ids.index(case["inherit_until"]) + 1]
+            inherited_id_set = set(inherited_ids)
+            base_edges = [
+                edge
+                for edge in base_edges
+                if edge["before"] in inherited_id_set and edge["after"] in inherited_id_set
+            ]
+        edges = [*base_edges, *local_edges]
+    trace_ids = {call["assertion_id"] for call in trace}
+    if any(edge["before"] not in trace_ids or edge["after"] not in trace_ids for edge in edges):
+        return False
     positions = {call["assertion_id"]: index for index, call in enumerate(trace)}
     if catalog and case.get("base_case_id") and case.get("inherit_until"):
-        base_ids = [
+        inherited_ids = inherited_ids or [
             call["assertion_id"]
             for call in _baseline_trace(catalog[case["base_case_id"]])
         ]
-        inherited_ids = base_ids[: base_ids.index(case["inherit_until"]) + 1]
+        if case.get("inherit_until"):
+            inherited_ids = inherited_ids[: inherited_ids.index(case["inherit_until"]) + 1]
         local_ids = {
             assertion["id"]
             for assertion in case.get("task_operation_assertions", {}).get("required", [])
@@ -1124,6 +1138,14 @@ class DelegateContractCaseTests(unittest.TestCase):
                     **{item["id"]: item for item in payload["observation_variants"]},
                 },
             )
+        )
+        malformed_order_case = {
+            "task_operation_assertions": {
+                "partial_order": [{"before": "call-missing", "after": "call-create"}]
+            }
+        }
+        self.assertFalse(
+            _partial_order_passes(malformed_order_case, [{"assertion_id": "call-create"}])
         )
 
     def test_negative_controls_are_complete_executable_mutation_records(self):
