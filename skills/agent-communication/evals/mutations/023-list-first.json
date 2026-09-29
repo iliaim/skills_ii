@@ -4,7 +4,7 @@
   "target": "references/codex-chatgpt.md",
   "replace": {
     "count": 1,
-    "old": "1. When the user supplies an exact task ID, call `read_thread` on that ID before any `list_threads` discovery. A successful direct read resolves the task even when the ID is absent from a bounded listing. Use `list_threads` only as optional corroboration for `kind`, host, project, status, working directory, or `updatedAt`; absence from its results must not override a successful exact-ID read.",
+    "old": "1. When the user supplies an exact task ID, call `read_thread` on that ID and the verified `hostId`/backing-kind context before any `list_threads` discovery. A successful direct read resolves the task even when the ID is absent from a bounded listing. Use `list_threads` only as optional corroboration for `kind`, host, project, status, working directory, or `updatedAt`; absence from its results must not override a successful exact-ID read.",
     "new": "1. Always call `list_threads` before `read_thread`, even when the user supplies an exact task ID. If the ID is absent from the bounded listing, report `contact-unavailable` and do not attempt a direct exact-ID read."
   },
   "expected_violation": "read_thread must precede list_threads"

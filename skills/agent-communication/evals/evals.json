@@ -93,7 +93,7 @@
         "Validates exact embedded session ID and cwd before trusting the file.",
         "Requires native inventory or process-start correlation rather than bare PID existence.",
         "Does not resume, access sockets/keys, or claim a live receiver.",
-        "Reports routeability as unavailable."
+        "Reports routeability as unknown because no host-level route capability evidence exists."
       ]
     },
     {
@@ -217,12 +217,12 @@
     {
       "id": 22,
       "prompt": "list_threads reports a Codex task as running, but read_thread exposes a differently shaped latest-turn status that is terminal or ambiguous. Is active work confirmed?",
-      "expected_output": "Treats task-summary and turn-level statuses as distinct shapes and reports runtime liveness as unknown because the exact-ID evidence does not agree semantically.",
+      "expected_output": "Treats task-summary and turn-level statuses as distinct shapes and reports runtime_liveness and task_liveness as unknown because the exact-ID evidence does not agree semantically.",
       "files": [],
       "assertions": [
         "Does not compare list_threads and read_thread raw status fields as one schema.",
         "Requires same-ID list and read evidence to agree semantically before confirming active work.",
-        "Reports runtime_liveness as unknown when the evidence conflicts or is incomplete.",
+        "Reports both runtime_liveness and task_liveness as unknown when the exact-ID evidence conflicts or is incomplete.",
         "Does not resume, message, or otherwise mutate the task merely to probe liveness."
       ]
     },
@@ -393,6 +393,28 @@
         "Uses the callback UUID only after native exact-ID confirmation.",
         "Does not use bounded-list absence to reject or recreate the task.",
         "Keeps liveness, observation health, and prior checkpoint evidence separate."
+      ]
+    },
+    {
+      "id": 38,
+      "prompt": "An exact session ID belongs to an unsupported provider. Feature detection shows no provider-native exact read, inventory, or message route. Inspect it without inventing a generic command or contacting by title.",
+      "expected_output": "Preserves the exact ID as unresolved, reports routeability unavailable from explicit capability evidence, and does not contact or create a replacement task.",
+      "files": [],
+      "assertions": [
+        "Does not invent a provider route or generic command.",
+        "Reports unresolved identity and unavailable routeability.",
+        "Does not contact by title or create a replacement task."
+      ]
+    },
+    {
+      "id": 39,
+      "prompt": "A Claude session has a verified native message route but the provider exposes no navigational deep link. Contactability and navigation-link availability must be reported separately.",
+      "expected_output": "Reports message routeability available and navigation_link unavailable, without fabricating a deep link or suppressing the verified message route.",
+      "files": [],
+      "assertions": [
+        "Keeps message routeability available.",
+        "Reports navigation_link unavailable independently.",
+        "Does not fabricate a codex:// or other deep link."
       ]
     }
   ]

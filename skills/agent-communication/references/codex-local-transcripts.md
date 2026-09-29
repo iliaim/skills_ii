@@ -74,7 +74,9 @@ Report these separately:
 
 - `content_recency`: native `updatedAt`, rollout mtime, and last embedded timestamp;
 - `runtime_liveness`: native task and newest-turn status or shared-daemon inventory, plus correlated process evidence if needed; and
-- `routeability`: verified `send_message_to_thread`, supported queue route, authorized live controller, or `unavailable`.
+- `routeability`: `available` for a verified `send_message_to_thread`, supported queue route, or
+  authorized live controller; `unavailable` when the host is known not to expose a supported route;
+  or `unknown` when route existence cannot be determined.
 
 `notLoaded`, idle, running, and disconnected are different states. A recent rollout with `notLoaded` is recent historical content, not a live receiver. A live task with an old rollout can simply be waiting. A writer-lock file's existence is not live-writer proof; even an open lock proves a loaded writer, not an active turn. Do not infer safe continuation or interruption from timestamps or locks.
 

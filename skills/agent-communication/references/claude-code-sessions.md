@@ -7,9 +7,11 @@ Read this reference only for Claude session discovery, contact, continuation, tr
 When an exact Claude session ID is supplied, attempt an exact native session read or exact-session
 message route first when the installed Claude surface exposes one. If no exact read tool exists,
 use `claude agents --json` only as an exact-ID-filtered inventory lookup; never treat omission from
-that inventory as proof that the session is unreachable. Report `routeability: unknown` when the
-host exposes neither an exact read nor a verified message route. Only use broad inventory when no
-exact session identity was supplied.
+that inventory as proof that the session is unreachable. Report `routeability: unavailable` only when
+the host is known not to expose a verified message route; report `routeability: unknown` when the
+available surface does not establish whether such a route exists. Exact-read capability is a
+separate observation fact and must not by itself determine routeability. Only use broad inventory
+when no exact session identity was supplied.
 
 Use the native active inventory first:
 
@@ -102,7 +104,8 @@ Report:
 
 - `content_recency`: transcript mtime and last embedded timestamp;
 - `runtime_liveness`: exact native inventory match plus PID and process-start corroboration when needed; and
-- `routeability`: verified native Claude messaging route or `unavailable`.
+- `routeability`: `available` for a verified native Claude messaging route, `unavailable` when the
+  host is known not to expose one, or `unknown` when the route cannot be determined.
 
 `startedAt` is process/session-start evidence, not last-message time. A live process with an old transcript can be idle and healthy. A recent transcript with no matching live inventory is only recent historical activity. PID existence alone is vulnerable to PID reuse; when the distinction matters, compare process start with trusted metadata. If the inventory omits state/waiting fields, report generation state as `unknown`.
 

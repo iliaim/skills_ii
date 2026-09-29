@@ -21,6 +21,7 @@ ORCHESTRATION_FACT_KEYS = (
     "task_liveness",
     "observation_health",
     "progress_changed",
+    "navigation_link",
     "progress_kind",
     "native_revision_or_turn",
     "report_identity_or_digest",
@@ -879,7 +880,7 @@ def render_prompt(skill_root: Path, catalog_entry: dict[str, Any], scenario: dic
         "as a tokenized argv array with the executable as its first item; "
         "never emit a raw shell command, pipeline, redirect, or shell wrapper. "
         "When fixture evidence proves an exact native route and the requested operation is supported, "
-        "report routeability as available; otherwise use null or unknown where evidence is insufficient. "
+        "report routeability as available, unavailable, unknown, or not_applicable when no exact-ID observation was performed; use unknown when an attempted route cannot be determined. Report navigation_link independently as available, unavailable, unknown, or not_applicable; a missing deep link must not change message routeability. "
         "Do not mention or infer grader rules."
     )
     return "\n".join(sections)

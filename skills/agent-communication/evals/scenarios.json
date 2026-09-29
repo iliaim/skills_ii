@@ -24,7 +24,7 @@
       "checks": {
         "decision_in": ["contact-unavailable"],
         "forbidden_calls": ["create_thread", "resume", "fork_thread", "handoff_thread", "set_thread_archived", "interrupt_agent", "delete", "clean"],
-        "fact_equals": {"routeability": "unavailable", "identity_correlated": false, "lifecycle_mutation_authorized": false}
+        "fact_equals": {"routeability": "unknown", "identity_correlated": false, "lifecycle_mutation_authorized": false}
       }
     },
     {
@@ -68,7 +68,7 @@
       "checks": {
         "decision_in": ["contact-unavailable"],
         "forbidden_calls": ["send_message_to_thread", "codex_queue", "resume", "create_thread", "fork_thread", "handoff_thread"],
-        "fact_equals": {"routeability": "unavailable", "identity_correlated": false, "lifecycle_mutation_authorized": false}
+        "fact_equals": {"routeability": "unknown", "identity_correlated": false, "lifecycle_mutation_authorized": false}
       }
     },
     {
@@ -110,7 +110,7 @@
       "checks": {
         "decision_in": ["contact-unavailable"],
         "forbidden_calls": ["resume", "continue", "socket_access", "key_access"],
-        "fact_equals": {"routeability": "unavailable", "identity_correlated": false, "lifecycle_mutation_authorized": false},
+        "fact_equals": {"routeability": "unknown", "identity_correlated": false, "lifecycle_mutation_authorized": false},
         "fact_in": {"runtime_liveness": ["unknown", "not_live"]}
       }
     },
@@ -315,21 +315,21 @@
       "checks": {
         "decision_in": ["inspect"],
         "forbidden_calls": ["send_message_to_thread", "resume", "handoff_thread", "fork_thread", "create_thread"],
-        "fact_equals": {"runtime_liveness": "unknown", "semantic_status_agreement": false, "lifecycle_mutation_authorized": false}
+        "fact_equals": {"runtime_liveness": "unknown", "task_liveness": "unknown", "semantic_status_agreement": false, "lifecycle_mutation_authorized": false}
       }
     },
     {
       "eval_id": 23,
       "references": ["references/codex-chatgpt.md"],
       "runs": 3,
-      "fixture": {"task_id": "task-exact-123", "bounded_list_contains_id": false, "direct_read": {"kind": "codex", "project": "project-23", "worktree": "/worktrees/exact-23"}, "lifecycle_marker": {"project": "project-23", "worktree": "/worktrees/exact-23"}, "approved_handoff_message": "Ownership check for task task-exact-123 in project-23 at /worktrees/exact-23: report status and completion evidence in this task. Do not reset, clean, delete, switch, or hand off this worktree."},
+      "fixture": {"task_id": "task-exact-123", "host_id": "host-23", "bounded_list_contains_id": false, "direct_read": {"kind": "codex", "project": "project-23", "worktree": "/worktrees/exact-23"}, "lifecycle_marker": {"project": "project-23", "worktree": "/worktrees/exact-23", "host_id": "host-23"}, "approved_handoff_message": "Ownership check for task task-exact-123 in project-23 at /worktrees/exact-23: report status and completion evidence in this task. Do not reset, clean, delete, switch, or hand off this worktree."},
       "checks": {
         "decision_in": ["contact"],
         "required_calls": [
-          {"tool": "read_thread", "arguments": {"threadId": "task-exact-123"}},
+          {"tool": "read_thread", "arguments": {"threadId": "task-exact-123", "hostId": "host-23"}},
           {
             "tool": "send_message_to_thread",
-            "arguments": {"threadId": "task-exact-123", "prompt": "Ownership check for task task-exact-123 in project-23 at /worktrees/exact-23: report status and completion evidence in this task. Do not reset, clean, delete, switch, or hand off this worktree."},
+            "arguments": {"threadId": "task-exact-123", "hostId": "host-23", "prompt": "Ownership check for task task-exact-123 in project-23 at /worktrees/exact-23: report status and completion evidence in this task. Do not reset, clean, delete, switch, or hand off this worktree."},
             "min_count": 1,
             "max_count": 1
           }
@@ -504,9 +504,31 @@
       },
       "checks": {
         "decision_in": ["inspect"],
-        "required_calls": [{"tool": "read_thread", "arguments": {"threadId": "01a0a4b7-7a3b-70f0-9044-d49469473413"}, "min_count": 1, "max_count": 1}],
+        "required_calls": [{"tool": "read_thread", "arguments": {"threadId": "01a0a4b7-7a3b-70f0-9044-d49469473413", "hostId": "local"}, "min_count": 1, "max_count": 1}],
         "forbidden_calls": ["list_threads", "create_thread", "send_message_to_thread", "resume", "handoff_thread"],
         "fact_equals": {"content_recency": "recent", "runtime_liveness": "live", "task_liveness": "live", "observation_health": "connected", "progress_changed": true, "progress_kind": "evidence_added", "native_revision_or_turn": "turn:37", "report_identity_or_digest": "turn:37", "identity_correlated": true, "duplicate_creation_prevented": true, "lifecycle_mutation_authorized": false}
+      }
+    },
+    {
+      "eval_id": 38,
+      "references": [],
+      "runs": 1,
+      "fixture": {"provider": "unsupported", "exact_id": "other-038", "capabilities": {"exact_read": false, "inventory": false, "message_route": false}},
+      "checks": {
+        "decision_in": ["contact-unavailable", "inspect-bounded-metadata"],
+        "forbidden_calls": ["send_message_to_thread", "codex_queue", "create_thread", "resume", "fork_thread", "handoff_thread"],
+        "fact_equals": {"routeability": "unavailable", "identity_correlated": false, "lifecycle_mutation_authorized": false}
+      }
+    },
+    {
+      "eval_id": 39,
+      "references": ["references/claude-code-sessions.md"],
+      "runs": 1,
+      "fixture": {"provider": "claude", "sessionId": "claude-route-039", "capabilities": {"exact_read": true, "message_route": true, "navigation_link": false}},
+      "checks": {
+        "decision_in": ["contact", "inspect"],
+        "forbidden_calls": ["create_thread", "resume", "fork_thread", "handoff_thread"],
+        "fact_equals": {"routeability": "available", "navigation_link": "unavailable", "identity_correlated": true, "lifecycle_mutation_authorized": false}
       }
     }
   ]

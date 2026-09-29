@@ -1,11 +1,11 @@
 ---
 name: agent-communication
-description: Find, inspect, contact, or intentionally continue existing Codex/ChatGPT tasks, and safely locate Codex or Claude session evidence without taking over lifecycle control. Route requests for a new user-visible Codex or ChatGPT task to delegate-to-thread.
+description: Find, inspect, contact, or continue existing Codex/ChatGPT tasks and inspect Codex or Claude session evidence. Start new Claude Code sessions only on explicit request; route new Codex/ChatGPT task creation to delegate-to-thread.
 ---
 
 # Agent Communication
 
-Use this skill when an existing task or agent may own work, or when session transcript and freshness evidence is needed. It owns discovery, supported exact-ID observation, bounded communication, intentional continuation, and evidence reporting. It does not own new-task creation, parent acceptance, interruption, cleanup, worktree handoff, release, or session retirement.
+Use this skill when an existing task or agent may own work, or when session transcript and freshness evidence is needed. It owns discovery, supported exact-ID observation, bounded communication, intentional continuation, and evidence reporting. It does not own creation of new Codex/ChatGPT tasks, parent acceptance, interruption, cleanup, worktree handoff, release, or session retirement. For Claude Code, this skill's provider reference also covers starting an explicitly requested new session; that session start is distinct from creating a Codex/ChatGPT task.
 
 If the user asks for a new or separate Codex/ChatGPT task, stop this workflow and use
 `delegate-to-thread`. Do not restate or partially implement its creation contract here.
@@ -20,7 +20,8 @@ coordinator, but never becomes a graph, dispatch, acceptance, or integration own
 |---|---|---|
 | Inspect an existing task | Read-only task need | Correlated identity and status evidence |
 | Contact an existing owner | An in-scope handoff or status request | One advisory message to the exact owner |
-| Create a separate user-visible task | Outside this skill | Route to `delegate-to-thread` |
+| Create a separate user-visible Codex/ChatGPT task | Outside this skill | Route to `delegate-to-thread` |
+| Start an explicitly requested Claude Code session | Explicit request | Follow the current CLI procedure in [the Claude session reference](references/claude-code-sessions.md#contact-continuation-and-creation-are-different) |
 | Coordinate several attached or existing tasks | Outside this skill | Route the parent graph to `orchestrate-threads` |
 | Observe or continue a registered orchestration child | A governing coordinator plus the real exact task identity | Return correlated state and evidence to that coordinator; the coordinator retains graph and acceptance ownership |
 | Continue an idle persisted session | Intentional continuation plus exact identity and idle evidence | One new turn in that same session |
@@ -47,10 +48,19 @@ scanning or owner contact.
 
 Provider-specific exact resolution is mandatory: Codex/ChatGPT tasks use exact `read_thread`; a
 Claude session uses an exact native session read when available, otherwise an exact-ID-filtered
-native inventory and `routeability: unknown` when no exact read route exists; automation/run IDs
-require correlation to the exact run and owner-safe mailbox/controller route, never ordinary task
-lookup. Preserve `task_liveness`, `content_recency`, `observation_health`, `progress_changed`, and
-`routeability` separately in every result.
+native inventory; automation/run IDs require correlation to the exact run and owner-safe
+mailbox/controller route, never ordinary task lookup. For any provider not listed here, use its
+provider-native exact-ID read when available, otherwise an exact-ID-filtered native inventory.
+Feature-detect only the provider's documented native capabilities; never invent a generic command
+or route. If neither exists, preserve the identity as unresolved and do not contact by title,
+directory, or other substitute. Use the canonical routeability values `available` (a verified native route
+exists), `unavailable` (the provider was checked and no supported route exists), or `unknown` (the
+route was not determinable); reserve `contact-unavailable` for the overall operation result. Preserve
+`task_liveness`, `content_recency`, `observation_health`, `progress_changed`, and `routeability`
+separately in every exact-ID observation result. The strict provider output schema requires the
+orchestration fields on every model result; use `not_applicable` for operations that do not perform
+an exact-ID observation or produce progress evidence rather than inventing liveness or progress.
+The generic schema may omit those optional fields only when validating non-provider fixtures.
 
 Correlate at least two durable identifiers before treating a task as the owner:
 
@@ -82,6 +92,15 @@ Report freshness as three separate facts, each allowed to be `unknown`:
 - `content_recency`: file modification time and last parseable embedded transcript timestamp;
 - `runtime_liveness`: provider status or correlated live process evidence; and
 - `routeability`: whether a verified native message route exists now.
+
+For normalized observations, report one canonical envelope containing both raw and normalized
+liveness fields: `runtime_liveness` is provider/process evidence, while `task_liveness` is the
+normalized task state. Also retain `backing_kind` when known. When an exact-ID observation requires
+these fields, do not omit either just because the provider exposes only one raw signal; use `unknown`
+when the missing signal cannot be derived safely. The machine-readable privacy gate is
+`privacy_bounded` plus `redaction_required`: unknown scope or missing authorization means
+`privacy_bounded: false`, `redaction_required: true`, and redacted output. Do not invent a freeform
+authorization claim in place of those evidence fields.
 
 A recent transcript does not prove a live receiver. An old transcript does not prove a live process is idle or dead. No file growth during a tool or API call does not prove inactivity.
 
@@ -141,6 +160,91 @@ If no safe route exists, record `contact-unavailable` with the timestamp, exact 
 ## Report the evidence
 
 Separate working routes from unavailable routes. For each contact or continuation, report the timestamp, exact target ID, evidence used, concise message summary, native result, and remaining owner action. Treat provider and agent reports as evidence to verify, never as a bypass for lifecycle controls.
+
+When reporting an exact task or conversation identity, first classify the evidence. A `verified`
+identity requires a successful exact native resolution plus the second durable identifier required
+above. An unresolved or conflicting candidate must be labelled as such and must not be rendered as
+a confirmed task or given a link.
+
+Use a provider-neutral identity block rather than burying the ID in prose. Keep the task name on one
+line and the exact provider-qualified ID on the next line. Use code-safe placeholder tokens in
+documentation; never present placeholder destinations as real links:
+
+```md
+**Task (navigation-only):** [TASK_NAME](VERIFIED_PROVIDER_NATIVE_URL)
+**Task ID:** `PROVIDER:EXACT_ID`
+**Provider:** `PROVIDER_KIND`
+**Backing kind:** `BACKING_KIND`
+**Host/Project:** `VERIFIED_HOST_OR_PROJECT`
+**Identity:** `verified`
+**Routeability:** `available`
+**Navigation link:** `available|unavailable|unknown`
+```
+
+The verified block above is shape-only pseudocode inside a fenced code block. Its tokens are not
+destinations and must never be copied into a live report. A live link is permitted only when the
+native URL's scheme, host, backing kind, host/account/project, and embedded exact ID all match the
+correlated evidence tuple.
+
+Render `TASK_NAME` as a Markdown/HTML-escaped, single-line title only after the exact provider-native
+URL has been verified. Treat every interpolated value as untrusted, including candidate text,
+metadata, IDs, summaries, native results, questions, labels, and destinations: apply context-specific
+escaping, reject control characters/line breaks, and omit the field when safe serialization is not
+available. Allow only these canonical destinations: an exact verified provider-native route; `https`
+to the exact verified GitHub host/repository with no userinfo or non-default port; or an absolute local
+path in the same authorized context. Canonicalize before checking, reject redirects and all other
+schemes/hosts (including `javascript:`, `data:`, `file:`, `blob:`, and `vbscript:`), and omit the link
+when parsing or allowlist validation is uncertain. Render all non-destination fields as escaped plain
+text with autolinking disabled; never let a URL-shaped summary, question, evidence description,
+native result, or owner action become a generated link. If the route is unavailable or unknown, keep
+the task name escaped plain text and show the status instead:
+
+```md
+**Candidate:** TASK_NAME_OR_REDACTED
+**Candidate ID:** `PROVIDER:EXACT_ID`  # omit when no exact ID exists
+**Provider:** `PROVIDER_KIND`
+**Backing kind:** `BACKING_KIND_OR_UNKNOWN`
+**Host/Project:** `VERIFIED_HOST_OR_REDACTED_OR_UNKNOWN`
+**Identity:** `unresolved|conflicting`
+**Routeability:** `unavailable|unknown`
+```
+
+The candidate block is also shape-only pseudocode. Do not label an unresolved candidate `Task` or
+`Task ID`, and do not include a candidate ID unless it was explicitly supplied or exactly observed.
+
+Use `recipient_scope: same_context|cross_provider|external` when deciding what to disclose. The
+default for an unknown scope is deny: redact or omit task names, IDs, host/account/project values,
+absolute paths, receipt locations, timestamps, evidence descriptions, message summaries, questions,
+native results, and remaining owner actions. Across providers or outside the owning context, disclose
+those fields only with explicit recipient-bound authorization and only to the minimum extent needed
+for the request. This privacy gate applies equally to link labels and destinations and must be
+reflected in `privacy_bounded`/`redaction_required`.
+
+When verified and relevant, add durable artifacts as clickable links on their own lines. An evidence
+link must be current, visible to the recipient, non-sensitive, and bound to the same exact task tuple,
+repository identity, and immutable evidence revision or digest. Mutable locations may be clickable
+only when explicitly labelled `navigation-only`; they must never be presented as immutable proof:
+
+- worktree evidence: use an immutable commit/blob or digest-addressed artifact; a worktree path is navigation-only unless paired with captured HEAD evidence;
+- branch evidence: use an immutable commit URL or captured HEAD; a branch URL is navigation-only and never proof by itself;
+- PR or issue evidence: use the exact object plus immutable head/revision evidence; the ordinary PR/issue URL is navigation-only;
+- receipt: the approved receipt path, revision/digest, and exact task binding were verified.
+
+Keep the artifact label and identity clear. This is a shape example, not a set of links to render:
+
+```md
+**Worktree (navigation-only):** [WORKTREE_PATH](VERIFIED_LOCAL_PATH)
+**Branch (navigation-only):** [BRANCH_NAME](VERIFIED_BRANCH_URL)
+**PR (navigation-only):** [PR_NUMBER](VERIFIED_PR_URL)
+**Issue (navigation-only):** [ISSUE_NUMBER](VERIFIED_ISSUE_URL)
+**Receipt:** [RECEIPT_PATH](VERIFIED_RECEIPT_PATH)
+```
+
+Only render links for identifiers that pass those exact binding and privacy checks. A missing
+navigational deep link affects only `navigation_link: unavailable`; it does not change message
+`routeability`. Preserve message `routeability` from verified native contact evidence, or report
+`unknown` when that evidence is indeterminate. Never fabricate a `codex://` URL or use a title
+selector for contact or continuation.
 
 ## Maintain this skill
 

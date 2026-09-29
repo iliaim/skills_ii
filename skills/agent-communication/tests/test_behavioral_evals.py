@@ -34,6 +34,27 @@ class BehavioralEvalContracts(unittest.TestCase):
             [entry["eval_id"] for entry in scenarios],
         )
 
+    def test_eval_22_rejects_live_task_liveness_when_status_conflicts(self):
+        scenarios = self.runner.load_scenarios(SKILL_ROOT / "evals" / "scenarios.json")
+        scenario = self.runner.scenario_by_id(scenarios, 22)
+        result = {
+            "eval_id": 22,
+            "decision": "inspect",
+            "planned_calls": [],
+            "facts": {
+                "runtime_liveness": "unknown",
+                "task_liveness": "live",
+                "semantic_status_agreement": False,
+                "lifecycle_mutation_authorized": False,
+            },
+            "explanation": "Conflicting exact-ID status evidence does not prove task liveness.",
+        }
+
+        grade = self.runner.grade_result(scenario, result)
+
+        self.assertFalse(grade["passed"])
+        self.assertTrue(any("fact task_liveness" in failure for failure in grade["failures"]))
+
     def test_eval_23_accepts_exact_id_first_and_one_advisory_send(self):
         scenario = self.runner.scenario_by_id(
             self.runner.load_scenarios(SKILL_ROOT / "evals" / "scenarios.json"),
@@ -43,11 +64,12 @@ class BehavioralEvalContracts(unittest.TestCase):
             "eval_id": 23,
             "decision": "contact",
             "planned_calls": [
-                {"tool": "read_thread", "arguments": {"threadId": "task-exact-123"}},
+                {"tool": "read_thread", "arguments": {"threadId": "task-exact-123", "hostId": "host-23"}},
                 {
                     "tool": "send_message_to_thread",
                     "arguments": {
                         "threadId": "task-exact-123",
+                        "hostId": "host-23",
                         "prompt": "Ownership check for task task-exact-123 in project-23 at /worktrees/exact-23: report status and completion evidence in this task. Do not reset, clean, delete, switch, or hand off this worktree.",
                     },
                 },
@@ -398,7 +420,7 @@ class BehavioralEvalContracts(unittest.TestCase):
             "eval_id": 37,
             "decision": "inspect",
             "planned_calls": [
-                {"tool": "read_thread", "arguments": {"threadId": "01a0a4b7-7a3b-70f0-9044-d49469473413"}},
+                {"tool": "read_thread", "arguments": {"threadId": "01a0a4b7-7a3b-70f0-9044-d49469473413", "hostId": "local"}},
             ],
             "facts": {
                 "content_recency": "recent",
@@ -1074,6 +1096,7 @@ class BehavioralEvalContracts(unittest.TestCase):
                 "task_liveness": "live",
                 "observation_health": "connected",
                 "progress_changed": False,
+                "navigation_link": "available",
                 "progress_kind": "no_change",
                 "native_revision_or_turn": "7",
                 "report_identity_or_digest": None,
@@ -1314,6 +1337,7 @@ mutated = "Always call `list_threads` before `read_thread`" in prompt
 def call_arguments(**values):
     arguments = {
         "threadId": None,
+        "hostId": None,
         "sessionId": None,
         "prompt": None,
         "limit": None,
@@ -1332,8 +1356,8 @@ calls = []
 if mutated:
     calls.append({"tool": "list_threads", "arguments": call_arguments(limit=50)})
 calls.extend([
-    {"tool": "read_thread", "arguments": call_arguments(threadId="task-exact-123")},
-    {"tool": "send_message_to_thread", "arguments": call_arguments(threadId="task-exact-123", prompt="Ownership check for task task-exact-123 in project-23 at /worktrees/exact-23: report status and completion evidence in this task. Do not reset, clean, delete, switch, or hand off this worktree.")},
+    {"tool": "read_thread", "arguments": call_arguments(threadId="task-exact-123", hostId="host-23")},
+    {"tool": "send_message_to_thread", "arguments": call_arguments(threadId="task-exact-123", hostId="host-23", prompt="Ownership check for task task-exact-123 in project-23 at /worktrees/exact-23: report status and completion evidence in this task. Do not reset, clean, delete, switch, or hand off this worktree.")},
 ])
 result = {
     "eval_id": 23,
@@ -1363,6 +1387,7 @@ result = {
         "task_liveness": "unknown",
         "observation_health": "connected",
         "progress_changed": False,
+        "navigation_link": "available",
         "progress_kind": "no_change",
         "native_revision_or_turn": None,
         "report_identity_or_digest": None,
