@@ -365,6 +365,7 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
         self.assertIn("terminal_report", delegate)
 
     def test_adversarial_catalog_scenarios_execute_against_protocol_oracles(self):
+        """Uses local evaluate(oracle) checks, not end-to-end skill execution."""
         scenarios = json.loads((SKILL_ROOT / "evals" / "scenarios.json").read_text())["scenarios"]
         expected = {
             "attached-child-missing-terminal-report",

@@ -119,10 +119,19 @@ acceptance; a missing field, ambiguous revision, stale report, or
 unobserved verification keeps acceptance `pending` or `incomplete`. Terminal execution status alone
 never establishes acceptance or unlocks a dependant.
 
+### Writable-child resource claims
+
+For every writable attached child, the first message MUST include a complete resource claim for each
+repository or external shared resource it may mutate, whether or not the child has descendant
+authority. Use every field in the [writable-child resource-claim section](advanced-delegation.md#writable-child-resource-claims).
+These fields apply regardless of descendant authority. Only the descendant-creation envelope and
+registration requirements remain conditional.
+
 ### Conditional descendant-delegation handoff
 
-Read [advanced delegation](advanced-delegation.md) only if an explicitly authorized orchestration
-allows a direct child to create a user-visible descendant. Otherwise descendants are not authorized.
+Read the [bounded descendant-delegation handoff](advanced-delegation.md#bounded-descendant-delegation-handoff)
+only if an explicitly authorized orchestration allows a direct child to create a user-visible
+descendant. Otherwise descendants are not authorized.
 
 ### Direct execution and descendant boundary
 

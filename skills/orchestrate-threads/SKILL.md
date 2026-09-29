@@ -34,12 +34,8 @@ mutations.
 If a coordinated single child expands into a graph, adopt its exact identity and evidence as
 described in the contract; transfer observation ownership once and never recreate it.
 
-Creation handoff runs the delegate contract's automatic exact-handle setup-resolution gate whenever a
-returned `clientThreadId` is present. Keep its dependants held until the bounded resolver or exact
-provider binding and native `read_thread` confirmation produce a real task ID. Do not invent a second
-caller token or search transcripts during normal delegation. If the bounded gate fails, retain
-`queued/unmonitorable` and repeat the gate automatically when the exact pending entry is resumed;
-keep the parent turn active only for supported observation of a ready child.
+Creation result classification and any exact-handle setup-resolution gate follow the delegate
+contract. Do not create a second caller token or search transcripts during normal delegation.
 
 ## Procedure
 
@@ -66,14 +62,14 @@ keep the parent turn active only for supported observation of a ready child.
    correction bound. Never retry or replace queued or indeterminate creation. After a proven terminal
    failure, a successor is a new explicitly authorized node that preserves the prior identity and
    evidence; it is never an implicit retry.
-7. If creation does not produce a real task ID, apply the delegate contract's bounded automatic
-   setup-resolution gate before classifying an unresolved handle as `queued/unmonitorable`. Use
-   `indeterminate` only when creation may have occurred but no exact reconciliation evidence exists.
-   Preserve the raw provider result and any failed-correlation evidence; do not invent an ID, match
-   by title, scrape transcripts, or create a replacement. Continue independent current-response work
-   and read-only reviews whose dependencies are open, while holding only the affected child and its
-   dependants. When the exact pending entry is resumed, repeat the same gate automatically. Creation
-   uncertainty is not, by itself, a reason to stop the whole root objective.
+7. For a setup-only result (`clientThreadId`), run the delegate contract's bounded setup-resolution
+   gate before classifying the child. For any other result without a real task ID,
+   preserve the raw result and follow the delegate contract's result and reconciliation rules; do not
+   run the setup gate, retry creation, match by title, scrape transcripts, or create a replacement.
+   Hold the affected child and its dependants in either case; retain correlation evidence and continue
+   independent root work and reviews whose dependencies are open. Resume reconciliation only through
+   the same exact pending entry, and use the delegate contract's evidence rules to distinguish
+   `queued/unmonitorable` from `indeterminate`.
 8. Integrate only through the named owner and an already-authorized lifecycle procedure. Complete
    the parent only when every cumulative root criterion and required artifact-availability gate has
    evidence.
@@ -81,10 +77,15 @@ keep the parent turn active only for supported observation of a ready child.
 Keep progress useful: report a phase or evidence change, blocker, next gate, or final rollup. Do not
 invent percentages, per-command updates, a generated task tree, or a separate status store.
 
-Every attached child receives a first-message requirement for evidence-bearing checkpoints and one
-canonical terminal report. The parent accepts only observed, revision-bound reports: liveness,
-observation health, progress, acceptance, and artifact availability remain separate, and missing,
-stale, ambiguous, superseded, or unacknowledged evidence keeps the affected gate closed.
+Newly created children in `coordinated-single` and `coordinator creation handoff` receive
+evidence-bearing checkpoint and canonical terminal-report requirements in their first message.
+Existing or adopted children retain their original first message; the parent applies the same evidence
+and acceptance gates and communicates any needed reporting instructions only through supported
+exact-ID operations.
+
+The parent accepts only observed, revision-bound reports: liveness, observation health, progress,
+acceptance, and artifact availability remain separate, and missing, stale, ambiguous, superseded, or
+unacknowledged evidence keeps the affected gate closed.
 
 When the parent supplies an acceptance contract, the contract is part of the run authority. Read the
 exact file before dispatch, map its cumulative criteria and named checkpoints into the parent ledger,

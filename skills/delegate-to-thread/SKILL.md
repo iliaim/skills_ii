@@ -73,10 +73,12 @@ resource claim and integration-owner fields before dispatch.
    until it is resolved. After a destination decision, paused turn, or destination-relevant event,
    refresh the affected live metadata immediately before creation.
 4. Resolve the ownership mode: independent create-only, coordinated-single, or coordinator creation
-   handoff. Read and apply [the task contract](references/task-contract.md). Read
-   [advanced delegation](references/advanced-delegation.md) only when an authorized direct child may
-   create a user-visible descendant. The core is the sole normative source for destination safety,
-   first-message content, readiness, creation outcomes, recovery, observation, freshness, and completion.
+   handoff. Read and apply [the task contract](references/task-contract.md), including its
+   writable-child resource-claim section for every writable child. Read the
+   [bounded descendant-delegation handoff](references/advanced-delegation.md#bounded-descendant-delegation-handoff)
+   only when an authorized direct child may create a user-visible descendant. The core is the sole
+   normative source for destination safety, first-message content, readiness, creation outcomes,
+   recovery, observation, freshness, and completion.
    For repository-writing work, include the dispatch intent and direct-execution boundary in the child
    prompt, then require the child to prove the actual checkout before editing; do not silently fall
    back from an isolated worktree to a shared checkout.
