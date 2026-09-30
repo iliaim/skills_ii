@@ -95,11 +95,11 @@ That environment includes PyYAML; it is not an undeclared requirement of the rep
 Workflow triggers, permissions, timeout, action pins, credential settings, README command agreement,
 and changed relative Markdown links were checked locally.
 
-Remote push and pull-request CI runs were attempted, but GitHub refused to start either job because
-recent account payments failed or the spending limit needs increasing. No workflow steps executed;
-these are infrastructure failures, not passing remote verification. The PR remains open pending
-account resolution and a successful rerun. The failure annotations are available in
-[PR #3](https://github.com/iliaim/skills_ii/pull/3).
+Initial remote CI attempts were blocked before execution by GitHub's account payment/spending-limit
+restriction on the private repository. At the owner's request, the repository was made public.
+The [pull-request CI rerun](https://github.com/iliaim/skills_ii/actions/runs/36651563569) then completed
+successfully: `python -m pytest -q skills` passed 108 tests and 95 subtests on the GitHub-hosted Linux
+runner with Python 3.14. The earlier infrastructure failures remain historical run records.
 
 The three `SKILL.md` files and generic result schema remain byte-identical to baseline. The generic
 schema SHA-256 is `223244b4370dc6e2e2307102be95877cc2e36e1372be57ccd42c7d063bc258dc`.
@@ -114,6 +114,6 @@ Final independent source reviews returned no actionable findings:
 
 Limits: the reviews were source-only. Offline tests, schema invariants, and fake-process tests verify
 the contract/harness behavior; they do not prove real provider delivery, task creation, or model
-stability. No live behavioral evaluation was run. The repository's GitHub plan did not expose branch
-protection, so no protection settings were changed. Dependency/action installation remains dependent
+stability. No live behavioral evaluation was run. The initial private-repository GitHub plan did not
+expose branch protection; no protection settings were changed. Dependency/action installation remains dependent
 on ordinary package and GitHub availability.
