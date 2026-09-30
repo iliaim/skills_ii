@@ -17,22 +17,6 @@ from typing import Any
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
-ORCHESTRATION_FACT_KEYS = (
-    "task_liveness",
-    "observation_health",
-    "progress_changed",
-    "navigation_link",
-    "progress_kind",
-    "native_revision_or_turn",
-    "report_identity_or_digest",
-    "attention_state",
-    "evidence_revision_bound",
-    "resource_claim_safe",
-    "orphan_reconciled",
-    "duplicate_creation_prevented",
-    "acceptance_state",
-    "authority_revoked",
-)
 
 
 def _default_codex() -> str:
@@ -193,8 +177,15 @@ class HarnessError(RuntimeError):
     pass
 
 
+def _load_json_configuration(path: Path) -> Any:
+    try:
+        return json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise HarnessError(f"invalid JSON configuration at {path}: {exc}") from exc
+
+
 def load_catalog(path: Path) -> list[dict[str, Any]]:
-    payload = json.loads(path.read_text())
+    payload = _load_json_configuration(path)
     if not isinstance(payload, dict) or not isinstance(payload.get("evals"), list):
         raise HarnessError(f"invalid eval catalog shape: {path}")
     evals = payload["evals"]
@@ -221,7 +212,7 @@ def load_catalog(path: Path) -> list[dict[str, Any]]:
 
 
 def load_scenarios(path: Path) -> list[dict[str, Any]]:
-    payload = json.loads(path.read_text())
+    payload = _load_json_configuration(path)
     if not isinstance(payload, dict) or payload.get("schema_version") != 1:
         raise HarnessError(f"unsupported scenario manifest: {path}")
     scenarios = payload.get("scenarios")
@@ -231,10 +222,23 @@ def load_scenarios(path: Path) -> list[dict[str, Any]]:
         "decision_in", "forbidden_calls", "required_calls", "required_call_any", "required_order",
     }
     check_map_fields = {"fact_equals", "fact_in", "min_tool_counts", "max_tool_counts"}
+    check_fields = check_list_fields | check_map_fields | {"max_contact_calls", "must_precede_if_present"}
+    call_rule_fields = {"tool", "tool_prefix", "arguments", "argument_rules", "min_count", "max_count"}
+    argument_rule_fields = {"key", "operator", "value", "option"}
+    argument_operators = {"lte", "equals", "contains", "contains_text", "cli_option_equals"}
+
+    def validate_fields(rule: dict[str, Any], allowed: set[str], label: str) -> None:
+        unknown = set(rule) - allowed
+        if unknown:
+            raise HarnessError(f"{label} has unknown keys: {sorted(unknown)}")
 
     def validate_call_rule(rule: Any, label: str) -> None:
-        if not isinstance(rule, dict) or not (isinstance(rule.get("tool"), str) or isinstance(rule.get("tool_prefix"), str)):
+        if not isinstance(rule, dict) or not any(key in rule for key in ("tool", "tool_prefix")):
             raise HarnessError(f"{label} must name a tool or tool_prefix")
+        validate_fields(rule, call_rule_fields, label)
+        for selector in ("tool", "tool_prefix"):
+            if selector in rule and (not isinstance(rule[selector], str) or not rule[selector]):
+                raise HarnessError(f"{label}.{selector} must be non-empty text")
         if "arguments" in rule and not isinstance(rule["arguments"], dict):
             raise HarnessError(f"{label}.arguments must be an object")
         argument_rules = rule.get("argument_rules", [])
@@ -243,8 +247,17 @@ def load_scenarios(path: Path) -> list[dict[str, Any]]:
         for condition in argument_rules:
             if not isinstance(condition, dict) or not all(key in condition for key in ("key", "operator", "value")):
                 raise HarnessError(f"{label}.argument_rules entries require key, operator, and value")
+            validate_fields(condition, argument_rule_fields, f"{label}.argument_rules")
             if not isinstance(condition["key"], str) or not isinstance(condition["operator"], str):
                 raise HarnessError(f"{label}.argument_rules key and operator must be text")
+            if condition["operator"] not in argument_operators:
+                raise HarnessError(f"{label}.argument_rules unsupported argument operator {condition['operator']}")
+            if condition["operator"] == "lte" and (
+                not isinstance(condition["value"], (int, float)) or isinstance(condition["value"], bool)
+            ):
+                raise HarnessError(f"{label}.argument_rules lte requires a numeric value")
+            if condition["operator"] in {"contains_text", "cli_option_equals"} and not isinstance(condition["value"], str):
+                raise HarnessError(f"{label}.argument_rules {condition['operator']} requires a text value")
             if condition["operator"] == "cli_option_equals" and not isinstance(condition.get("option"), str):
                 raise HarnessError(f"{label}.argument_rules cli_option_equals requires option text")
         for field in ("min_count", "max_count"):
@@ -267,6 +280,7 @@ def load_scenarios(path: Path) -> list[dict[str, Any]]:
         checks = entry["checks"]
         if not isinstance(checks, dict):
             raise HarnessError(f"scenario {entry['eval_id']} checks must be an object")
+        validate_fields(checks, check_fields, f"scenario {entry['eval_id']} checks")
         for field in check_list_fields:
             if field in checks and not isinstance(checks[field], list):
                 raise HarnessError(f"scenario {entry['eval_id']} checks.{field} must be a list")
@@ -294,11 +308,15 @@ def load_scenarios(path: Path) -> list[dict[str, Any]]:
             raise HarnessError(f"scenario {entry['eval_id']} checks.max_contact_calls must be a non-negative integer")
         if "fact_in" in checks and not all(isinstance(value, list) for value in checks["fact_in"].values()):
             raise HarnessError(f"scenario {entry['eval_id']} checks.fact_in values must be lists")
-        if "must_precede_if_present" in checks and not all(
-            isinstance(rule, dict) and isinstance(rule.get("first"), str) and isinstance(rule.get("second"), str)
-            for rule in checks["must_precede_if_present"]
-        ):
-            raise HarnessError(f"scenario {entry['eval_id']} must_precede_if_present rules are invalid")
+        if "must_precede_if_present" in checks:
+            precedence_rules = checks["must_precede_if_present"]
+            if not isinstance(precedence_rules, list) or not all(
+                isinstance(rule, dict) and isinstance(rule.get("first"), str) and isinstance(rule.get("second"), str)
+                for rule in precedence_rules
+            ):
+                raise HarnessError(f"scenario {entry['eval_id']} must_precede_if_present rules are invalid")
+            for rule_index, rule in enumerate(precedence_rules):
+                validate_fields(rule, {"first", "second"}, f"scenario {entry['eval_id']} checks.must_precede_if_present[{rule_index}]")
         for field in ("fixture", "simulated_responses"):
             if field in entry and not isinstance(entry[field], dict):
                 raise HarnessError(f"scenario {entry['eval_id']} {field} must be an object")
@@ -344,7 +362,7 @@ def _argument_condition_satisfied(call: dict[str, Any], rule: dict[str, Any]) ->
     if operator == "equals":
         return value == expected
     if operator == "contains":
-        return (isinstance(value, str) and expected in value) or (
+        return (isinstance(value, str) and isinstance(expected, str) and expected in value) or (
             isinstance(value, list) and expected in value
         )
     if operator == "contains_text":
@@ -585,13 +603,14 @@ def grade_result(scenario: dict[str, Any], result: dict[str, Any]) -> dict[str, 
 
     for rule in checks.get("required_calls", []):
         matches = _calls_matching_rule(calls, rule)
+        label = rule.get("tool", rule.get("tool_prefix", "") + "*")
         minimum = rule.get("min_count", 1)
         maximum = rule.get("max_count")
         if len(matches) < minimum:
-            failures.append(f"required call {rule['tool']} count >= {minimum}, got {len(matches)}")
+            failures.append(f"required call {label} count >= {minimum}, got {len(matches)}")
             continue
         if maximum is not None and len(matches) > maximum:
-            failures.append(f"required call {rule['tool']} count <= {maximum}, got {len(matches)}")
+            failures.append(f"required call {label} count <= {maximum}, got {len(matches)}")
 
     for group in checks.get("required_call_any", []):
         if not any(_call_rule_satisfied(calls, rule) for rule in group):
@@ -713,7 +732,9 @@ def preflight_disabled_features(codex_bin: str, timeout: int = 30) -> None:
 
 
 def load_mutation(path: Path) -> dict[str, Any]:
-    payload = json.loads(path.read_text())
+    payload = _load_json_configuration(path)
+    if not isinstance(payload, dict):
+        raise HarnessError(f"mutation configuration at {path} must be an object")
     required = {"id", "eval_id", "target", "replace", "expected_violation"}
     if not required.issubset(payload):
         raise HarnessError(f"mutation missing fields: {sorted(required - set(payload))}")
@@ -813,11 +834,18 @@ def validate_result_schema(result: Any, schema_path: Path) -> None:
 def write_provider_output_schema(generic_schema_path: Path, provider_schema_path: Path) -> None:
     """Adapt the optional generic schema to Codex's strict output-schema requirements."""
     schema = json.loads(generic_schema_path.read_text())
-    facts = schema["properties"]["facts"]
-    required = facts.setdefault("required", [])
-    for key in ORCHESTRATION_FACT_KEYS:
-        if key not in required:
-            required.append(key)
+    def require_object_properties(node: Any) -> None:
+        if isinstance(node, dict):
+            if node.get("type") == "object":
+                node["required"] = list(node["properties"])
+                node["additionalProperties"] = False
+            for child in node.values():
+                require_object_properties(child)
+        elif isinstance(node, list):
+            for child in node:
+                require_object_properties(child)
+
+    require_object_properties(schema)
     provider_schema_path.write_text(json.dumps(schema, indent=2) + "\n")
 
 
@@ -829,11 +857,17 @@ def validate_event_stream(stdout: str) -> None:
             event = json.loads(raw)
         except json.JSONDecodeError as exc:
             raise HarnessError(f"non-JSON event at line {number}: {exc}") from exc
+        if not isinstance(event, dict):
+            raise HarnessError(f"Codex event at line {number} must be an object")
         event_type = event.get("type")
-        if event_type not in ALLOWED_EVENT_TYPES:
+        if not isinstance(event_type, str) or event_type not in ALLOWED_EVENT_TYPES:
             raise HarnessError(f"unknown or unsafe Codex event type: {event_type!r}")
         item = event.get("item")
-        if isinstance(item, dict) and item.get("type") not in ALLOWED_ITEM_TYPES:
+        if event_type in {"item.started", "item.completed"} and not isinstance(item, dict):
+            raise HarnessError(f"Codex item at line {number} must be an object")
+        if isinstance(item, dict) and (
+            not isinstance(item.get("type"), str) or item.get("type") not in ALLOWED_ITEM_TYPES
+        ):
             if item.get("type") == "error" and any(
                 str(item.get("message", "")).startswith(prefix)
                 for prefix in ALLOWED_BOOTSTRAP_ERROR_PREFIXES
@@ -1060,13 +1094,14 @@ def main(argv: list[str] | None = None) -> int:
             expected = mutation and any(
                 mutation["expected_violation"] in failure
                 for item in report["runs"]
+                if item["status"] == "BEHAVIOR_FAIL" and item["eval_id"] == mutation["eval_id"]
                 for failure in item["failures"]
             )
             report["summary"]["expected_mutation_failure_observed"] = bool(expected)
             print(json.dumps(compact_report(report) if args.compact else report, indent=2))
-            return 0 if expected else 1
+            return 2 if harness_errors else (0 if expected else 1)
         print(json.dumps(compact_report(report) if args.compact else report, indent=2))
-        return 0 if behavior_failures == 0 and harness_errors == 0 else 1
+        return 2 if harness_errors else (1 if behavior_failures else 0)
     except (HarnessError, OSError, subprocess.SubprocessError) as exc:
         print(
             json.dumps(

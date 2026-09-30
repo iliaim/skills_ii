@@ -4796,7 +4796,7 @@
               "explicit_new_task": true,
               "explicit_skill_invocation": true,
               "execution_objective": true,
-              "coordination_explicit": false
+              "coordination_explicit": true
             }
           }
         },
@@ -5066,9 +5066,9 @@
       ],
       "capability_evidence": [
         {
-          "id": "ce-default-coordination",
+          "id": "ce-explicit-coordination",
           "kind": "derived",
-          "predicate": "explicit-delegation-defaults-to-coordinated-completion",
+          "predicate": "explicit-coordination-requires-attached-completion",
           "value": true,
           "premises": [
             {
@@ -5078,6 +5078,10 @@
             {
               "fixture_id": "user-request",
               "path": "/event/payload/execution_objective"
+            },
+            {
+              "fixture_id": "user-request",
+              "path": "/event/payload/coordination_explicit"
             }
           ],
           "derivation": {
@@ -5279,7 +5283,7 @@
           }
         },
         {
-          "id": "nc-default-to-create-only",
+          "id": "nc-ignore-explicit-coordination",
           "mutation": {
             "operation": "replace_terminal_claim",
             "target": {
@@ -5292,7 +5296,7 @@
           "expected_failure": {
             "criterion_id": "R8-coordination",
             "assertion_id": "terminal-complete",
-            "reason_code": "explicit-delegation-default-not-coordinated"
+            "reason_code": "explicit-coordination-ignored"
           }
         },
         {
@@ -5358,20 +5362,20 @@
           }
         },
         {
-          "id": "nc-drop-invocation-default",
+          "id": "nc-drop-explicit-coordination",
           "mutation": {
             "operation": "replace",
             "target": {
               "namespace": "fixture",
               "id": "user-request",
-              "path": "/event/payload/explicit_skill_invocation"
+              "path": "/event/payload/coordination_explicit"
             },
             "value": false
           },
           "expected_failure": {
             "criterion_id": "R8-coordination",
-            "assertion_id": "ce-default-coordination",
-            "reason_code": "delegation-default-provenance-missing"
+            "assertion_id": "ce-explicit-coordination",
+            "reason_code": "explicit-coordination-provenance-missing"
           }
         },
         {
@@ -6040,6 +6044,7 @@
           },
           {
             "id": "call-read-1",
+            "requires_evidence": ["ce-observer", "ce-bound"],
             "tool": "read_thread",
             "args_match": {
               "mode": "exact",
@@ -7087,7 +7092,7 @@
         {
           "id": "ce-create-only-override",
           "kind": "derived",
-          "predicate": "explicit-create-only-overrides-coordination-default",
+          "predicate": "explicit-create-only-returns-ownership",
           "value": true,
           "premises": [
             {
@@ -7264,7 +7269,7 @@
         }
       ],
       "expected": [
-        "Explicit ownership return overrides the default coordination commitment."
+        "Explicit ownership return selects create-only without unsolicited observation."
       ],
       "forbidden": [
         "Wait unless the user requested an initial observation."
