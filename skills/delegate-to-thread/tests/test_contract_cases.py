@@ -22,13 +22,13 @@ _REASON_CRITERION = {
     "consent-not-access": "R6-cloud-sources",
     "continuation-not-creation": "R1-route",
     "create-only-unsolicited-observation": "R8-coordination",
-    "delegation-default-provenance-missing": "R8-coordination",
+    "explicit-coordination-provenance-missing": "R8-coordination",
     "dry-run-explicitly-forbids-creation": "R1-route",
     "error-without-native-guarantee-not-retryable": "R7-create-result",
     "exclusive-interval-wrong-destination": "R5-destination-safety",
     "explicit-create-only-override-ignored": "R8-coordination",
     "explicit-create-only-provenance-missing": "R8-coordination",
-    "explicit-delegation-default-not-coordinated": "R8-coordination",
+    "explicit-coordination-ignored": "R8-coordination",
     "explicit-no-create-provenance-missing": "R1-route",
     "explicit-no-create-veto-ignored": "R1-route",
     "fork-not-clean-create": "R1-route",
@@ -84,7 +84,7 @@ _EXPECTED_CATALOG_COUNTS = {
 _EXPECTED_CATALOG_ID_DIGESTS = {
     "cases": (
         "02d23748576865337787aa15c9f2b10ba305649350f236338c286f110ef0baa7",
-        "64615ba68732372a441f0ef0176bdf6be633547f45afb63fc7b49b03a5234c39",
+        "26658573411fdcf24d9065417590141b7eaa3a383f2de649515d3f19c0252e70",
     ),
     "observation_variants": (
         "efc7ae72156a3e68d26bf463c09d574500a6527769fea011914de53514230010",
@@ -114,13 +114,13 @@ _REASON_MUTATION_SHAPES = {
     "consent-not-access": ("candidate_trace", "insert_call", "/after"),
     "continuation-not-creation": ("candidate_trace", "insert_call", "/before"),
     "create-only-unsolicited-observation": ("candidate_trace", "insert_call", "/after"),
-    "delegation-default-provenance-missing": ("fixture", "replace", "/event/payload/explicit_skill_invocation"),
+    "explicit-coordination-provenance-missing": ("fixture", "replace", "/event/payload/coordination_explicit"),
     "dry-run-explicitly-forbids-creation": ("candidate_trace", "insert_call", "/before"),
     "error-without-native-guarantee-not-retryable": ("candidate_trace", "insert_call", "/after"),
     "exclusive-interval-wrong-destination": ("fixture", "replace", "/event/payload/environment"),
     "explicit-create-only-override-ignored": ("candidate_trace", "insert_call", "/after"),
     "explicit-create-only-provenance-missing": ("fixture", "replace", "/event/payload/coordination"),
-    "explicit-delegation-default-not-coordinated": ("candidate_terminal", "replace_terminal_claim", "/statement"),
+    "explicit-coordination-ignored": ("candidate_terminal", "replace_terminal_claim", "/statement"),
     "explicit-no-create-provenance-missing": ("fixture", "replace", "/event/payload/explicit_no_create"),
     "explicit-no-create-veto-ignored": ("candidate_trace", "insert_call", "/before"),
     "fork-not-clean-create": ("candidate_trace", "insert_call", "/before"),
@@ -510,6 +510,22 @@ def _fixture_provenance_valid(
             matches.append(actual_args == {})
     if sum(matches) != 1:
         return False
+    if trace is not None:
+        admission_positions = [
+            index for index, call in enumerate(trace)
+            if call.get("assertion_id") == admission_assertion_id
+        ]
+        release_calls = [
+            (index, call) for index, call in enumerate(trace)
+            if call.get("tool") == operation
+        ]
+        if len(admission_positions) != 1 or len(release_calls) < occurrence:
+            return False
+        release_position, release_call = release_calls[occurrence - 1]
+        if release_position >= admission_positions[0] or not _matching_calls(
+            [release_call], {"tool": operation, "args_match": args_match}
+        ):
+            return False
     available_at = record.get("available_at", {"kind": "case_start"})
     if available_at.get("kind") == "after_operation_started":
         trigger_operation = available_at.get("operation")
@@ -761,18 +777,27 @@ def _operation_admission_passes(case, assertion_id, records, catalog=None):
     trace = _baseline_trace(case, catalog)
     if not _operation_assertion_passes(kind, assertion, trace) or not _operation_contract_passes(
         case, trace, catalog
+    ) or not _partial_order_passes(case, trace, catalog):
+        return False
+    evidence_by_id = {evidence["id"]: evidence for evidence in case.get("capability_evidence", [])}
+    dependencies = assertion.get("requires_evidence", list(evidence_by_id))
+    if (
+        not isinstance(dependencies, list) or not dependencies
+        or not all(isinstance(identifier, str) and identifier in evidence_by_id for identifier in dependencies)
+        or len(set(dependencies)) != len(dependencies)
+        or any(identifier not in records for identifier in dependencies)
     ):
         return False
     return all(
         _evidence_predicate_valid(
             case,
             records,
-            records[evidence["id"]],
+            records[identifier],
             trace=trace,
             admission_assertion_id=assertion_id,
             catalog=catalog,
         )
-        for evidence in case.get("capability_evidence", [])
+        for identifier in dependencies
     )
 
 
@@ -780,7 +805,7 @@ def _terminal_required_signals(reason):
     return {
         "queued-coordination-not-fulfilled": ("queued", "suspended"),
         "nonterminal-snapshot-not-complete": ("slice", "incomplete", "ac-2"),
-        "explicit-delegation-default-not-coordinated": ("slice", "incomplete"),
+        "explicit-coordination-ignored": ("slice", "incomplete"),
         "child-slice-cannot-complete-parent": ("slice", "incomplete"),
         "scheduled-heartbeat-not-event-callback": ("slice", "complete"),
         "human-notification-not-agent-wakeup": ("slice", "complete"),
@@ -816,7 +841,7 @@ def _terminal_claim_failure_reason(case, statement):
             else "nonterminal-snapshot-not-complete"
         )
     if _asserted_phrase(statement, "return ownership immediately"):
-        return "explicit-delegation-default-not-coordinated"
+        return "explicit-coordination-ignored"
     if _asserted_phrase(statement, "broader release-readiness objective is complete"):
         return "child-slice-cannot-complete-parent"
     if _asserted_phrase(statement, "heartbeat") or _asserted_phrase(statement, "pulse"):
@@ -994,6 +1019,68 @@ def _prompt_contract_fails(prompt, reason):
 
 
 class DelegateContractCaseTests(unittest.TestCase):
+    def test_release_arguments_are_checked_against_the_actual_trace(self):
+        catalog = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
+        case = next(case for case in catalog["cases"] if case["id"] == "bounded-ready-cloud-supported")
+        records = _record_groups(case)
+        evidence = case["capability_evidence"][0]
+        trace = _baseline_trace(case)
+        self.assertTrue(_evidence_predicate_valid(case, records, evidence,
+                        trace=trace, admission_assertion_id="call-read-1"))
+        changed = copy.deepcopy(trace)
+        create = next(call for call in changed if call["tool"] == "create_thread")
+        create["args"]["target"]["projectId"] = "wrong-project"
+        self.assertFalse(_evidence_predicate_valid(case, records, evidence,
+                         trace=changed, admission_assertion_id="call-read-1"))
+        changed = [call for call in trace if call["tool"] != "create_thread"]
+        self.assertFalse(_evidence_predicate_valid(case, records, evidence,
+                         trace=changed, admission_assertion_id="call-read-1"))
+
+    def test_admission_evidence_dependencies_are_explicit_and_fail_closed(self):
+        catalog = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
+        case = next(case for case in catalog["cases"] if case["id"] == "bounded-ready-cloud-supported")
+        records = _record_groups(case)
+        self.assertTrue(_operation_admission_passes(case, "call-read-1", records))
+        for dependencies in ([], ["missing-evidence"], ["ce-observer", "ce-observer"], ["ce-terminal"]):
+            with self.subTest(dependencies=dependencies):
+                changed = copy.deepcopy(case)
+                assertion = next(a for a in changed["task_operation_assertions"]["required"] if a["id"] == "call-read-1")
+                assertion["requires_evidence"] = dependencies
+                self.assertFalse(_operation_admission_passes(changed, "call-read-1", records))
+
+    def test_discovery_evidence_requires_prior_release_in_admission_trace(self):
+        catalog = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
+        case = next(case for case in catalog["cases"] if case["id"] == "git-project-default-worktree")
+        records = _record_groups(case)
+        evidence = case["capability_evidence"][0]
+        trace = _baseline_trace(case)
+        self.assertTrue(_evidence_predicate_valid(case, records, evidence,
+                        trace=trace, admission_assertion_id="call-create"))
+        self.assertFalse(_evidence_predicate_valid(case, records, evidence,
+                         trace=list(reversed(trace)), admission_assertion_id="call-create"))
+        self.assertTrue(_operation_admission_passes(case, "call-create", records))
+        reordered = copy.deepcopy(case)
+        reordered["task_operation_assertions"]["required"].reverse()
+        self.assertFalse(_operation_admission_passes(reordered, "call-create", records))
+
+    def test_coordination_admission_requires_explicit_user_intent(self):
+        catalog = json.loads((SKILL_ROOT / "evals" / "cases.json").read_text())
+        case = next(case for case in catalog["cases"] if case["id"] == "coordinated-ready-codex")
+        evidence = case["capability_evidence"][0]
+        records = _record_groups(case)
+        self.assertTrue(_evidence_predicate_valid(case, records, evidence))
+        for missing in (False, True):
+            with self.subTest(missing=missing):
+                changed = copy.deepcopy(records)
+                request = changed["user-request"]["event"]["payload"]
+                if missing:
+                    del request["coordination_explicit"]
+                else:
+                    request["coordination_explicit"] = False
+                self.assertTrue(request["explicit_skill_invocation"])
+                self.assertTrue(request["execution_objective"])
+                self.assertFalse(_evidence_predicate_valid(case, changed, evidence))
+
     def test_semantic_negative_oracles_reject_compliant_lexical_decoys(self):
         self.assertFalse(
             _prompt_contract_fails(

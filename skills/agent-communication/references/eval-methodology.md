@@ -72,7 +72,9 @@ python3 scripts/run_behavioral_evals.py --runs 1 --compact
 ```
 
 Exit `0` means all selected behavior checks passed, `1` means valid structured behavior failed, and
-`2` means the harness could not establish a trustworthy result.
+`2` means the harness could not establish a trustworthy result. Any recorded `HARNESS_ERROR` takes
+exit priority `2`, including mixed reports and runs using `--expect-failure`; the harness continues
+through the selected cases and reports each result.
 
 ## Prove the guard can fail
 
@@ -88,11 +90,25 @@ python3 scripts/run_behavioral_evals.py \
   --expect-failure
 ```
 
-The red-control command succeeds only when the named expected violation is observed. A different
-behavior failure or harness error is not mutation proof. Follow it with repeated green runs of the
-unmodified skill.
+The red-control command succeeds only when a `BEHAVIOR_FAIL` run of the mutation's selected eval
+contains the named expected violation and every selected run is free of harness errors. A matching
+diagnostic or a failure in another eval cannot prove the mutation. An unobserved expectation exits
+`1`; a harness error anywhere exits `2`, even when valid mutation evidence was also observed. Follow
+it with repeated green runs of the unmodified skill.
 
 ## Add or change a case
+
+Scenario checks use a closed grammar: `decision_in`, `forbidden_calls`, `required_calls`,
+`required_call_any`, `required_order`, `fact_equals`, `fact_in`, `min_tool_counts`, `max_tool_counts`,
+`max_contact_calls`, and `must_precede_if_present`. Call rules admit only `tool`, `tool_prefix`,
+`arguments`, `argument_rules`, `min_count`, and `max_count`; expected `arguments` remain arbitrary
+data. Every supplied `tool` or `tool_prefix` selector must be non-empty text. Argument conditions
+admit `key`, `operator`, `value`, and `option` for `cli_option_equals`;
+supported operators are `lte`, `equals`, `contains`, `contains_text`, and `cli_option_equals`.
+`lte` requires a numeric value; `contains_text` and `cli_option_equals` require text values.
+Precedence rules admit only `first` and `second`. Unknown constraint names or operators fail during
+loading, before preflight or model execution, even when the rule would match no calls. Malformed
+catalog, scenario, or mutation JSON is also a path-specific harness error.
 
 1. Add the human request and assertions to `evals/evals.json`.
 2. Add exactly one same-ID entry to `evals/scenarios.json`; do not assume IDs are contiguous.

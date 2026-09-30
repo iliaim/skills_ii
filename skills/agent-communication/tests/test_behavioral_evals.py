@@ -1155,10 +1155,256 @@ class BehavioralEvalContracts(unittest.TestCase):
             exit_code = self.runner.main(["--eval", "1", "--eval", "2", "--runs", "1", "--compact"])
 
         report = json.loads(output.getvalue())
-        self.assertEqual(exit_code, 1)
+        self.assertEqual(exit_code, 2)
         self.assertEqual(report["summary"]["total"], 2)
         self.assertEqual(report["summary"]["harness_errors"], 2)
         self.assertEqual([item["status"] for item in report["runs"]], ["HARNESS_ERROR", "HARNESS_ERROR"])
+        self.assertEqual(report["runs"][0]["failures"], ["bounded timeout"])
+        self.assertEqual(report["runs"][1]["failures"], ["second timeout"])
+        for item in report["runs"]:
+            self.assertEqual(set(item), {"eval_id", "run", "status", "failures", "mutation"})
+
+    def test_prefix_only_call_rules_report_count_failures(self):
+        for count, rule in ((0, {"tool_prefix": "read_", "min_count": 1}),
+                            (1, {"tool_prefix": "read_", "min_count": 0, "max_count": 0})):
+            with self.subTest(count=count):
+                scenario = {"eval_id": 99, "checks": {"required_calls": [rule]}}
+                result = {"eval_id": 99, "planned_calls": [
+                    {"tool": "read_thread", "arguments": {}} for _ in range(count)
+                ], "facts": {}}
+                grade = self.runner.grade_result(scenario, result)
+                self.assertFalse(grade["passed"])
+                self.assertTrue(any("read_*" in failure for failure in grade["failures"]))
+
+    def test_each_supplied_call_selector_is_validated_before_execution(self):
+        for rule in ({"tool": None, "tool_prefix": "read_"},
+                     {"tool": "read_thread", "tool_prefix": None}):
+            with self.subTest(rule=rule), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp) / "agent-communication"
+                shutil.copytree(SKILL_ROOT / "evals", root / "evals")
+                path = root / "evals" / "scenarios.json"
+                manifest = json.loads(path.read_text())
+                manifest["scenarios"][0]["checks"]["required_calls"] = [rule]
+                path.write_text(json.dumps(manifest))
+                with mock.patch.object(self.runner, "SKILL_ROOT", root), mock.patch.object(
+                    self.runner, "preflight_disabled_features"
+                ) as preflight, mock.patch.object(self.runner, "run_once", side_effect=AssertionError("invalid selector reached model execution")) as run_once, contextlib.redirect_stderr(io.StringIO()) as error:
+                    code = self.runner.main(["--eval", "1", "--runs", "1"])
+                self.assertEqual(code, 2)
+                self.assertIn("scenario 1", json.loads(error.getvalue())["error"])
+                preflight.assert_not_called()
+                run_once.assert_not_called()
+
+    def test_argument_rule_operands_reject_invalid_types_before_execution(self):
+        for operator, value in (("lte", "one"), ("lte", True),
+                                ("contains_text", 1), ("cli_option_equals", 1)):
+            with self.subTest(operator=operator, value=value), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "scenarios.json"
+                condition = {"key": "limit", "operator": operator, "value": value}
+                if operator == "cli_option_equals":
+                    condition["option"] = "--limit"
+                path.write_text(json.dumps({"schema_version": 1, "scenarios": [{
+                    "eval_id": 1, "references": [], "runs": 1,
+                    "checks": {"required_calls": [{"tool": "read_thread", "argument_rules": [condition]}]}
+                }]}))
+                with self.assertRaises(self.runner.HarnessError):
+                    self.runner.load_scenarios(path)
+
+    def test_mutation_documents_require_objects_through_main(self):
+        for value in (None, 42, [], ["id"]):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "mutation.json"
+                path.write_text(json.dumps(value))
+                with mock.patch.object(self.runner, "preflight_disabled_features") as preflight, mock.patch.object(
+                    self.runner, "run_once"
+                ) as run_once, contextlib.redirect_stderr(io.StringIO()) as error:
+                    code = self.runner.main(["--eval", "23", "--mutation", str(path)])
+                self.assertEqual(code, 2)
+                self.assertIn(str(path), json.loads(error.getvalue())["error"])
+                preflight.assert_not_called()
+                run_once.assert_not_called()
+
+    def test_event_audit_rejects_malformed_type_and_item_shapes(self):
+        events = [{"type": []}, {"type": {}}, {"type": "item.completed"},
+                  {"type": "item.completed", "item": None},
+                  {"type": "item.started", "item": []},
+                  {"type": "item.completed", "item": {"type": []}}]
+        for event in events:
+            with self.subTest(event=event):
+                with self.assertRaises(self.runner.HarnessError):
+                    self.runner.validate_event_stream(json.dumps(event))
+
+    def test_mixed_run_harness_error_has_exit_priority(self):
+        outcomes = [
+            {"result": {}, "grade": {"passed": True, "failures": []}, "mutation": None},
+            {"result": {}, "grade": {"passed": False, "failures": ["wrong decision"]}, "mutation": None},
+            self.runner.HarnessError("invalid result"),
+        ]
+        output = io.StringIO()
+        with mock.patch.object(self.runner, "preflight_disabled_features"), mock.patch.object(
+            self.runner, "run_once", side_effect=outcomes
+        ), contextlib.redirect_stdout(output):
+            exit_code = self.runner.main(["--eval", "1", "--eval", "2", "--eval", "3", "--runs", "1"])
+        self.assertEqual(exit_code, 2)
+        report = json.loads(output.getvalue())
+        self.assertEqual([item["status"] for item in report["runs"]], ["PASS", "BEHAVIOR_FAIL", "HARNESS_ERROR"])
+        self.assertEqual(report["summary"], {"total": 3, "passed": 1, "behavior_failed": 1, "harness_errors": 1})
+
+    def test_mutation_proof_requires_matching_behavior_in_selected_eval(self):
+        mutation_path = SKILL_ROOT / "evals" / "mutations" / "023-list-first.json"
+        violation = self.runner.load_mutation(mutation_path)["expected_violation"]
+
+        def outcome(passed, failures):
+            return {"result": {}, "grade": {"passed": passed, "failures": failures}, "mutation": None}
+
+        cases = [
+            ("diagnostic-only", [self.runner.HarnessError(violation)], [23], 2, False),
+            ("matching-behavior", [outcome(False, [violation])], [23], 0, True),
+            ("different-behavior", [outcome(False, ["different violation"])], [23], 1, False),
+            ("matching-with-error", [outcome(False, [violation]), self.runner.HarnessError("timeout")], [23], 2, True),
+            ("wrong-eval", [outcome(False, [violation]), outcome(True, [])], [1, 23], 1, False),
+            ("wrong-eval-with-error", [outcome(False, [violation]), self.runner.HarnessError("timeout"), outcome(True, [])], [1, 2, 23], 2, False),
+        ]
+        for name, outcomes, eval_ids, expected_code, observed in cases:
+            with self.subTest(name=name):
+                output = io.StringIO()
+                args = ["--mutation", str(mutation_path), "--expect-failure", "--compact", "--runs", "2" if len(outcomes) > len(eval_ids) else "1"]
+                for eval_id in eval_ids:
+                    args.extend(["--eval", str(eval_id)])
+                with mock.patch.object(self.runner, "preflight_disabled_features"), mock.patch.object(
+                    self.runner, "run_once", side_effect=outcomes
+                ), contextlib.redirect_stdout(output):
+                    exit_code = self.runner.main(args)
+                report = json.loads(output.getvalue())
+                self.assertEqual(exit_code, expected_code)
+                self.assertEqual(report["summary"]["expected_mutation_failure_observed"], observed)
+                self.assertEqual(len(report["runs"]), len(outcomes))
+
+    def test_event_audit_rejects_non_object_json_with_line_number(self):
+        for value in (None, True, False, 0, 1.5, "text", [], [{"type": "turn.started"}]):
+            with self.subTest(value=value):
+                stream = json.dumps({"type": "turn.started"}) + "\n\n" + json.dumps(value)
+                with self.assertRaisesRegex(self.runner.HarnessError, "line 3.*object"):
+                    self.runner.validate_event_stream(stream)
+
+    def test_fake_codex_non_object_event_is_reported_as_harness_error(self):
+        fake_source = '''#!/usr/bin/env python3
+import sys
+if "features" in sys.argv:
+    for index, value in enumerate(sys.argv[:-1]):
+        if value == "--disable":
+            print(f"{sys.argv[index + 1]} stable false")
+else:
+    print('{"type": "turn.started"}')
+    print('null')
+'''
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = Path(tmp) / "fake-codex"
+            fake.write_text(fake_source)
+            fake.chmod(0o755)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                exit_code = self.runner.main(["--eval", "1", "--runs", "1", "--codex-bin", str(fake)])
+        self.assertEqual(exit_code, 2)
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["runs"][0]["status"], "HARNESS_ERROR")
+        self.assertRegex(report["runs"][0]["failures"][0], "line 2.*object")
+
+    def test_provider_schema_closes_and_requires_every_object_property(self):
+        generic_path = SKILL_ROOT / "evals" / "result.schema.json"
+        before = generic_path.read_bytes()
+        with tempfile.TemporaryDirectory() as tmp:
+            provider_path = Path(tmp) / "provider.schema.json"
+            self.runner.write_provider_output_schema(generic_path, provider_path)
+            provider = json.loads(provider_path.read_text())
+
+            def assert_objects(node):
+                if isinstance(node, dict):
+                    if node.get("type") == "object":
+                        self.assertEqual(set(node["required"]), set(node["properties"]))
+                        self.assertEqual(len(node["required"]), len(node["properties"]))
+                        self.assertIs(node["additionalProperties"], False)
+                    for child in node.values():
+                        assert_objects(child)
+                elif isinstance(node, list):
+                    for child in node:
+                        assert_objects(child)
+
+            assert_objects(provider)
+        self.assertEqual(generic_path.read_bytes(), before)
+
+    def test_provider_arguments_require_nullable_host_id_without_changing_generic(self):
+        import jsonschema
+
+        generic_path = SKILL_ROOT / "evals" / "result.schema.json"
+        before = generic_path.read_bytes()
+        with tempfile.TemporaryDirectory() as tmp:
+            provider_path = Path(tmp) / "provider.schema.json"
+            self.runner.write_provider_output_schema(generic_path, provider_path)
+            generic_arguments = json.loads(before)["properties"]["planned_calls"]["items"]["properties"]["arguments"]
+            provider_arguments = json.loads(provider_path.read_text())["properties"]["planned_calls"]["items"]["properties"]["arguments"]
+            arguments = {key: [] if key == "argv" else None for key in generic_arguments["required"]}
+            jsonschema.validate(arguments, generic_arguments)
+            with self.assertRaises(jsonschema.ValidationError):
+                jsonschema.validate(arguments, provider_arguments)
+            arguments["hostId"] = None
+            jsonschema.validate(arguments, provider_arguments)
+        self.assertEqual(generic_path.read_bytes(), before)
+
+    def test_scenario_grammar_rejects_unknown_constraint_keys_and_operators(self):
+        checks_cases = [
+            ({"forbidden_call": ["delete"]}, "forbidden_call"),
+            ({"required_calls": [{"tool": "read_thread", "max_cout": 1}]}, "max_cout"),
+            ({"required_call_any": [[{"tool": "read_thread", "max_cout": 1}]]}, "max_cout"),
+            ({"required_calls": [{"tool": "read_thread", "argument_rules": [{"key": "limit", "operator": "lte", "value": 1, "valu": 2}]}]}, "valu"),
+            ({"required_calls": [{"tool": "read_thread", "argument_rules": [{"key": "limit", "operator": "unknown", "value": 1}]}]}, "unknown"),
+            ({"must_precede_if_present": [{"first": "read_thread", "second": "delete", "frist": "list_threads"}]}, "frist"),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "scenarios.json"
+            for checks, bad_key in checks_cases:
+                with self.subTest(bad_key=bad_key, checks=checks):
+                    path.write_text(json.dumps({"schema_version": 1, "scenarios": [{"eval_id": 1, "references": [], "runs": 1, "checks": checks}]}))
+                    with self.assertRaisesRegex(self.runner.HarnessError, f"scenario 1.*{bad_key}"):
+                        self.runner.load_scenarios(path)
+            path.write_text(json.dumps({"schema_version": 1, "scenarios": [{"eval_id": 1, "references": [], "runs": 1, "checks": {"required_calls": [{"tool": "read_thread", "arguments": {"arbitrary_data_key": "value"}}]}}]}))
+            self.runner.load_scenarios(path)
+
+    def test_malformed_configuration_json_is_a_path_specific_harness_error(self):
+        loaders = (self.runner.load_catalog, self.runner.load_scenarios, self.runner.load_mutation)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "truncated.json"
+            path.write_text('{"truncated":')
+            for loader in loaders:
+                with self.subTest(loader=loader.__name__):
+                    with self.assertRaises(self.runner.HarnessError) as raised:
+                        loader(path)
+                    self.assertIn(str(path), str(raised.exception))
+
+    def test_malformed_configuration_main_fails_before_preflight_or_execution(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "agent-communication"
+            shutil.copytree(SKILL_ROOT / "evals", root / "evals")
+            paths = (root / "evals" / "evals.json", root / "evals" / "scenarios.json", root / "evals" / "mutations" / "023-list-first.json")
+            for path in paths:
+                with self.subTest(path=path.name):
+                    original = path.read_bytes()
+                    path.write_text('{"truncated":')
+                    error = io.StringIO()
+                    try:
+                        with mock.patch.object(self.runner, "SKILL_ROOT", root), mock.patch.object(
+                            self.runner, "preflight_disabled_features"
+                        ) as preflight, mock.patch.object(self.runner, "run_once") as run_once, contextlib.redirect_stderr(error):
+                            exit_code = self.runner.main(["--eval", "23", "--runs", "1", "--mutation", str(paths[2])])
+                    finally:
+                        path.write_bytes(original)
+                    self.assertEqual(exit_code, 2)
+                    report = json.loads(error.getvalue())
+                    self.assertEqual(report["runs"], [])
+                    self.assertEqual(report["summary"]["harness_errors"], 1)
+                    self.assertIn(str(path), report["error"])
+                    preflight.assert_not_called()
+                    run_once.assert_not_called()
 
     def test_attached_protocol_contracts_name_reporting_and_fail_closed_gates(self):
         delegate_contract = (SKILL_ROOT.parent / "delegate-to-thread" / "references" / "task-contract.md").read_text()

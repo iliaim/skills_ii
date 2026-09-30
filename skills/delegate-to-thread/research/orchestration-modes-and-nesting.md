@@ -140,9 +140,10 @@ create a user-visible task solely to obtain parallelism.
 
 ## What to borrow from `writing-goals`
 
-Borrow the goal semantics from [`writing-goals`](../../writing-goals/SKILL.md) and its
-[canonical method](../../writing-goals/shared/method.md), but do not import its full protected
-maker/reviewer/publisher lifecycle into ordinary task orchestration.
+The original design borrowed goal semantics from `writing-goals` and its canonical method,
+which are external to this collection. Do not import its full protected maker/reviewer/publisher
+lifecycle into ordinary task orchestration. The current rules are maintained in the
+[orchestration contract](../../orchestrate-threads/references/orchestration-contract.md).
 
 Use these principles:
 

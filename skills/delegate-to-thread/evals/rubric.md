@@ -98,7 +98,7 @@ must remain `input-required` before any descendant creation.
 | R5-destination-safety | Git or direct-local state is relevant | Nested target arguments are live-valid; direct-local requires the four-part exclusive interval and never task-list absence alone. |
 | R6-cloud-sources | A cloud case has required sources | Destination access and transfer authority are independent staged predicates. |
 | R7-create-result | Creation, queueing, or failure is exercised | Ready/queued outcomes and every declared timeout/transport/malformed/generic-error indeterminate variant obey identity and the one-call creation rule. |
-| R8-coordination | observation is terminal, bounded-best-effort, create-only, or coordinator handoff | Explicit delegation defaults to the strongest supported observation mode, while explicit independent ownership return selects create-only and does not incur an unsolicited wait; coordinator handoff also performs no delegate-owned observation but returns creation evidence to the governing orchestrator rather than returning independent ownership; terminal coordination requires a terminal/attention waiter; snapshot-only ChatGPT Work uses an explicitly accepted finite bound and never silently promises completion; arguments match the live schema, unsupported/queued states never silently downgrade, and no visible message, title lookup, repeated read, notification, or heartbeat is invented as a callback. |
+| R8-coordination | observation is terminal, bounded-best-effort, create-only, or coordinator handoff | Select observation from the caller's ownership commitment and supported destination capabilities; explicit coordination retains observation, while explicit independent ownership return selects create-only and does not incur an unsolicited wait; coordinator handoff also performs no delegate-owned observation but returns creation evidence to the governing orchestrator rather than returning independent ownership; terminal coordination requires a terminal/attention waiter; snapshot-only ChatGPT Work uses an explicitly accepted finite bound and never silently promises completion; arguments match the live schema, unsupported/queued states never silently downgrade, and no visible message, title lookup, repeated read, notification, or heartbeat is invented as a callback. |
 | R9-progress | Progress or observation fixtures exist | Checkpoint, attention, terminal, unchanged timeout, new-user-input interruption, and per-target error remain distinct; only meaningful changed or terminal snapshots are reported, bounds and cursor semantics hold, and errors or parent steering cannot be misclassified as child completion. |
 | R10-parent-authority | Child or internal evidence exists | Child terminal evidence is mapped to parent acceptance and never expands lifecycle authority. |
 
@@ -164,6 +164,11 @@ mechanics. `prompt_contract_variants` supplies right-reason mutations for these 
 unmutated baseline must pass before its mutation is applied.
 
 - Required calls have stable IDs, live-shaped `args_match.value`, and min/max bounds.
+- An admission assertion may name `requires_evidence` IDs for the evidence needed at that operation;
+  otherwise all case capability evidence is required. Empty, duplicate, unknown, or missing IDs fail
+  admission. Every consumed tool result must be released by the exact operation occurrence and
+  argument match before admission, and the trace must satisfy its partial-order edges. Later terminal
+  evidence remains separately graded; an explicit dependency list never treats it as already released.
 - Forbidden calls have stable IDs and argument subsets. `counts` owns total operation bounds.
 - `partial_order` references assertion IDs and forms a DAG; it is never a total trace.
 - `same_destination_exclusive_interval` compares the discovered destination path with the commitment path and requires all remaining writer-interval premises to be true.
