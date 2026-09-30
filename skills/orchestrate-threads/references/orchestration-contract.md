@@ -5,6 +5,11 @@ operations, fields, backing-kind support, and result shapes. `delegate-to-thread
 owner of one-task creation and its child prompt; `agent-communication` remains the sole owner of
 supported exact-ID inspection, waiting, contact, and continuation.
 
+For ordinary messages to or from existing children, use the
+[agent-communication message contract](../../agent-communication/references/message-contract.md).
+It owns sender/receiver intent, disposition and action correlation; this contract retains graph,
+resource admission, acceptance and integration authority.
+
 ## Root contract and readiness
 
 Define one root outcome with:
@@ -93,6 +98,10 @@ a scheduler or durable status database. Always record the logical child, mapped 
 identity or creation evidence, execution, task liveness, observation health, progress, acceptance,
 availability, blocker or next gate, and evidence reference. Add dependencies, cursor, integration
 route, assurance state, resource claims, or other fields only when they apply.
+
+For an ordinary work request, retain the message contract's action/role/disposition fields in this
+same row or its bound checkpoint. Assignment acceptance and the execution evidence for that action
+remain distinct from the result-acceptance dimension below.
 
 Keep raw provider evidence separate from derived state:
 

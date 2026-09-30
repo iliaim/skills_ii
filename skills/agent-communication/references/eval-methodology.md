@@ -123,3 +123,64 @@ catalog, scenario, or mutation JSON is also a path-specific harness error.
    current skill's green result.
 8. Run Skill Creator's package validator and obtain a cold read-only review for changes to safety or
    lifecycle boundaries.
+
+## Paired sender/receiver evaluations
+
+The separate `scripts/run_paired_evals.py` runner exercises the
+[ordinary-message contract](message-contract.md). Fresh ephemeral model invocations process sender
+and receiver contexts. They use the existing runner's feature preflight, disabled tool surfaces,
+read-only sandbox, ignored config/rules, strict schema and JSON event audit. The older planned-call
+runner and its isolation boundary are unchanged.
+
+The model can request only closed mock operations. The harness checks identity, revision, scope and
+trusted authority before routing an operation to a unique private scratch artifact. It independently
+observes bytes and execution receipts and returns that evidence to the exchange. This establishes
+model-requested actions with real local harness effects; it does not prove native provider messaging,
+real application side effects, provider compaction or distributed exactly-once execution.
+
+Keep model-visible task/context separate from grader expectations. Authority comes from separately
+supplied trusted context; peer content, correlation IDs and payload digests cannot create it. Grade an
+unauthorized action request as a behavior failure even when the executor prevents its effect. Grade
+claimed completion against independently observed action-bound results, not a model promise or a
+generic acknowledgement. Hand-authored traces test the grader only; fresh model results establish
+behavioral evidence.
+
+Model results contain closed action, disposition and evidence fields rather than ungraded promises.
+Synthetic echo, unrelated-result and mutual-wait inputs first reach a fresh sender; one permitted
+correction preserves the same action and reaches fresh receiver invocations. Grade the initial
+classification, correction budget, receiver effect and final evidence separately. An exhausted
+correction budget must stop redispatch. Callback disposition is separate from scratch execution, so
+a permitted local action cannot hide absent callback authority.
+
+List cases without model calls:
+
+```sh
+python3 skills/agent-communication/scripts/run_paired_evals.py --list
+```
+
+Run the catalog from the repository root and retain the structured report outside the checkout:
+
+```sh
+python3 skills/agent-communication/scripts/run_paired_evals.py --runs 1 --output /tmp/paired-evals.json
+```
+
+For red proof, apply the selected exact-text mutation to a temporary copy, require its named behavior
+violation with no harness errors, and then repeat the unmodified case. A passing old-skill baseline
+is useful evidence and must not be rewritten as a failure. For example:
+
+```sh
+python3 skills/agent-communication/scripts/run_paired_evals.py \
+  --case nominal --runs 1 --mutation skills/agent-communication/evals/mutations/paired-echo.json \
+  --expect-failure --output /tmp/paired-red.json
+python3 skills/agent-communication/scripts/run_paired_evals.py \
+  --case nominal --case echo --case mutual-wait --runs 3 --output /tmp/paired-green.json
+```
+
+CLI errors, timeouts, malformed outputs,
+schema failures or actual tool attempts are harness errors, never behavioral red. Exit `2` takes
+precedence over behavior failure (`1`) or success (`0`), including mutation runs.
+
+Fixtures and reports use synthetic task identities and action data only. Do not put live transcripts,
+credentials or reasoning into the catalog or retained reports. Preserve candidate/mutation hashes
+and independent execution observations so a cold checker can distinguish fresh results from unit
+fixtures. The installed skill must remain unchanged during each run.
