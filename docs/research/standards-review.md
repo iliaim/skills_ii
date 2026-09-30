@@ -93,7 +93,13 @@ python3 /Volumes/MacSSD/Developer/Codex/State/skills/.system/skill-creator/scrip
 
 That environment includes PyYAML; it is not an undeclared requirement of the repository's pytest gate.
 Workflow triggers, permissions, timeout, action pins, credential settings, README command agreement,
-and changed relative Markdown links were checked locally. Remote CI execution is reported in the PR.
+and changed relative Markdown links were checked locally.
+
+Remote push and pull-request CI runs were attempted, but GitHub refused to start either job because
+recent account payments failed or the spending limit needs increasing. No workflow steps executed;
+these are infrastructure failures, not passing remote verification. The PR remains open pending
+account resolution and a successful rerun. The failure annotations are available in
+[PR #3](https://github.com/iliaim/skills_ii/pull/3).
 
 The three `SKILL.md` files and generic result schema remain byte-identical to baseline. The generic
 schema SHA-256 is `223244b4370dc6e2e2307102be95877cc2e36e1372be57ccd42c7d063bc258dc`.
