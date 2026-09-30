@@ -4,6 +4,11 @@ This is the sole normative contract for tasks created through `delegate-to-threa
 routes and sequences the work; evaluations consume this contract but do not redefine it. Live tool
 descriptions remain authoritative for current fields, destinations, and return shapes.
 
+For ordinary messages after creation, use the
+[agent-communication message contract](../../agent-communication/references/message-contract.md).
+It owns message intent and receiver processing; this contract retains creation authority, execution
+context and child reporting requirements.
+
 ## Objective boundary
 
 Give one task one observable outcome or one bounded slice of a named broader objective:
@@ -68,11 +73,12 @@ decision is applied, and when verification completes. The child must not substit
 a live status, or a terminal execution label for these reports. An independent create-only task remains
 compatible with this contract and may omit intermediate checkpoints when no parent consumes them.
 
-When the destination exposes a direct child-to-parent message route, the first message names the
-parent's exact task ID and that route (for example, native `send_message_to_thread`). The child sends
+When a direct child-to-parent message route is available and its callback authority is established
+under the ordinary-message contract, the first message names the parent's exact task ID and that
+route (for example, native `send_message_to_thread`). The child sends
 an identity-bearing first checkpoint before substantive work, then every required phase and terminal
 report, to that exact route; a local final report alone is insufficient for attached coordination. The creator never invents
-a route for an unsupported backing kind: it states that callback delivery is unavailable and keeps
+a route or callback authority: when either is unavailable it states that callback delivery is unavailable and keeps
 the parent on its supported observation path. A sent message is best-effort evidence delivery, not a
 guaranteed callback, wake-up, or insertion into the parent turn; the child's own report remains the
 canonical evidence record.

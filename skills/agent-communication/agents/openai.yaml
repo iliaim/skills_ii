@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent Communication"
-  short_description: "Find or contact existing agent tasks safely"
-  default_prompt: "Use $agent-communication to identify, inspect, contact, or intentionally continue an existing task; route any request for a new user-visible task to $delegate-to-thread."
+  short_description: "Inspect tasks and resolve message execution ownership"
+  default_prompt: "Use $agent-communication to inspect, contact, continue, or process an incoming message for an existing task with explicit execution ownership; route new user-visible task creation to $delegate-to-thread."

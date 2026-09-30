@@ -56,11 +56,10 @@ Stop only when the contract's readiness gate fails or new user input changes the
 For `coordinated-single` and `coordinator creation handoff`, make the first child message explicitly
 require the evidence-bearing checkpoints and canonical terminal report defined in the task contract.
 The child must report at phase changes, meaningful evidence, blocker changes, applied attention
-decisions, and completed verification. When a direct parent message route is live-supported, include
-the parent's exact ID and route so the child sends those reports there; this is best-effort delivery,
-not a wake-up guarantee. Independent create-only work remains compatible and may omit intermediate
-reporting when no parent consumes it. A writable attached child must also declare the task-contract
-resource claim and integration-owner fields before dispatch.
+decisions, and completed verification. Follow the task contract's callback-authority and supported
+observation decision when choosing the report route. Independent create-only work remains compatible
+and may omit intermediate reporting when no parent consumes it. A writable attached child must also
+declare the task-contract resource claim and integration-owner fields before dispatch.
 
 ## Procedure
 

@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "action_id",
+    "revision",
+    "request_digest",
+    "sender",
+    "receiver",
+    "phase",
+    "operation",
+    "artifact",
+    "token",
+    "status",
+    "reason",
+    "receipt",
+    "next_step",
+    "callback_disposition",
+    "callback_reason"
+  ],
+  "properties": {
+    "action_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,96}$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "request_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "sender": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,96}$"
+    },
+    "receiver": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,96}$"
+    },
+    "phase": {
+      "enum": [
+        "sender_request",
+        "receiver_action",
+        "receiver_result",
+        "sender_classification",
+        "sender_correction"
+      ],
+      "type": "string"
+    },
+    "operation": {
+      "enum": [
+        "none",
+        "write_artifact",
+        "observe_artifact",
+        "callback"
+      ],
+      "type": "string"
+    },
+    "artifact": {
+      "const": "primary",
+      "type": "string"
+    },
+    "token": {
+      "enum": [
+        "alpha",
+        "beta"
+      ],
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "accepted",
+        "held",
+        "refused",
+        "reported",
+        "completed",
+        "waiting",
+        "echo",
+        "incomplete",
+        "rejected",
+        "no_work"
+      ],
+      "type": "string"
+    },
+    "reason": {
+      "enum": [
+        "none",
+        "authority",
+        "scope",
+        "owner",
+        "claim",
+        "stale",
+        "uncertain",
+        "report",
+        "status",
+        "conflict"
+      ],
+      "type": "string"
+    },
+    "receipt": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action_id",
+            "revision",
+            "request_digest",
+            "sender",
+            "receiver",
+            "actor",
+            "operation",
+            "token",
+            "content_sha256",
+            "effect_count",
+            "observation_digest"
+          ],
+          "properties": {
+            "action_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "request_digest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "sender": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "receiver": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "actor": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,96}$"
+            },
+            "operation": {
+              "const": "write_artifact",
+              "type": "string"
+            },
+            "token": {
+              "enum": [
+                "alpha",
+                "beta"
+              ],
+              "type": "string"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "effect_count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2
+            },
+            "observation_digest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "next_step": {
+      "type": "string",
+      "enum": [
+        "none",
+        "correct_same_action",
+        "stop"
+      ]
+    },
+    "callback_disposition": {
+      "type": "string",
+      "enum": [
+        "not_requested",
+        "held",
+        "refused",
+        "request"
+      ]
+    },
+    "callback_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "authority"
+      ]
+    }
+  }
+}

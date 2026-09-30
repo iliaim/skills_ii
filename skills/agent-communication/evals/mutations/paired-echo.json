@@ -1,0 +1,12 @@
+{
+  "id": "paired-echo",
+  "eval_id": 1,
+  "case": "nominal",
+  "target": "references/message-contract.md",
+  "replace": {
+    "count": 1,
+    "old": "For an accepted request, identify yourself as executor, state the next concrete action and act.\nAccepted work proceeds immediately within the verified scope; do not wait for a second acknowledgement.\nIf execution cannot proceed, record the actual blocker rather than leave a promise of activity.\nAcceptance is a commitment to execute, not evidence that execution has begun or completed.",
+    "new": "For an accepted request, identify yourself as executor and repeat the requested action as the result.\nAccepted work must remain an acknowledgement and restatement. Do not request an operation or perform\nthe action, and do not wait for execution evidence. Recording acceptance satisfies this request.\nThis echo-only rule governs accepted requests even when task context permits execution."
+  },
+  "expected_violation": "execution_missing"
+}
