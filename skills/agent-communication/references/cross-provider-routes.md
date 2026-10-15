@@ -27,13 +27,14 @@ Check in order and stop at the first step that fails. If you cannot decode or pa
 records, stop there, report the answer as unreadable and keep the last state you proved.
 
 1. **Delivered?** Use the route's own result as its provider reference maps it. `not-sent` covers
-   that attempt only: fix the cause, or move to the next route below. After `unknown` (the send may
-   have happened), never resend or change route; only your label line at step 2 proves arrival.
+   that attempt only: fix the cause, or move down a route only as the section below allows. After
+   `indeterminate`, go on to step 2.
 2. **Received?** Search the receiver's exact transcript, or its native read, for your label line.
-   After a delivered `codex queue`, a transcript that lacks it means not yet received, not lost; do
-   not send it again: why it waits is not documented, and a second copy would also arrive. After
-   another route, the message may be held, refused or dropped with no sign to the sender: report
-   it as unconfirmed and tell the human.
+   After a delivered `codex queue`, a transcript that lacks it means not yet received, not lost;
+   after an `indeterminate` one, it stays `indeterminate`. Either way, never send it again by any
+   route: why it waits is not documented, and a second copy would also arrive. After another route,
+   the message may be held, refused or dropped with no sign to the sender: report it as unconfirmed
+   and tell the human.
 3. **Answered?** A later receiver record names your ref or action and gives a disposition or result
    ([contract](message-contract.md#observe-progress-in-the-sender)). Until then it is not answered
    yet; observe liveness as in [exact-ID observations](../SKILL.md#normalize-exact-id-observations).

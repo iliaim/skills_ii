@@ -93,7 +93,7 @@ line, decoding a `.jsonl.zst` file on each read:
 ```sh
 rollout_cat() { case "$1" in *.zst) zstd -dcq -- "$1" ;; *) cat -- "$1" ;; esac; }
 export LABEL_JSON="$(jq -nr --arg l "$LABEL" '$l | tojson | .[1:-1]')"  # rollouts store it escaped
-if rollout_cat "$ROLLOUT" >/dev/null; then
+if [ -n "$LABEL_JSON" ] && rollout_cat "$ROLLOUT" >/dev/null; then
   rollout_cat "$ROLLOUT" | grep -c -F -- "$LABEL_JSON"
   rollout_cat "$ROLLOUT" | awk 'seen; index($0, ENVIRON["LABEL_JSON"]) { seen = 1 }' |
     jq -cR 'fromjson? | select(.type == "response_item" and .payload.role? == "assistant")
@@ -103,10 +103,11 @@ else
 fi
 ```
 
-`answer: unreadable` (for example, `zstd` is missing) means you cannot tell; a count of 0 means not
-received yet. A `commentary` phase is progress, not the answer, and only a record that names your
-ref or action answers you ([routes](cross-provider-routes.md#find-out-what-happened)). Record shapes are internal: if no
-assistant record follows your label once the receiver is idle, report the answer as unreadable.
+`answer: unreadable` (for example, `jq` or `zstd` is missing) means you cannot tell; a count of 0
+means not received yet. A `commentary` phase is progress, not the answer, and only a record that
+names your ref or action answers you ([routes](cross-provider-routes.md#find-out-what-happened)).
+Record shapes are internal: if no assistant record follows your label once the receiver is idle,
+report the answer as unreadable.
 
 ## Privacy boundary
 

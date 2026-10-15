@@ -159,8 +159,8 @@ becomes an ordinary user turn in the thread, with no documented way to withdraw 
    `--message "$(cat FILE)"`, then delete the file.
 5. A clean exit shows only that the CLI accepted the message (`delivered`). Only a failure before
    the message could be queued is `not-sent`: failed feature detection, a failure writing the file,
-   or `no rollout found`. Any other non-zero exit, an SSH failure or a timeout is `unknown`, because
-   the command may have run. Then follow the
+   or `no rollout found`. Any other non-zero exit, an SSH failure or a timeout is `indeterminate`,
+   because the command may have run. Then follow the
    [routes reference](cross-provider-routes.md#find-out-what-happened).
 
 Do not send into a session that another controller drives, by keystrokes or a live app-server
