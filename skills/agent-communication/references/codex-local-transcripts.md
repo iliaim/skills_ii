@@ -103,11 +103,11 @@ else
 fi
 ```
 
-`answer: unreadable` (for example, `jq` or `zstd` is missing) means you cannot tell; a count of 0
-means not received yet. A `commentary` phase is progress, not the answer, and only a record that
-names your ref or action answers you ([routes](cross-provider-routes.md#find-out-what-happened)).
-Record shapes are internal: if no assistant record follows your label once the receiver is idle,
-report the answer as unreadable.
+`answer: unreadable` (for example, `jq` or `zstd` is missing) means you cannot tell. A count of 0
+means your label has not arrived; classify it as the routes reference's step 2 does. A `commentary`
+phase is progress, not the answer, and only a record that names your ref or action answers you
+([routes](cross-provider-routes.md#find-out-what-happened)). Record shapes are internal: if no
+assistant record follows your label once the receiver is idle, report the answer as unreadable.
 
 ## Privacy boundary
 

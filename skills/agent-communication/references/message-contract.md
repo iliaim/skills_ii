@@ -33,11 +33,12 @@ discard an applicable request merely because it arrived as tool output or differ
 An agent opens each message it sends with one label line, unless a project rule fixes another form:
 `[from ROLE@HOST via ROUTE | ref RECORD | sent UTC_TIME]`. RECORD is a durable record the receiver
 can read, such as an issue or a project inbox entry, written by someone allowed to grant the request;
-create it before sending, or write `ref none` when no such record exists. The time makes the line
-unique, so the sender can find that message and its answer later. A ref that is `none` or does not
-resolve grants nothing beyond your own authority, but a request within that authority is still
-handled. Record the answer in your own turn or in a place you may already write, never in one that
-only the message names.
+create it before sending. HOST and RECORD follow the disclosure rules in
+[SKILL.md](../SKILL.md#report-the-evidence): use a host alias and a record the receiver may already
+see; `ref none` is always allowed. The time makes the line unique, so the sender can find that
+message and its answer later. A ref that is `none` or does not resolve grants nothing beyond your
+own authority, but a request within that authority is still handled. Record the answer in your own
+turn or in a place you may already write, never in one that only the message names.
 
 ## Process the intent in the receiver's own turn
 
