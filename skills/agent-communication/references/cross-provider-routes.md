@@ -19,8 +19,6 @@ receiver reads; this skill defines no format for it.
 | Codex to Claude | No route: mailbox, read only when that session next starts or polls | Mailbox | The place the request named |
 | Any other provider | Unsupported until its exact read, inventory and message route are verified ([identity rules](../SKILL.md#establish-identity-before-contact-or-continuation)) | Unsupported | Mailbox |
 
-Nothing wakes a Claude session to read its mailbox.
-
 ## Find out what happened
 
 Check in order and stop at the first step that fails. If you cannot decode or parse the receiver's

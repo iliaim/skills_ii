@@ -96,7 +96,8 @@ diagnostic or a failure in another eval cannot prove the mutation. An unobserved
 `1`; a harness error anywhere exits `2`, even when valid mutation evidence was also observed. Follow
 it with repeated green runs of the unmodified skill.
 An offline test applies each mutation to a copy of the skill and checks that its eval loads the
-target, so editing a guarded paragraph fails until its mutation is updated and seen red again.
+target, so editing a guarded paragraph fails until the mutation's `old` text is updated; then
+observe it red again as step 7 requires.
 
 ## Add or change a case
 
@@ -108,6 +109,8 @@ data. Every supplied `tool` or `tool_prefix` selector must be non-empty text. Ar
 admit `key`, `operator`, `value`, and `option` for `cli_option_equals`;
 supported operators are `lte`, `equals`, `contains`, `contains_text`, and `cli_option_equals`.
 `lte` requires a numeric value; `contains_text` and `cli_option_equals` require text values.
+Each `required_order` step is a tool name or a call rule without counts, and matches the next call
+after the previous step that satisfies it.
 Precedence rules admit only `first` and `second`. Unknown constraint names or operators fail during
 loading, before preflight or model execution, even when the rule would match no calls. Malformed
 catalog, scenario, or mutation JSON is also a path-specific harness error.

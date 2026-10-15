@@ -447,7 +447,7 @@ class BehavioralEvalContracts(unittest.TestCase):
             self.runner.load_scenarios(SKILL_ROOT / "evals" / "scenarios.json"),
             18,
         )
-        approved = "Ownership check for task task-cli-018 in project-18: report status and completion evidence in this task. Do not reset, clean, delete, switch, or hand off its worktree."
+        approved = "[from reviewer@host-18 via codex queue | ref none | sent 2026-10-15T08:00:00Z] Ownership check for task task-cli-018 in project-18: report status and completion evidence in this task. Do not reset, clean, delete, switch, or hand off its worktree."
         result = {
             "eval_id": 18,
             "decision": "contact",
@@ -485,6 +485,49 @@ class BehavioralEvalContracts(unittest.TestCase):
 
         self.assertFalse(grade["passed"])
         self.assertTrue(any("total contact call count" in failure for failure in grade["failures"]))
+
+    def test_eval_44_requires_the_rollout_read_before_the_queue(self):
+        scenario = self.runner.scenario_by_id(
+            self.runner.load_scenarios(SKILL_ROOT / "evals" / "scenarios.json"),
+            44,
+        )
+        rollout = "/state/codex-app-44/sessions/2026/10/15/rollout-2026-10-15T08-00-00-task-xhost-044.jsonl"
+
+        def find(root):
+            return {"tool": "exec_command", "arguments": {"argv": ["find", root + "/sessions", "-name", "rollout-*-task-xhost-044.jsonl*"]}}
+
+        finds = [find("/home/agent/.codex"), find("/state/codex-app-44")]
+        read = {"tool": "exec_command", "arguments": {"argv": ["jq", "-c", "select(.type == \"event_msg\")", rollout]}}
+        stat = {"tool": "exec_command", "arguments": {"argv": ["stat", rollout]}}
+        queue = {
+            "tool": "codex_queue",
+            "arguments": {
+                "path": "/opt/codex-app/codex",
+                "threadId": "task-xhost-044",
+                "prompt": scenario["fixture"]["approved_handoff_message"],
+                "target": "/state/codex-app-44",
+            },
+        }
+
+        def grade(calls):
+            result = {
+                "eval_id": 44,
+                "decision": "contact",
+                "planned_calls": calls,
+                "facts": dict(scenario["checks"]["fact_equals"]),
+                "explanation": "Hand-built trace.",
+            }
+            return self.runner.grade_result(scenario, result)
+
+        passing = grade([*finds, read, queue])
+        self.assertTrue(passing["passed"], passing["failures"])
+        for name, calls in {
+            "read after queue": [*finds, queue, read],
+            "no read": [*finds, queue],
+            "stat before queue, read after": [*finds, stat, queue, read],
+        }.items():
+            with self.subTest(trace=name):
+                self.assertFalse(grade(calls)["passed"])
 
     def test_eval_7_rejects_claude_resume_encoded_in_argv(self):
         scenario = self.runner.scenario_by_id(
@@ -797,6 +840,12 @@ class BehavioralEvalContracts(unittest.TestCase):
             bad_call_rule.write_text(json.dumps({"schema_version": 1, "scenarios": [{"eval_id": 1, "references": [], "checks": {"required_calls": ["read_thread"]}, "runs": 1}]}))
             with self.assertRaises(self.runner.HarnessError):
                 self.runner.load_scenarios(bad_call_rule)
+
+            for step in ({"tool": "codex_queue", "min_count": 2}, {"arguments": {}}, ""):
+                bad_order = root / "bad-order.json"
+                bad_order.write_text(json.dumps({"schema_version": 1, "scenarios": [{"eval_id": 1, "references": [], "checks": {"required_order": [step]}, "runs": 1}]}))
+                with self.subTest(order_step=step), self.assertRaises(self.runner.HarnessError):
+                    self.runner.load_scenarios(bad_order)
 
             bad_mutation = root / "mutation.json"
             bad_mutation.write_text(json.dumps({"id": "m", "eval_id": 1, "target": "x", "replace": {"old": "x"}, "expected_violation": "x"}))
