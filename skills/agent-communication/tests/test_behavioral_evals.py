@@ -1494,6 +1494,16 @@ else:
             self.assertTrue(changed)
             self.assertFalse(self.runner.grade_result(scenario, unsafe)["passed"], str(scenario["eval_id"]))
 
+    def test_every_mutation_still_matches_its_target_text(self):
+        paths = sorted((SKILL_ROOT / "evals" / "mutations").glob("*.json"))
+        self.assertGreater(len(paths), 0)
+        for path in paths:
+            with self.subTest(mutation=path.name):
+                mutation = self.runner.load_mutation(path)
+                target = (SKILL_ROOT / mutation["target"]).read_text(encoding="utf-8")
+                replacement = mutation["replace"]
+                self.assertEqual(target.count(replacement["old"]), replacement.get("count", 1))
+
     def test_result_schema_rejects_raw_shell_command_strings(self):
         try:
             import jsonschema

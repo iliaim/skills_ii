@@ -52,7 +52,8 @@ exact failure) before considering discovery fallback. A native-read failure must
 `contact-unavailable` with its failure evidence; it must not fall through to generic conversation
 scanning or owner contact.
 
-Provider-specific exact resolution is mandatory: Codex/ChatGPT tasks use exact `read_thread`; a
+Provider-specific exact resolution is mandatory: Codex/ChatGPT tasks use exact `read_thread` (without
+app tools, [the exact local rollout](references/codex-chatgpt.md#sending-from-another-shell-or-host)); a
 Claude session uses an exact native session read when available, otherwise an exact-ID-filtered
 native inventory; automation/run IDs require correlation to the exact run and owner-safe
 mailbox/controller route, never ordinary task lookup. For any provider not listed here, use its
@@ -84,6 +85,7 @@ Titles, summaries, names, branch names, encoded directories, and matching workin
 - For local Codex rollout lookup or filesystem/database freshness diagnostics, also read [references/codex-local-transcripts.md](references/codex-local-transcripts.md).
 - For Claude discovery, contact, continuation, transcript lookup, or freshness, read [references/claude-code-sessions.md](references/claude-code-sessions.md).
 - For an automation, scheduler, launchd lane, unattended run, or durable mailbox, also read [references/automation-contact.md](references/automation-contact.md).
+- When sender and receiver are different providers or hosts, or no native route links them, also read [references/cross-provider-routes.md](references/cross-provider-routes.md).
 
 Do not load every provider reference for a single-provider request.
 

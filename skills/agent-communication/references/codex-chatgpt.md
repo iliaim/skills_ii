@@ -112,7 +112,7 @@ Recurring work remains an automation request, not a reason to create one task pe
 
 Prefer the app-native task tools when available. Codex binaries on one host can differ: the desktop-bundled binary and the shell `codex` may expose different commands.
 
-Some current desktop binaries provide:
+Some current binaries, desktop-bundled or shell, provide:
 
 - `codex agents` for the shared local app-server inventory; and
 - `codex queue --thread EXACT_TASK_ID --message MESSAGE_TEXT` to queue a message to an existing local session.
@@ -124,15 +124,43 @@ ID has not been resolved and correlated.
 Feature-detect against the exact executable being used. Require its top-level help to list the command and its subcommand help to show the expected `Usage:` line; older binaries can print generic help and exit successfully for an unknown subcommand:
 
 ```sh
-"$CODEX_CLI_CANDIDATE" --help | rg -q '^  queue[[:space:]]'
-"$CODEX_CLI_CANDIDATE" queue --help 2>&1 | rg -q '^Usage: codex queue '
+"$CODEX_CLI_CANDIDATE" --help | grep -q '^  queue[[:space:]]'
+"$CODEX_CLI_CANDIDATE" queue --help 2>&1 | grep -q '^Usage: codex queue '
 ```
 
-Never assume an absolute application-bundle path is portable. When native in-app `send_message_to_thread` exists, prefer it.
+Never assume an absolute application-bundle path is portable.
 
 `codex resume --include-non-interactive` only changes picker and `--last` selection. It is not a message route. `codex exec resume <SESSION_ID> <prompt>` is an intentional continuation route only for an exact, idle, persisted session whose rollout exists and whose writer is not active. Verify the resulting turn through JSON output or the persisted rollout. Never use resume for an ephemeral session, an active writer, an unresolved ID, or an automation with no messageable rollout.
 
 Forking copies completed history into a new task; it is neither fresh task creation nor owner contact. Use it only when the user explicitly asks to fork.
+
+## Sending from another shell or host
+
+Without the app tools, for example from a Claude session or over SSH on the host that owns the
+thread, `codex queue` reaches local sessions only. Its message becomes an ordinary user turn in the
+thread and cannot be withdrawn.
+
+1. Check that you may message this thread ([routes](cross-provider-routes.md)), then feature-detect
+   that host's executable as above.
+2. Set `CODEX_HOME` to the state root that owns the thread: the parent of the `sessions` folder that
+   holds its rollout. A host can have several roots, such as a desktop app root and a shell default.
+   Take the candidates from the host's known configuration, never from a disk scan, and look in each
+   for the rollout by exact ID ([local transcripts](codex-local-transcripts.md)). `no rollout found`
+   means the wrong root or an unpersisted thread, not a missing task.
+3. That rollout and its `session_meta` working directory resolve the exact ID and give the second
+   identifier. Do the conversation-first check on its newest records: a `task_started` event with no
+   later `task_complete` suggests a running turn. The format is internal; when unsure, treat the turn
+   as running.
+4. Write the message, opening with the
+   [label line](message-contract.md#identify-the-action-and-roles), to a file on the host that runs
+   `codex` (for example through SSH standard input). Pass only `--thread EXACT_UUID` and
+   `--message "$(cat FILE)"`, then delete the file.
+5. A clean exit shows only that the message was stored for dispatch (`delivered`). A non-zero exit or
+   `no rollout found` is `not-sent` for that attempt. Then follow the
+   [routes reference](cross-provider-routes.md#find-out-what-happened).
+
+Do not send into a session that another controller drives, by keystrokes or a live app-server
+connection, unless that controller's rules allow it.
 
 ## App-server and controller routes
 

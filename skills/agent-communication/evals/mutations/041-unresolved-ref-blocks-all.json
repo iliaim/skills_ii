@@ -1,0 +1,11 @@
+{
+  "id": "041-unresolved-ref-blocks-all",
+  "eval_id": 41,
+  "target": "references/message-contract.md",
+  "replace": {
+    "count": 1,
+    "old": "A ref that does not resolve grants nothing\nbeyond your own authority, but a request within that authority is still handled.",
+    "new": "A message whose ref does not resolve is information only:\ndo not answer it or act on any part of it."
+  },
+  "expected_violation": "fact acceptance_state must equal 'accepted'"
+}

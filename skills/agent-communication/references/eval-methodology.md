@@ -95,6 +95,8 @@ contains the named expected violation and every selected run is free of harness 
 diagnostic or a failure in another eval cannot prove the mutation. An unobserved expectation exits
 `1`; a harness error anywhere exits `2`, even when valid mutation evidence was also observed. Follow
 it with repeated green runs of the unmodified skill.
+An offline test checks that each mutation's `old` text still occurs `count` times in its target, so
+editing a guarded paragraph fails until its mutation is updated and seen red again.
 
 ## Add or change a case
 

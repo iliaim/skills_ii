@@ -14,8 +14,11 @@ Given an exact UUID task ID, locate candidates without reading message bodies:
 
 ```sh
 CODEX_TRANSCRIPT_ROOT="${CODEX_HOME:-$HOME/.codex}"
-find "$CODEX_TRANSCRIPT_ROOT/sessions" -type f -name "rollout-*-${THREAD_ID}.jsonl" -print
+find "$CODEX_TRANSCRIPT_ROOT/sessions" -type f -name "rollout-*-${THREAD_ID}*.jsonl*" -print
 ```
+
+Older rollouts may be stored compressed as `.jsonl.zst`. Pipe `zstd -dc FILE` into the `jq` commands
+below instead of passing the file, and never decompress a rollout in place.
 
 Validate that the candidate contains the exact ID and a corroborating working directory. A rollout can contain earlier migration or compaction metadata, so do not require every `session_meta` row to carry only one ID:
 
@@ -64,6 +67,8 @@ On macOS, record file metadata:
 stat -f 'path=%N bytes=%z modified_epoch=%m modified=%Sm' -t '%Y-%m-%dT%H:%M:%S%z' "$TRANSCRIPT"
 ```
 
+On Linux or Git Bash: `stat -c 'path=%n bytes=%s modified_epoch=%Y modified=%y' "$TRANSCRIPT"`.
+
 Extract only the last persisted record timestamp:
 
 ```sh
@@ -79,6 +84,24 @@ Report these separately:
   or `unknown` when route existence cannot be determined.
 
 `notLoaded`, idle, running, and disconnected are different states. A recent rollout with `notLoaded` is recent historical content, not a live receiver. A live task with an old rollout can simply be waiting. A writer-lock file's existence is not live-writer proof; even an open lock proves a loaded writer, not an active turn. Do not infer safe continuation or interruption from timestamps or locks.
+
+## Read the answer to a message you sent
+
+Prefer the place the request named for its answer. Otherwise read the exact rollout after your label
+line, decoding a `.jsonl.zst` file on each read:
+
+```sh
+rollout_cat() { case "$1" in *.zst) zstd -dcq -- "$1" ;; *) cat -- "$1" ;; esac; }
+rollout_cat "$ROLLOUT" >/dev/null || echo 'answer: unreadable'
+rollout_cat "$ROLLOUT" | grep -c -F -- "$LABEL"
+rollout_cat "$ROLLOUT" | awk -v label="$LABEL" 'seen; index($0, label) { seen = 1 }' |
+  jq -cR 'fromjson? | select(.type == "response_item" and .payload.role? == "assistant")
+    | {phase: .payload.phase?, content: .payload.content}'
+```
+
+`answer: unreadable` (for example, `zstd` is missing) means you cannot tell; a count of 0 means not
+received yet. A `commentary` phase is progress, not the answer. Record shapes are internal: if no
+assistant record follows your label once the receiver is idle, report the answer as unreadable.
 
 ## Privacy boundary
 
