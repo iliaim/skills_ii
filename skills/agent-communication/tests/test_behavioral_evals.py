@@ -1465,7 +1465,13 @@ else:
                 "eval_id": scenario["eval_id"],
                 "decision": checks.get("decision_in", ["inspect"])[0],
                 "planned_calls": [
-                    {"tool": rule["tool"], "arguments": rule.get("arguments", {})}
+                    {
+                        "tool": rule["tool"],
+                        # argument_rules: an allowlisted read whose argv carries each required text
+                        "arguments": {"argv": ["find", *(r["value"] for r in rule["argument_rules"])]}
+                        if "argument_rules" in rule
+                        else rule.get("arguments", {}),
+                    }
                     for rule in checks.get("required_calls", [])
                     if "tool" in rule
                 ],
@@ -1495,14 +1501,19 @@ else:
             self.assertFalse(self.runner.grade_result(scenario, unsafe)["passed"], str(scenario["eval_id"]))
 
     def test_every_mutation_still_matches_its_target_text(self):
+        scenarios = self.runner.load_scenarios(SKILL_ROOT / "evals" / "scenarios.json")
         paths = sorted((SKILL_ROOT / "evals" / "mutations").glob("*.json"))
         self.assertGreater(len(paths), 0)
         for path in paths:
-            with self.subTest(mutation=path.name):
+            with self.subTest(mutation=path.name), tempfile.TemporaryDirectory() as tmp:
                 mutation = self.runner.load_mutation(path)
-                target = (SKILL_ROOT / mutation["target"]).read_text(encoding="utf-8")
-                replacement = mutation["replace"]
-                self.assertEqual(target.count(replacement["old"]), replacement.get("count", 1))
+                self.assertNotEqual(mutation["replace"]["old"], mutation["replace"]["new"])
+                copied_root = Path(tmp) / "agent-communication"
+                shutil.copytree(SKILL_ROOT, copied_root)
+                self.runner.apply_mutation(copied_root, mutation)
+                if "case" not in mutation:  # paired mutations are loaded by run_paired_evals.py
+                    scenario = self.runner.scenario_by_id(scenarios, mutation["eval_id"])
+                    self.assertIn(mutation["target"], ["SKILL.md", *scenario["references"]])
 
     def test_result_schema_rejects_raw_shell_command_strings(self):
         try:

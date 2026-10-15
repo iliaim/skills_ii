@@ -14,36 +14,39 @@ receiver reads; this skill defines no format for it.
 | Sender to receiver | Same host | Other host | Answer comes back through |
 |---|---|---|---|
 | Claude to Claude | Desktop session tool, or `ListAgents` then `SendMessage` ([Claude](claude-code-sessions.md#contact-continuation-and-creation-are-different)) | The same, only while both sessions use Remote Control | A reply message, or the place the request named |
-| Claude to Codex | `codex queue`, local sessions only ([Codex](codex-chatgpt.md#sending-from-another-shell-or-host)) | SSH to the owning host, then `codex queue` there | The place the request named, else the rollout ([transcripts](codex-local-transcripts.md#read-the-answer-to-a-message-you-sent)) |
+| Claude to Codex | `codex queue` ([Codex](codex-chatgpt.md#sending-from-another-shell-or-host)) | SSH to the owning host, then `codex queue` there | The place the request named, else the rollout ([transcripts](codex-local-transcripts.md#read-the-answer-to-a-message-you-sent)) |
 | Codex to Codex | `send_message_to_thread`, else `codex queue` ([Codex](codex-chatgpt.md#find-and-contact-an-existing-task)) | Native tools when they resolve that host, else SSH and `codex queue` | `wait_threads` or `read_thread`, else as for Claude to Codex |
 | Codex to Claude | No route: mailbox, read only when that session next starts or polls | Mailbox | The place the request named |
-| Any other provider, such as agy | Unsupported until its exact read, inventory and message route are verified ([identity rules](../SKILL.md#establish-identity-before-contact-or-continuation)) | Unsupported | Mailbox |
+| Any other provider | Unsupported until its exact read, inventory and message route are verified ([identity rules](../SKILL.md#establish-identity-before-contact-or-continuation)) | Unsupported | Mailbox |
 
-A message sent with `codex queue` cannot be withdrawn, and nothing wakes a Claude session to read
-its mailbox.
+Nothing wakes a Claude session to read its mailbox.
 
 ## Find out what happened
 
-Check in order and stop at the first step that fails:
+Check in order and stop at the first step that fails. If you cannot decode or parse the receiver's
+records, stop there, report the answer as unreadable and keep the last state you proved.
 
 1. **Delivered?** Use the route's own result as its provider reference maps it. `not-sent` covers
-   that attempt only: fix the cause, or move to the next route below.
+   that attempt only: fix the cause, or move to the next route below. After `unknown` (the send may
+   have happened), never resend or change route; only your label line at step 2 proves arrival.
 2. **Received?** Search the receiver's exact transcript, or its native read, for your label line.
-   If a cleanly read transcript lacks it, the message is delivered but not yet received, not lost.
-   After `codex queue`, do not send it again: why it waits is not documented, and a second copy
-   would also arrive.
+   After a delivered `codex queue`, a transcript that lacks it means not yet received, not lost; do
+   not send it again: why it waits is not documented, and a second copy would also arrive. After
+   another route, the message may be held, refused or dropped with no sign to the sender: report
+   it as unconfirmed and tell the human.
 3. **Answered?** A later receiver record names your ref or action and gives a disposition or result
    ([contract](message-contract.md#observe-progress-in-the-sender)). Until then it is not answered
    yet; observe liveness as in [exact-ID observations](../SKILL.md#normalize-exact-id-observations).
-4. **Readable?** If you cannot decode or parse the receiver's records, report the answer as
-   unreadable and keep the last state you proved.
 
 If no answer arrives within the wait your request or project sets, tell the human what is
-unconfirmed and where it waits.
+unconfirmed and where you sent it.
 
 ## When the receiver cannot be reached
 
 Use one route per message: the pair's native route, then the provider CLI behind feature detection,
-then the mailbox. Move down only after `not-sent` or an unavailable route. When none works, record
-`contact-unavailable` as
-[SKILL.md](../SKILL.md#keep-communication-separate-from-lifecycle-control) requires.
+then the mailbox. Move down only after a technical `not-sent` or a missing route. A refusal by the
+human, a permission rule or the receiver's own inbound setting is a decision, not a failure: after
+one, try no other route but a mailbox your task or a project rule already allows. When none works or
+a refusal stops you, record `contact-unavailable` as
+[SKILL.md](../SKILL.md#keep-communication-separate-from-lifecycle-control) requires, and tell the
+human.

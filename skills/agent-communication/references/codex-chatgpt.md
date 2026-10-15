@@ -137,8 +137,8 @@ Forking copies completed history into a new task; it is neither fresh task creat
 ## Sending from another shell or host
 
 Without the app tools, for example from a Claude session or over SSH on the host that owns the
-thread, `codex queue` reaches local sessions only. Its message becomes an ordinary user turn in the
-thread and cannot be withdrawn.
+thread, `codex queue` without `--remote` reaches only the local app server's sessions. Its message
+becomes an ordinary user turn in the thread, with no documented way to withdraw it.
 
 1. Check that you may message this thread ([routes](cross-provider-routes.md)), then feature-detect
    that host's executable as above.
@@ -147,16 +147,20 @@ thread and cannot be withdrawn.
    Take the candidates from the host's known configuration, never from a disk scan, and look in each
    for the rollout by exact ID ([local transcripts](codex-local-transcripts.md)). `no rollout found`
    means the wrong root or an unpersisted thread, not a missing task.
-3. That rollout and its `session_meta` working directory resolve the exact ID and give the second
-   identifier. Do the conversation-first check on its newest records: a `task_started` event with no
-   later `task_complete` suggests a running turn. The format is internal; when unsure, treat the turn
-   as running.
+3. That rollout resolves the exact ID. Take the second identifier
+   [SKILL.md](../SKILL.md#establish-identity-before-contact-or-continuation) requires from your own
+   handoff or lifecycle record; the rollout's `session_meta` working directory can corroborate it but
+   is only a lead. Without that identifier, do not queue. Do the conversation-first check on the
+   rollout's newest records: a `task_started` event with no later `task_complete` suggests a running
+   turn. The format is internal; when unsure, treat the turn as running.
 4. Write the message, opening with the
    [label line](message-contract.md#identify-the-action-and-roles), to a file on the host that runs
    `codex` (for example through SSH standard input). Pass only `--thread EXACT_UUID` and
    `--message "$(cat FILE)"`, then delete the file.
-5. A clean exit shows only that the message was stored for dispatch (`delivered`). A non-zero exit or
-   `no rollout found` is `not-sent` for that attempt. Then follow the
+5. A clean exit shows only that the CLI accepted the message (`delivered`). Only a failure before
+   the message could be queued is `not-sent`: failed feature detection, a failure writing the file,
+   or `no rollout found`. Any other non-zero exit, an SSH failure or a timeout is `unknown`, because
+   the command may have run. Then follow the
    [routes reference](cross-provider-routes.md#find-out-what-happened).
 
 Do not send into a session that another controller drives, by keystrokes or a live app-server
