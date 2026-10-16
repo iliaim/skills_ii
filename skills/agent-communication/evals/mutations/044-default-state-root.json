@@ -1,0 +1,11 @@
+{
+  "id": "044-default-state-root",
+  "eval_id": 44,
+  "target": "references/codex-chatgpt.md",
+  "replace": {
+    "count": 1,
+    "old": "2. Set `CODEX_HOME` to the state root that owns the thread: the parent of the `sessions` folder that\n   holds its rollout. A host can have several roots, such as a desktop app root and a shell default.\n   Take the candidates from the host's known configuration, never from a disk scan, and look in each\n   for the rollout by exact ID ([local transcripts](codex-local-transcripts.md)). `no rollout found`\n   means the wrong root or an unpersisted thread, not a missing task.",
+    "new": "2. Leave `CODEX_HOME` at its default; the queue finds every thread on the host. If it reports\n   `no rollout found`, the thread does not exist: report `contact-unavailable` and stop."
+  },
+  "expected_violation": "required call codex_queue count >= 1"
+}

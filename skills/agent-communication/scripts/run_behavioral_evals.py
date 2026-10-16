@@ -294,8 +294,14 @@ def load_scenarios(path: Path) -> list[dict[str, Any]]:
                 validate_call_rule(rule, f"scenario {entry['eval_id']} checks.required_call_any[{group_index}][{rule_index}]")
         if "forbidden_calls" in checks and not all(isinstance(tool, str) and tool for tool in checks["forbidden_calls"]):
             raise HarnessError(f"scenario {entry['eval_id']} checks.forbidden_calls must contain tool names")
-        if "required_order" in checks and not all(isinstance(tool, str) and tool for tool in checks["required_order"]):
-            raise HarnessError(f"scenario {entry['eval_id']} checks.required_order must contain tool names")
+        for order_index, step in enumerate(checks.get("required_order", [])):
+            label = f"scenario {entry['eval_id']} checks.required_order[{order_index}]"
+            if isinstance(step, dict):
+                validate_call_rule(step, label)
+                if {"min_count", "max_count"} & set(step):
+                    raise HarnessError(f"{label} must not set counts")
+            elif not isinstance(step, str) or not step:
+                raise HarnessError(f"{label} must be a tool name or a call rule")
         for field in check_map_fields:
             if field in checks and not isinstance(checks[field], dict):
                 raise HarnessError(f"scenario {entry['eval_id']} checks.{field} must be an object")
@@ -645,12 +651,15 @@ def grade_result(scenario: dict[str, Any], result: dict[str, Any]) -> dict[str, 
 
     normalized_sequence = [_normalized_tool(str(call.get("tool", ""))) for call in calls]
     cursor = -1
-    for tool in checks.get("required_order", []):
-        wanted = _normalized_tool(tool)
-        try:
-            cursor = normalized_sequence.index(wanted, cursor + 1)
-        except ValueError:
-            failures.append(f"required ordered call {tool} was missing or out of order")
+    for step in checks.get("required_order", []):
+        rule = step if isinstance(step, dict) else {"tool": step}
+        cursor = next(
+            (index for index in range(cursor + 1, len(calls)) if _calls_matching_rule([calls[index]], rule)),
+            None,
+        )
+        if cursor is None:
+            label = rule.get("tool", rule.get("tool_prefix", "") + "*")
+            failures.append(f"required ordered call {label} was missing or out of order")
             break
 
     for rule in checks.get("must_precede_if_present", []):

@@ -1,0 +1,11 @@
+{
+  "id": "042-no-label-means-lost",
+  "eval_id": 42,
+  "target": "references/cross-provider-routes.md",
+  "replace": {
+    "count": 1,
+    "old": "2. **Received?** Search the receiver's exact transcript, or its native read, for your label line.\n   After a delivered `codex queue`, a transcript that lacks it means not yet received, not lost;\n   after an `indeterminate` one, it stays `indeterminate`. Either way, never send it again by any\n   route: why it waits is not documented, and a second copy would also arrive. After another route,\n   the message may be held, refused or dropped with no sign to the sender: report it as unconfirmed\n   and tell the human.",
+    "new": "2. **Received?** Search the receiver's exact transcript for your label line. If it is missing, the\n   message was lost: report `routeability: unavailable` and send it again."
+  },
+  "expected_violation": "total contact call count must be <= 0"
+}

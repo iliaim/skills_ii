@@ -35,7 +35,11 @@ Claude Desktop can expose native session-management tools such as session listin
 
 ## Contact, continuation, and creation are different
 
-Claude has no general shell `send-message` subcommand. Use an exposed Claude Desktop exact-session message tool when available. Otherwise, for a live reachable Claude-to-Claude contact, ask a known Claude session to use its native `ListAgents`, verify the receiver's exact reference/session and working directory, then use `SendMessage`. Do not talk directly to inbox sockets or token/key files.
+Claude has no general shell `send-message` subcommand. Use an exposed Claude Desktop exact-session message tool when available. Otherwise, from a Claude session, use native `ListAgents`, verify the receiver's exact reference/session and working directory, then use `SendMessage`. A session on another machine is listed only while both sessions use Remote Control, and a message to another machine sent without Remote Control has no reply address. Do not talk directly to inbox sockets or token/key files.
+
+The sender sees only some outcomes. A result that begins `Not sent`, or a `Failed to send`, too-many-messages or too-large refusal, is `not-sent` for that attempt: nothing arrived, so fix the cause on your side or batch the content. If the reason names the receiver's setting, such as `crossSessionInbound`, never change it or [route around it](cross-provider-routes.md#when-the-receiver-cannot-be-reached). A dropped-at-inbox or expired report means the receiver never saw the message; put anything that still matters into one later message. Any other result shows delivery to the transport only: the receiver may still hold it for its human's approval, drop it unanswered, or refuse it with no sign to the sender, and older versions report no drops. Rely on this route for an unattended or print-mode worker only when that worker's own settings accept messages.
+
+Read the answer where the request said it would be recorded; a `SendMessage` reply arrives as an incoming message. In a transcript fallback the answer is a later `assistant` entry, never a tool-use entry.
 
 Use `claude --resume <session-id>` only for an intentional continuation of an exact persisted session proved idle. `claude --continue` selects the most recent conversation for a directory and is unsafe for owner contact. A print-mode `claude -p --resume <session-id> <prompt>` still creates a new turn. Never resume an active writer merely to deliver a handoff; concurrent resumes can interleave transcript writes.
 
@@ -94,6 +98,8 @@ On macOS, record file metadata:
 stat -f 'path=%N bytes=%z modified_epoch=%m modified=%Sm' -t '%Y-%m-%dT%H:%M:%S%z' "$TRANSCRIPT"
 ```
 
+On Linux or Git Bash: `stat -c 'path=%n bytes=%s modified_epoch=%Y modified=%y' "$TRANSCRIPT"`.
+
 Extract only the last parseable persisted timestamp:
 
 ```sh
@@ -134,7 +140,7 @@ else
 fi
 ```
 
-A small scheduling delta of a few seconds corroborates the same process start; a missing record, dead PID, material mismatch, or unparsable timestamp leaves process identity `unknown`. Do not compare the raw `procStart` string directly because provider metadata and `ps` can render different time zones. Never read adjacent key files or socket fields.
+A small scheduling delta of a few seconds corroborates the same process start; a missing record, dead PID, material mismatch, or unparsable timestamp leaves process identity `unknown`. Do not compare the raw `procStart` string directly because provider metadata and `ps` can render different time zones. Never read adjacent key files or socket fields. On Linux, parse the start time with `date -d "$PROCESS_START_TEXT" '+%s'` instead of `date -j -f`.
 
 File growth proves only that persistence occurred. No growth can occur during a long API or tool turn and does not prove idleness, death, or safety to resume.
 
