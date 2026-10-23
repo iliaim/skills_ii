@@ -125,6 +125,10 @@ check the report against both required-field lists as applicable before sending 
 canonical report in the child's own record and any authorized callback; the parent validates the
 received payload before marking acceptance complete.
 
+This shape also applies when a required terminal report records a held, refused, duplicate or
+no-effect outcome. If a callback cannot be sent, keep the canonical report in the child's own record
+with the unmet requirement and next gate; a prose-only duplicate or blocker notice is not a substitute.
+
 `report_revision` is a child-visible logical counter only. It is not a provider freshness guarantee.
 When a checkpoint or terminal report can affect a dependency gate, `report_identity_or_digest` must
 preserve either an observed provider-native event/turn identity or a locally recomputable `sha256`
