@@ -51,6 +51,74 @@ time matched the initial observation. Receiver acceptance, execution and replay 
 reported history preserved by root. These observations corroborate completion and no observed rewrite;
 they do not independently establish the entire write history.
 
+## Cold review corrections (2026-10-23)
+
+The follow-up cold review found four evaluator defects: receiver prompts duplicated the requested
+work outside the incoming message, report destinations could overwrite companion instructions,
+preflight diagnostics could enter retained reports, and a refused write could create a scratch
+effect before grading rejected it. The evaluator now obtains a receiver's assignment only from the
+incoming wrapper, including its explicit request intent. Execution authority stays in separate trusted
+context. Writes require an accepted disposition without a boundary; held observations remain valid
+for authorized reconciliation.
+
+Output checks preserve both the selected installation route and resolved source. They protect the
+containing skill collection and checkout, including direct symlinked members, parent segments,
+worktree Git markers, external source-reference aliases and hardlinks. An external standalone report
+path remains usable. A preflight failure retains a fixed category instead of raw CLI diagnostics.
+
+The new offline regressions fail against the pre-fix runner. The final suite passes 163 tests and
+213 subtests. Code and security reviewers independently closed the findings; root inspected the
+changes and ran the checks. The final fresh catalog passes all 24 scenarios, with three green runs
+each for nominal execution, echo recovery and mutual-wait recovery: 30 green runs. Root independently
+regraded those runs and both final red controls against real disposable scratch observations. The
+fresh correction evidence is retained under `review_fix_validation` in the existing
+[synthetic evidence](thread-ownership-evidence.json), separately from the historical September results.
+
+An initial ignore-incoming policy mutation still passed and is retained as an ineffective control.
+A direct control instead removes `incoming_tool_output` from both receiver phases while leaving
+policy and trusted grants unchanged. It produces the named `execution_missing` behavior failure and
+zero effects. The existing echo mutation also produces that failure with zero effects. Neither red
+result is a harness error. Hand-authored provider doubles separately verify the real rendered input
+boundary; they are not counted as fresh model runs.
+
+The first catalog attempt exposed a real scope-denied receiver still requesting a write. The executor
+blocked it and grading failed; the partial run was stopped. The interface now explicitly distinguishes
+a receiver's actual execution request from the sender's desired operation. The final catalog and
+repeat results recorded in the evidence use that clarified interface. Earlier failures and ineffective
+controls are not recast as passes.
+
+For a fresh missing-input control, run from the repository root with a compatible authenticated CLI
+and an external report path:
+
+```python
+import importlib.util
+import json
+from pathlib import Path
+from unittest.mock import patch
+
+path = Path("skills/agent-communication/scripts/run_paired_evals.py")
+spec = importlib.util.spec_from_file_location("paired", path)
+runner = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(runner)
+original = runner.model_call
+
+def drop_incoming(root, phase, request, context, evidence, **kwargs):
+    if phase in {"receiver_action", "receiver_result"}:
+        evidence = {key: value for key, value in evidence.items()
+                    if key != "incoming_tool_output"}
+    return original(root, phase, request, context, evidence, **kwargs)
+
+with patch.object(runner, "model_call", side_effect=drop_incoming):
+    exit_code = runner.main(["--case", "nominal", "--output", "/tmp/paired-input-drop.json"])
+run = json.loads(Path("/tmp/paired-input-drop.json").read_text())["runs"][0]
+assert exit_code == 1 and run["status"] == "BEHAVIOR_FAIL"
+assert "execution_missing" in run["failures"]
+assert run["independent_observation"]["effect_count"] == 0
+```
+
+These remain controlled CLI/scratch results using the default model of Codex CLI 0.163.0.
+They do not establish native transport reliability or a statistical provider success rate.
+
 ## Reproduction and limits
 
 From the repository root, follow the [evaluation methodology](../../skills/agent-communication/references/eval-methodology.md#paired-senderreceiver-evaluations):
@@ -73,5 +141,7 @@ fresh contexts, not a statistical estimate of provider reliability.
 These results establish controlled skill behavior and scratch effects. They do not establish native
 app delivery reliability, real application side effects, provider compaction or distributed
 exactly-once execution. The retained artifact contains synthetic structured evidence, not private
-native transcripts, model reasoning or credentials. Source hashes bind the evaluated policy and the
-final evaluator implementation; the issue owns delivery and closure evidence.
+native transcripts, model reasoning or credentials. Source hashes identify each evaluated revision:
+the September block remains historical and `review_fix_validation` records the corrected evaluator.
+The original issue owns its delivery evidence; [PR #8](https://github.com/iliaim/skills_ii/pull/8)
+records these follow-up corrections and verification.
