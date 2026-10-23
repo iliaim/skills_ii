@@ -120,6 +120,13 @@ newer action. A higher revision identifies its material change and must pass the
 authority checks. When execution is uncertain, reconcile the existing operation/result before
 retrying. No message identifier or model promise provides exactly-once execution.
 
+Preserve the grant's allowed sender-to-executor route when relaying a request; do not invent a need
+for a fresh direct coordinator instruction when the existing grant permits the named sender to
+trigger the action or replay. If an actual start condition requires a later coordinator decision,
+make that decision observable to the executor through a supported route. Redelivering the old
+request alone does not convey a later decision. Keep continuation context distinct from unchanged
+action data; neither context nor retransmission expands the human grant.
+
 An ownership transfer requires the current owner's authorized release and the new owner's
 acceptance, plus the existing resource-claim and writer-admission gates where applicable. Accepting
 a request does not release another writer's claim. Observation silence, a lost route or a refusal
