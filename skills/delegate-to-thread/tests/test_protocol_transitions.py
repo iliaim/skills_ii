@@ -863,12 +863,27 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             "report_identity_or_digest": "turn:43",
             "supersedes": 4,
         }
+        checkpoint_events = [{"kind": "turn", "id": "42", "report_revision": 4, "child_id": "child-1"}]
+        terminal_events = [{"kind": "turn", "id": "43", "report_revision": 5, "child_id": "child-1"}]
+        self.assertTrue(attached_report_admissible(checkpoint, observed_native_events=checkpoint_events))
         for field in CHECKPOINT_FIELDS:
             with self.subTest(report="checkpoint", field=field):
-                self.assertFalse(attached_report_admissible({k: v for k, v in checkpoint.items() if k != field}))
-        for field in TERMINAL_FIELDS:
-            with self.subTest(report="terminal", field=field):
-                self.assertFalse(attached_report_admissible({k: v for k, v in terminal.items() if k != field}, terminal=True))
+                self.assertFalse(attached_report_admissible(
+                    {k: v for k, v in checkpoint.items() if k != field},
+                    observed_native_events=checkpoint_events,
+                ))
+        for outcome in ("complete", "held", "refused", "duplicate"):
+            terminal_case = dict(terminal, outcome=outcome)
+            self.assertTrue(attached_report_admissible(
+                terminal_case, terminal=True, observed_native_events=terminal_events,
+            ))
+            for field in TERMINAL_FIELDS:
+                with self.subTest(report="terminal", outcome=outcome, field=field):
+                    self.assertFalse(attached_report_admissible(
+                        {k: v for k, v in terminal_case.items() if k != field},
+                        terminal=True,
+                        observed_native_events=terminal_events,
+                    ))
 
     def test_logical_revision_reuse_cannot_replace_report_identity(self):
         report = {
