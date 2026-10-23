@@ -145,3 +145,42 @@ native transcripts, model reasoning or credentials. Source hashes identify each 
 the September block remains historical and `review_fix_validation` records the corrected evaluator.
 The original issue owns its delivery evidence; [PR #8](https://github.com/iliaim/skills_ii/pull/8)
 records these follow-up corrections and verification.
+
+## Native authorization and reporting follow-up
+
+The October 23 follow-up tested actual local Codex tasks and native `send_message_to_thread`,
+`read_thread` and `wait_threads`, separately from the CLI simulations above. The final scenario
+consumed the contracts at `90f33097ed25279b397e64331d76e10d89cf99eb`. Raw native IDs,
+transcripts, host paths and private receipts remain local; [PR #9](https://github.com/iliaim/skills_ii/pull/9)
+records the delivered changes and checks.
+
+Earlier attempts remain failures in the retained evidence. A setup-only attempt used unsupported
+read limits and reacquired responses while changing their presentation. A subsequent exact replay
+withheld its callback because the sender's original request required a later coordinator trigger
+that the unchanged replay did not convey. Its prose-only duplicate notice also omitted required
+report fields. One bounded correction verified recovery, but did not establish unassisted replay.
+The contracts now retain scoped human evidence, show bounded native parsing and local reparsing,
+preserve observable replay decisions, and require canonical fields for unsuccessful outcomes too.
+
+The last scenario reused the same real pair under those clarified contracts. The coordinator
+supplied setup and one dispatch, then sent no further participant messages:
+
+- A sent an initial request, a byte-identical replay, then a same-revision conflicting payload
+  changing only the first row value. B performed the initial work itself: five rows, total 13,
+  with independently verified grouping and input digest.
+- B sent exactly two direct callbacks. Their actual native receipts in A matched the outbound
+  payloads. Initial and replay reports contained all eleven canonical terminal fields, valid
+  recomputed digests, matching own-record JSON, and increasing revisions with supersession.
+- B held the conflict without a third callback or artifact write. Its own held report retained
+  all eleven fields and a valid digest. A independently verified the result and expected hold.
+- Both artifacts retained their content, hash, size, inode and exact nanosecond modification time.
+  No authorization reads, root corrections or acknowledgement sends occurred during this scenario;
+  both tasks ended idle. Earlier authorization verification used two distinct human evidence reads per participant,
+  one for the current request and one for the earlier grant, rather than one total read.
+
+Cold review found no outstanding source findings. Offline validation passed 163 tests and 246
+subtests; the completeness regression now authenticates valid baselines before removing each field
+for complete, held, refused and duplicate reports. Three package validators and three extracted
+provider-example response/error cases passed. The final native sequence is a bounded behavioral
+check in retained contexts, not a fresh-context replication, a provider reliability estimate or a
+proof of distributed exactly-once execution.
