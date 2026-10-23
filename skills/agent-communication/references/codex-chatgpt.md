@@ -35,6 +35,37 @@ the needed exact identity, status, and latest agent-message fields. `includeOutp
 or reasoning metadata; never dump the raw provider record. Prefer bounded `wait_threads` when it
 answers the observation need.
 
+For authorization checks, start with one turn when the supplied human message is in the current
+turn. Keep the parsed response in the host runtime before emitting a projection. Reformatting output
+or correcting a field lookup uses that retained response, not another provider read. Inspect other
+relevant user items already returned there before fetching history; paginate only for evidence that
+is actually absent. Tool discovery should select exact needed tool names, not print every tool whose
+description mentions tasks or messages.
+
+For example, in `functions.exec` with the current native result shape (replace the uppercase values
+with observed IDs; inspect live tool descriptions for version changes):
+
+```js
+const raw = await tools.mcp__codex_app__read_thread({
+  threadId: THREAD_ID, hostId: HOST_ID, turnLimit: 1, includeOutputs: false
+});
+if (raw.isError) throw new Error("Native authority read failed");
+const doc = raw.structuredContent ?? JSON.parse(raw.content.find(b => b.type === "text").text);
+store("authority-observation", doc); // retain in this task's host runtime for reparsing
+const turn = doc.turns.find(t => t.id === HUMAN_TURN_ID);
+const item = turn?.items.find(i => i.type === "userMessage" && i.id === HUMAN_ITEM_ID);
+text({
+  thread: {id: doc.thread.id, hostId: doc.thread.hostId, kind: doc.thread.kind},
+  turn_id: turn?.id, item_id: item?.id,
+  human_text: item?.content.filter(b => b.type === "text").map(b => b.text).join("\n"),
+  found: Boolean(item), page: item ? undefined : doc.page
+});
+```
+
+If a lookup was wrong, use `load("authority-observation")` to correct it locally. This retained
+observation is not a permanent authorization cache: the ordinary-message contract governs permission
+reuse, changed scope, conflicting evidence and revocation.
+
 If neither a direct exact-ID read nor bounded discovery resolves an exact task, report `contact-unavailable` with the native failure evidence. Do not create, fork, resume, or hand off a replacement.
 
 When the only evidence is a `clientThreadId` returned by new-task creation, distinguish the creation

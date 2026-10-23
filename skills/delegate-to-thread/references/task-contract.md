@@ -114,6 +114,17 @@ report_identity_or_digest
 supersedes
 ```
 
+The first message points the child to this section; a prose list of report requirements is not a
+substitute for loading it. Emit required fields with these exact names in one structured report
+(for example, a JSON object). Use an object for `acceptance_map` and lists for
+`checks_and_observed_results`, `residual_risks` and `unmet_requirements`; empty maps/lists are `{}`/`[]`,
+not `null`. Use `null` only where the value is genuinely absent, such as an unavailable
+`delivered_artifact` or no prior report in `supersedes`; keep required identities and states explicit.
+Map each assigned criterion to its observed evidence in `acceptance_map` and
+check the report against both required-field lists as applicable before sending it. Keep the same
+canonical report in the child's own record and any authorized callback; the parent validates the
+received payload before marking acceptance complete.
+
 `report_revision` is a child-visible logical counter only. It is not a provider freshness guarantee.
 When a checkpoint or terminal report can affect a dependency gate, `report_identity_or_digest` must
 preserve either an observed provider-native event/turn identity or a locally recomputable `sha256`
@@ -124,6 +135,14 @@ the digest from the canonical report payload; an identity-shaped label alone is 
 acceptance; a missing field, ambiguous revision, stale report, or
 unobserved verification keeps acceptance `pending` or `incomplete`. Terminal execution status alone
 never establishes acceptance or unlocks a dependant.
+
+For a JSON report digest, serialize the report excluding only `report_identity_or_digest`, with sorted
+keys, compact separators, ASCII escaping and UTF-8 encoding (Python:
+`json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")`).
+Compute SHA-256 over those bytes, then add the digest field. A replay report uses a newer logical
+report revision and names the prior revision in `supersedes`; it preserves the action identity and
+revision and reports the reconciled evidence without repeating effects. Retain native source
+provenance beside the report: a recomputable digest proves content integrity, not who issued it.
 
 ### Writable-child resource claims
 
