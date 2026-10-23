@@ -2,6 +2,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import re
 import subprocess
 import tempfile
 import unittest
@@ -197,6 +198,72 @@ class PairedEvalContracts(unittest.TestCase):
         self.assertIn("trusted_user_context", rendered)
         self.assertIn("incoming_tool_output", rendered)
 
+    def test_receiver_prompts_do_not_duplicate_current_action(self):
+        case, request, executor = self.executor()
+        context = runner.trusted_context(case, request, executor)
+        incoming = {"incoming_tool_output": {"sender_response": runner.response(request, phase="sender_request", operation="write_artifact", status="reported")}}
+        for phase in ("receiver_action", "receiver_result"):
+            with self.subTest(phase=phase):
+                rendered = runner.prompt(ROOT, phase, request, context, incoming)
+                self.assertNotIn("<current_action>", rendered)
+                self.assertIn('"sender_response"', rendered)
+        self.assertIn("<current_action>", runner.prompt(ROOT, "sender_request", request, context, {}))
+
+    def test_rendered_exchange_requires_incoming_wrapper_consumption(self):
+        # This provider double sees only the actual stdin sent to the CLI. In
+        # particular it cannot use model_call's private request argument.
+        def provider(consume_wrapper):
+            def invoke(command, *, input, **kwargs):
+                def section(name, default=None):
+                    match = re.search(rf"<{name}>\n(.*?)\n</{name}>", input, re.S)
+                    return json.loads(match[1]) if match else default
+                phase = re.search(r"<phase>(.*?)</phase>", input)[1]
+                evidence = section("observed_exchange", {})
+                request = section("current_action")
+                if phase.startswith("receiver_"):
+                    incoming = evidence.get("incoming_tool_output", {}) if consume_wrapper else {}
+                    if incoming:
+                        request = {**incoming["sender_response"], "intent": incoming["request_intent"]}
+                grants = section("trusted_user_context", {})
+                scope_denied = phase.startswith("receiver_") and request is not None and request["token"] not in grants["human_grant"]["tokens"]
+                if request is None:
+                    request = {"action_id": "unavailable", "revision": 1, "request_digest": "0" * 64,
+                               "sender": "unknown", "receiver": "unknown", "token": "alpha"}
+                    result = runner.response(request, phase=phase, status="held", reason="uncertain")
+                elif phase == "sender_request":
+                    result = runner.response(request, phase=phase, operation=request["operation"], status="reported")
+                elif phase == "receiver_action":
+                    intent = request["intent"]
+                    result = runner.response(request, phase=phase, operation="none" if scope_denied else request["operation"],
+                                             status="held" if scope_denied else "accepted" if intent == "execute" else "reported",
+                                             reason="scope" if scope_denied else "none" if intent == "execute" else intent)
+                elif phase == "receiver_result":
+                    receipt = evidence["harness_result"]["receipt"]
+                    intent = request["intent"]
+                    result = runner.response(request, phase=phase,
+                                             status="reported" if intent != "execute" else "completed" if receipt else "held",
+                                             reason="scope" if scope_denied else intent if intent != "execute" else "none", receipt=receipt)
+                else:
+                    receipt = evidence["observed_receipt"]
+                    result = runner.response(request, phase=phase, status="no_work" if request["intent"] != "execute" else "completed" if receipt else "incomplete", receipt=receipt)
+                output = Path(command[command.index("--output-last-message") + 1])
+                output.write_text(json.dumps(result))
+                return subprocess.CompletedProcess(command, 0, "", "")
+            return invoke
+        for name in ("nominal", "context-displacement", "status-only", "report-only", "unauthorized-scope"):
+            for consume in ((True, False) if name in {"nominal", "context-displacement"} else (True,)):
+                with self.subTest(case=name, consume_wrapper=consume):
+                    with mock.patch.object(runner._helpers, "preflight_disabled_features"), mock.patch.object(runner.subprocess, "run", side_effect=provider(consume)):
+                        result = runner.run_case(ROOT, self.cases[name], codex_bin="fake", model=None, timeout=1)
+                    self.assertEqual(result["status"], "PASS" if consume else "BEHAVIOR_FAIL", result["failures"])
+                    self.assertEqual(result["independent_observation"]["effect_count"], int(consume and name in {"nominal", "context-displacement"}))
+                    if not consume:
+                        self.assertIn("execution_missing", result["failures"])
+                    if name == "unauthorized-scope":
+                        self.assertEqual(result["trace"]["sender_request"]["operation"], "write_artifact")
+                        self.assertEqual(result["trace"]["receiver_action"]["operation"], "none")
+                        self.assertEqual(result["trace"]["receiver_action"]["reason"], "scope")
+
     def test_stale_ledger_is_cached_but_current_observation_is_available_only_after_request(self):
         case, request, executor = self.executor("stale-observation")
         context = runner.trusted_context(case, request, executor)
@@ -264,25 +331,27 @@ class PairedEvalContracts(unittest.TestCase):
         self.assertEqual(runner.exit_status([{**failure, "status": "PASS", "failures": []}], mutation, True), 1)
 
     def test_cli_temp_mutation_records_hashes_without_changing_original(self):
-        source = self.tmp / "source"
-        (source / "references").mkdir(parents=True)
-        (source / "SKILL.md").write_text("Candidate skill")
-        contract = source / "references" / "message-contract.md"
-        mutation = runner._helpers.load_mutation(ROOT / "evals" / "mutations" / "paired-echo.json")
-        contract.write_text(mutation["replace"]["old"])
-        before = runner._helpers._file_hashes(source)
-        report = self.tmp / "report.json"
-        def check_mutated(candidate, case, **kwargs):
-            self.assertEqual((candidate / "references" / "message-contract.md").read_text(), mutation["replace"]["new"])
-            return {"status": "BEHAVIOR_FAIL", "failures": ["execution_missing"]}
-        args = ["--skill-root", str(source), "--case", "nominal", "--mutation", str(ROOT / "evals" / "mutations" / "paired-echo.json"), "--expect-failure", "--output", str(report)]
-        with mock.patch.object(runner._helpers, "preflight_disabled_features"), mock.patch.object(runner, "run_case", side_effect=check_mutated), contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(runner.main(args), 0)
-        self.assertEqual(before, runner._helpers._file_hashes(source))
-        record = json.loads(report.read_text())
-        self.assertNotEqual(record["mutation"]["before_sha256"], record["mutation"]["after_sha256"])
-        self.assertEqual(record["candidate_hashes"]["references/message-contract.md"], before[Path("references/message-contract.md")])
-        self.assertEqual(record["model"], "CLI default")
+        for mutation_path in sorted((ROOT / "evals" / "mutations").glob("paired-*.json")):
+            with self.subTest(mutation=mutation_path.name):
+                source = self.tmp / mutation_path.stem
+                (source / "references").mkdir(parents=True)
+                (source / "SKILL.md").write_text("Candidate skill")
+                contract = source / "references" / "message-contract.md"
+                mutation = runner._helpers.load_mutation(mutation_path)
+                contract.write_text(mutation["replace"]["old"])
+                before = runner._helpers._file_hashes(source)
+                report = self.tmp / f"{mutation_path.stem}-report.json"
+                def check_mutated(candidate, case, **kwargs):
+                    self.assertEqual((candidate / "references" / "message-contract.md").read_text(), mutation["replace"]["new"])
+                    return {"status": "BEHAVIOR_FAIL", "failures": ["execution_missing"]}
+                args = ["--skill-root", str(source), "--case", mutation["case"], "--mutation", str(mutation_path), "--expect-failure", "--output", str(report)]
+                with mock.patch.object(runner._helpers, "preflight_disabled_features"), mock.patch.object(runner, "run_case", side_effect=check_mutated), contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(runner.main(args), 0)
+                self.assertEqual(before, runner._helpers._file_hashes(source))
+                record = json.loads(report.read_text())
+                self.assertNotEqual(record["mutation"]["before_sha256"], record["mutation"]["after_sha256"])
+                self.assertEqual(record["candidate_hashes"]["references/message-contract.md"], before[Path("references/message-contract.md")])
+                self.assertEqual(record["model"], "CLI default")
 
     def test_output_cannot_write_source_evaluator_or_symlink_alias(self):
         source = self.tmp / "source"
@@ -300,6 +369,157 @@ class PairedEvalContracts(unittest.TestCase):
         with mock.patch.object(runner._helpers, "preflight_disabled_features") as preflight, contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(runner.main(["--skill-root", str(source), "--output", str(alias)]), 2)
             preflight.assert_not_called()
+
+    def test_output_rejects_collection_checkout_and_external_aliases(self):
+        checkout = self.tmp / "checkout"
+        (checkout / ".git").mkdir(parents=True)
+        source = checkout / "skills" / "candidate"
+        source.mkdir(parents=True)
+        (source / "SKILL.md").write_text("candidate source")
+        companion = source.parent / "companion" / "SKILL.md"
+        companion.parent.mkdir()
+        companion.write_text("companion source")
+        readme = checkout / "README.md"
+        readme.write_text("checkout documentation")
+        symlink = self.tmp / "companion-link.json"
+        symlink.symlink_to(companion)
+        hardlink = self.tmp / "companion-hardlink.json"
+        hardlink.hardlink_to(companion)
+        directory_alias = self.tmp / "checkout-link"
+        directory_alias.symlink_to(checkout, target_is_directory=True)
+        outputs = (companion, readme, checkout / "new-report.json", symlink, hardlink,
+                   directory_alias / "new-report.json", ROOT.parent / "delegate-to-thread" / "SKILL.md")
+        for output in outputs:
+            with self.subTest(output=output), self.assertRaises(runner.HarnessError):
+                runner.validate_output_path(output, source)
+        # A standalone source must not reserve every sibling in its temp dir.
+        standalone = self.tmp / "standalone"
+        standalone.mkdir()
+        (standalone / "SKILL.md").write_text("standalone source")
+        runner.validate_output_path(self.tmp / "report.json", standalone)
+        external_report = self.tmp / "external-report.json"
+        external_report.write_text("previous report")
+        external_alias = self.tmp / "external-report-hardlink.json"
+        external_alias.hardlink_to(external_report)
+        runner.validate_output_path(external_alias, standalone)
+        worktree = self.tmp / "worktree"
+        worktree_source = worktree / "skills" / "candidate"
+        worktree_source.mkdir(parents=True)
+        (worktree_source / "SKILL.md").write_text("worktree source")
+        (worktree / ".git").write_text("gitdir: /synthetic/main/.git/worktrees/candidate\n")
+        worktree_readme = worktree / "README.md"
+        worktree_readme.write_text("worktree documentation")
+        with self.assertRaises(runner.HarnessError):
+            runner.validate_output_path(worktree_readme, worktree_source)
+        collection_source = self.tmp / "skills" / "standalone"
+        collection_source.mkdir(parents=True)
+        (collection_source / "SKILL.md").write_text("installed source")
+        with self.assertRaises(runner.HarnessError):
+            runner.validate_output_path(collection_source.parent / "companion" / "SKILL.md", collection_source)
+        with mock.patch.object(runner._helpers, "preflight_disabled_features") as preflight, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(runner.main(["--skill-root", str(source), "--output", str(companion)]), 2)
+            preflight.assert_not_called()
+        self.assertEqual(companion.read_text(), "companion source")
+        self.assertEqual(readme.read_text(), "checkout documentation")
+
+    def test_write_requires_accepted_status_without_boundary(self):
+        for name in ("nominal", "transfer-authorized"):
+            for status, reason in (("held", "none"), ("refused", "owner"), ("waiting", "none"), ("accepted", "owner")):
+                with self.subTest(case=name, status=status, reason=reason):
+                    case = self.cases[name]
+                    request = runner.make_request(case)
+                    directory = self.tmp / f"{name}-{status}-{reason}"
+                    executor = runner.ScratchExecutor(directory, case, request)
+                    action = self.action(request, status=status, reason=reason)
+                    runner._helpers.validate_result_schema(action, runner.SCHEMA)
+                    receipt, failures = executor.execute(action)
+                    self.assertTrue(failures)
+                    self.assertIsNone(receipt)
+                    self.assertFalse(executor.artifact.exists())
+                    self.assertEqual(json.loads(executor.journal.read_text()), [])
+
+    def test_output_cannot_replace_external_target_of_source_reference_symlink(self):
+        source = self.tmp / "candidate"
+        (source / "references").mkdir(parents=True)
+        (source / "SKILL.md").write_text("candidate source")
+        external_reference = self.tmp / "external-message-contract.md"
+        external_reference.write_text("original external contract")
+        (source / "references" / "message-contract.md").symlink_to(external_reference)
+        with mock.patch.object(runner._helpers, "preflight_disabled_features") as preflight, mock.patch.object(runner, "run_case", return_value={"status": "PASS", "failures": []}) as run_case, contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            result = runner.main(["--skill-root", str(source), "--case", "nominal", "--output", str(external_reference)])
+        self.assertEqual(external_reference.read_text(), "original external contract")
+        self.assertEqual(result, 2)
+        preflight.assert_not_called()
+        run_case.assert_not_called()
+
+    def test_installed_source_symlink_preserves_collection_and_sibling_targets(self):
+        candidate = self.tmp / "repos" / "candidate"
+        candidate.mkdir(parents=True)
+        (candidate / "SKILL.md").write_text("candidate source")
+        installed = self.tmp / "installed" / "skills"
+        installed.mkdir(parents=True)
+        source = installed / "candidate"
+        source.symlink_to(candidate, target_is_directory=True)
+        sibling = installed / "companion" / "SKILL.md"
+        sibling.parent.mkdir()
+        sibling.write_text("original installed companion")
+        external_sibling = self.tmp / "repos" / "companion" / "SKILL.md"
+        external_sibling.parent.mkdir()
+        external_sibling.write_text("original external companion")
+        sibling_link = installed / "linked-companion"
+        sibling_link.symlink_to(external_sibling.parent, target_is_directory=True)
+        for output in (sibling, sibling_link / "SKILL.md", external_sibling):
+            with self.subTest(output=output):
+                original = output.read_text()
+                with mock.patch.object(runner._helpers, "preflight_disabled_features") as preflight, mock.patch.object(runner, "run_case", return_value={"status": "PASS", "failures": []}) as run_case, contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    result = runner.main(["--skill-root", str(source), "--case", "nominal", "--output", str(output)])
+                self.assertEqual(output.read_text(), original)
+                self.assertEqual(result, 2)
+                preflight.assert_not_called()
+                run_case.assert_not_called()
+
+    def test_parent_segments_do_not_hide_installed_collection(self):
+        candidate = self.tmp / "repos" / "candidate"
+        candidate.mkdir(parents=True)
+        (candidate / "SKILL.md").write_text("candidate source")
+        (candidate / "scripts").mkdir()
+        installed = self.tmp / "installed" / "skills"
+        (installed / "unused").mkdir(parents=True)
+        source = installed / "candidate"
+        source.symlink_to(candidate, target_is_directory=True)
+        sibling = installed / "companion" / "SKILL.md"
+        sibling.parent.mkdir()
+        sibling.write_text("installed companion")
+        for selected in (source, installed / "unused" / ".." / "candidate", source / "scripts" / ".."):
+            with self.subTest(source=selected), self.assertRaises(runner.HarnessError):
+                runner.validate_output_path(sibling, selected)
+
+    def test_physical_skill_collection_is_protected_through_outside_alias(self):
+        collection = self.tmp / "physical" / "skills"
+        candidate = collection / "candidate"
+        candidate.mkdir(parents=True)
+        (candidate / "SKILL.md").write_text("candidate source")
+        sibling = collection / "companion" / "SKILL.md"
+        sibling.parent.mkdir()
+        sibling.write_text("physical companion")
+        selected = self.tmp / "outside-alias"
+        selected.symlink_to(candidate, target_is_directory=True)
+        with self.assertRaises(runner.HarnessError):
+            runner.validate_output_path(sibling, selected)
+
+    def test_lexical_checkout_is_protected_when_selected_skill_points_outside(self):
+        candidate = self.tmp / "external-candidate"
+        candidate.mkdir()
+        (candidate / "SKILL.md").write_text("candidate source")
+        checkout = self.tmp / "selected-checkout"
+        checkout.mkdir()
+        (checkout / ".git").write_text("gitdir: /synthetic/main/.git/worktrees/selected\n")
+        selected = checkout / "candidate"
+        selected.symlink_to(candidate, target_is_directory=True)
+        readme = checkout / "README.md"
+        readme.write_text("selected checkout documentation")
+        with self.assertRaises(runner.HarnessError):
+            runner.validate_output_path(readme, selected)
 
     def test_uncertain_reconciliation_can_hold_before_observing_without_retry(self):
         case, request, executor = self.executor("uncertain-absent")
@@ -368,6 +588,24 @@ class PairedEvalContracts(unittest.TestCase):
         record = json.loads(output.read_text())
         self.assertEqual(record["runs"][0]["status"], "HARNESS_ERROR")
         self.assertIn("unexpected executor fault", record["runs"][0]["error"])
+
+    def test_later_preflight_failure_does_not_retain_raw_diagnostic(self):
+        output = self.tmp / "preflight-report.json"
+        private_marker = "SYNTHETIC_PRIVATE_PREFLIGHT_DIAGNOSTIC"
+        real_preflight = runner._helpers.preflight_disabled_features
+        calls = []
+        def preflight(codex_bin):
+            calls.append(codex_bin)
+            if len(calls) > 1:
+                real_preflight(codex_bin)
+        failed_cli = subprocess.CompletedProcess([], 1, "", private_marker)
+        with mock.patch.object(runner._helpers, "preflight_disabled_features", side_effect=preflight), mock.patch.object(runner.subprocess, "run", return_value=failed_cli), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(runner.main(["--case", "nominal", "--output", str(output)]), 2)
+        self.assertEqual(len(calls), 2)
+        saved = output.read_text()
+        record = json.loads(saved)
+        self.assertEqual(record["runs"][0]["status"], "HARNESS_ERROR")
+        self.assertNotIn(private_marker, saved)
 
     def test_fabricated_receipt_in_action_request_is_not_hidden_by_a_real_effect(self):
         _, request, executor = self.executor()

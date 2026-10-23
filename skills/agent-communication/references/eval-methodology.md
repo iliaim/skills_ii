@@ -137,8 +137,9 @@ and receiver contexts. They use the existing runner's feature preflight, disable
 read-only sandbox, ignored config/rules, strict schema and JSON event audit. The older planned-call
 runner and its isolation boundary are unchanged.
 
-The model can request only closed mock operations. The harness checks identity, revision, scope and
-trusted authority before routing an operation to a unique private scratch artifact. It independently
+The model can request only closed mock operations. The harness checks identity, revision, scope,
+trusted authority and an accepted disposition without a boundary before routing a write to a unique
+private scratch artifact. Held observations can still reconcile uncertain execution. It independently
 observes bytes and execution receipts and returns that evidence to the exchange. This establishes
 model-requested actions with real local harness effects; it does not prove native provider messaging,
 real application side effects, provider compaction or distributed exactly-once execution.
@@ -149,6 +150,11 @@ unauthorized action request as a behavior failure even when the executor prevent
 claimed completion against independently observed action-bound results, not a model promise or a
 generic acknowledgement. Hand-authored traces test the grader only; fresh model results establish
 behavioral evidence.
+
+Receiver prompts obtain requested work only from `incoming_tool_output.sender_response`, with
+`request_intent` in that same wrapper distinguishing execution, status and report requests. Separate
+trusted context supplies grants and prior observations. Receiver prompts omit the sender's
+`current_action` input, so discarding the incoming wrapper cannot leave a duplicate assignment.
 
 Model results contain closed action, disposition and evidence fields rather than ungraded promises.
 Synthetic echo, unrelated-result and mutual-wait inputs first reach a fresh sender; one permitted
@@ -188,4 +194,7 @@ precedence over behavior failure (`1`) or success (`0`), including mutation runs
 Fixtures and reports use synthetic task identities and action data only. Do not put live transcripts,
 credentials or reasoning into the catalog or retained reports. Preserve candidate/mutation hashes
 and independent execution observations so a cold checker can distinguish fresh results from unit
-fixtures. The installed skill must remain unchanged during each run.
+fixtures. Preflight failures retain a fixed diagnostic category rather than raw CLI stderr. Reports
+must stay outside the source, containing skill collection and Git checkout, including symlink and
+hardlink aliases. Use an external report path such as `/tmp/paired-evals.json` if a destination is
+rejected. The installed skill must remain unchanged during each run.
