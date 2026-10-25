@@ -419,3 +419,39 @@ are retained under `completion-provenance-verified` in the existing
 [synthetic evidence record](communication-reliability-evidence.json). Package validation and
 whitespace checks passed. A separate cold Luna review found no actionable completion-guard defect;
 the PR records final provenance review, CI and merge status.
+
+## Dedicated native persisted-queue check (2026-10-25)
+
+The user explicitly requested a dedicated test chat, supplying the previously missing test-target
+authority. One projectless local Codex chat was created, its exact native identity and cwd were
+correlated, its bootstrap completed, and the receiver was observed idle before each send. Nonces were
+generated after bootstrap. Two material action revisions were each sent once through the installed
+`codex queue` command with the owning state root inherited. Native incoming user records matched
+each sent request exactly, and the receiver recorded an action-bound accepted disposition naming
+itself executor before acting. No callback, resume, redispatch or controller change was needed.
+
+Revision 1 delivered and executed, but its artifact failed independent verification: the receiver
+wrote a literal backslash and `n` instead of one LF, producing 136 bytes instead of 135. The receiver
+also detected the error and held without overwriting. Its ACK and held-report digests recomputed
+correctly. The 180-second initial observation window ended without verified completion; the final
+held report arrived later. This remains a failed artifact check, not a successful first attempt.
+
+The parent preserved those failed bytes and authorized revision 2 as a guarded correction of that
+known postimage. The receiver verified the exact parent human grant, checked the failed file's hash
+and length, and used JSON encoding plus `bytes([10])` to avoid the escaping ambiguity. The parent
+independently matched the corrected 135 bytes, parsed values, action/revision/nonce, SHA-256, and
+the receiver's reported bytes. All required terminal-report fields were present, its digest
+recomputed, and no unmet requirement remained. This verification finished within the separate
+300-second correction window.
+
+The [redacted native-check record](native-queue-verification.json) retains both outcomes and
+recomputable synthetic fixture hashes. Actual native identities, host paths and raw reports remain
+in the dedicated chat/local scratch record. One auxiliary read-only proxy initialization timed out;
+it never reached a queue or control operation and was not used as acceptance evidence. No daemon,
+provider transport or repository implementation defect was found.
+
+The native-check recipe now explains the observed idle-to-running gap and unambiguous LF bytes.
+An immediate wait can return the old bootstrap completion before the queued turn appears; require
+the exact incoming request and its own action-bound result. No new harness, queue consumer, retry
+service, production helper or dependency was added. These two same-chat observations establish the
+tested route and result only, not general delivery reliability or exactly-once execution.
