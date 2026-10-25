@@ -97,16 +97,28 @@ def test_generic_acknowledgement_and_unrelated_turn_are_not_action_progress():
 def test_action_bound_operation_supports_execution_progress_but_not_completion():
     correct = grade(
         49,
-        {"acceptance_state": "accepted", "progress_changed": True, "progress_kind": "evidence_added", "evidence_revision_bound": True, "routeability": "available", "lifecycle_mutation_authorized": False},
+        {"acceptance_state": "accepted", "progress_changed": True, "progress_kind": "evidence_added", "evidence_revision_bound": True, "completion_verified": False, "routeability": "available", "lifecycle_mutation_authorized": False},
     )
     wrong_stale_evidence = grade(
         49,
-        {"acceptance_state": "accepted", "progress_changed": False, "progress_kind": "no_change", "evidence_revision_bound": False, "routeability": "available", "lifecycle_mutation_authorized": False},
+        {"acceptance_state": "accepted", "progress_changed": False, "progress_kind": "no_change", "evidence_revision_bound": False, "completion_verified": False, "routeability": "available", "lifecycle_mutation_authorized": False},
+    )
+    wrong_completion_claim = grade(
+        49,
+        {"acceptance_state": "accepted", "progress_changed": True, "progress_kind": "evidence_added", "evidence_revision_bound": True, "completion_verified": True, "routeability": "available", "lifecycle_mutation_authorized": False},
+    )
+    missing_completion_fact = grade(
+        49,
+        {"acceptance_state": "accepted", "progress_changed": True, "progress_kind": "evidence_added", "evidence_revision_bound": True, "routeability": "available", "lifecycle_mutation_authorized": False},
     )
 
     assert correct["passed"], correct["failures"]
     assert not wrong_stale_evidence["passed"]
     assert any("progress_changed" in failure or "evidence_revision_bound" in failure for failure in wrong_stale_evidence["failures"])
+    assert not wrong_completion_claim["passed"]
+    assert any("completion_verified" in failure for failure in wrong_completion_claim["failures"])
+    assert not missing_completion_fact["passed"]
+    assert any("completion_verified" in failure for failure in missing_completion_fact["failures"])
 
 
 def test_superseded_result_cannot_acknowledge_or_verify_current_revision():

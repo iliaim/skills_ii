@@ -1211,7 +1211,7 @@ class BehavioralEvalContracts(unittest.TestCase):
         self.assertEqual(report["runs"][0]["failures"], ["bounded timeout"])
         self.assertEqual(report["runs"][1]["failures"], ["second timeout"])
         for item in report["runs"]:
-            self.assertEqual(set(item), {"eval_id", "run", "status", "failures", "mutation"})
+            self.assertEqual(set(item), {"eval_id", "run", "status", "failures", "mutation", "provenance"})
 
     def test_prefix_only_call_rules_report_count_failures(self):
         for count, rule in ((0, {"tool_prefix": "read_", "min_count": 1}),
@@ -1681,6 +1681,7 @@ result = {
     "planned_calls": calls,
     "facts": {
         "content_recency": "unknown",
+        "completion_verified": False,
         "runtime_liveness": "unknown",
         "routeability": "available",
         "identity_correlated": True,
