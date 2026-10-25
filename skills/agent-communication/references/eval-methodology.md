@@ -47,6 +47,15 @@ destructive CLI plans and applies both matching-call and total-call limits. Repo
 synthetic structured decision, planned calls, and facts needed to debug a grade, but not prompts or
 model explanations.
 
+Case 49 requires the structured `completion_verified` fact to remain false when required
+verification is absent, even if an action-bound operation proves execution. The grader enforces
+that fact; it does not check whether arbitrary explanatory prose contradicts it.
+
+Each completed behavioral run retains execution-time SHA-256 provenance for the installed skill,
+the evaluated candidate (after any mutation), the catalog, scenarios, result schema and any mutation
+configuration. Compact output preserves this provenance. Historical reports without these fields
+remain historical evidence; hashing today's files cannot bind them retroactively.
+
 CLI plans use tokenized `argv` arrays only. The output schema rejects raw shell command fields, while
 the deterministic grader rejects shell wrappers, destructive executables, pipelines, redirects, and
 control syntax so command injection cannot hide inside a token array.
@@ -198,3 +207,20 @@ fixtures. Preflight failures retain a fixed diagnostic category rather than raw 
 must stay outside the source, containing skill collection and Git checkout, including symlink and
 hardlink aliases. Use an external report path such as `/tmp/paired-evals.json` if a destination is
 rejected. The installed skill must remain unchanged during each run.
+
+## Bounded native delivery check
+
+The policy and paired harnesses cannot establish delivery through a real persisted queue. Check
+that separately only against an existing, explicitly authorized test task with a supported native
+observation route. Do not use an unrelated task or create a user-visible task merely to fill this
+evidence gap. Follow the provider's exact identity, conversation-first and contact rules.
+
+Use one harmless scratch action with a unique action ID, revision and nonce, a designated scratch
+output, and an agreed observation deadline. Capture the receiver's action-bound disposition and
+independently read back the resulting bytes or other required evidence. Apply the
+[message contract's bounded observation](message-contract.md#bound-the-observation-before-sending):
+queue acceptance alone is delivery evidence, and an absent response at the deadline stays pending.
+Do not resend or resume to make the check pass. Record the tested provider/route and observed
+result; one successful live-subagent check does not establish persisted-queue behavior or general
+delivery reliability. Missing test-target authority or observation capability is an explicit
+verification limit, not a failed delivery.

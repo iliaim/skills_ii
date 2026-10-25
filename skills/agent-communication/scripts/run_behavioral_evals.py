@@ -177,15 +177,18 @@ class HarnessError(RuntimeError):
     pass
 
 
-def _load_json_configuration(path: Path) -> Any:
+def _load_json_configuration(path: Path, input_hashes: dict[str, str] | None = None) -> Any:
     try:
-        return json.loads(path.read_text())
+        raw = path.read_bytes()
+        if input_hashes is not None:
+            input_hashes[path.name] = hashlib.sha256(raw).hexdigest()
+        return json.loads(raw)
     except json.JSONDecodeError as exc:
         raise HarnessError(f"invalid JSON configuration at {path}: {exc}") from exc
 
 
-def load_catalog(path: Path) -> list[dict[str, Any]]:
-    payload = _load_json_configuration(path)
+def load_catalog(path: Path, input_hashes: dict[str, str] | None = None) -> list[dict[str, Any]]:
+    payload = _load_json_configuration(path, input_hashes)
     if not isinstance(payload, dict) or not isinstance(payload.get("evals"), list):
         raise HarnessError(f"invalid eval catalog shape: {path}")
     evals = payload["evals"]
@@ -211,8 +214,8 @@ def load_catalog(path: Path) -> list[dict[str, Any]]:
     return evals
 
 
-def load_scenarios(path: Path) -> list[dict[str, Any]]:
-    payload = _load_json_configuration(path)
+def load_scenarios(path: Path, input_hashes: dict[str, str] | None = None) -> list[dict[str, Any]]:
+    payload = _load_json_configuration(path, input_hashes)
     if not isinstance(payload, dict) or payload.get("schema_version") != 1:
         raise HarnessError(f"unsupported scenario manifest: {path}")
     scenarios = payload.get("scenarios")
@@ -740,8 +743,8 @@ def preflight_disabled_features(codex_bin: str, timeout: int = 30) -> None:
         raise HarnessError(f"cannot prove tool surfaces disabled: {', '.join(unresolved)}")
 
 
-def load_mutation(path: Path) -> dict[str, Any]:
-    payload = _load_json_configuration(path)
+def load_mutation(path: Path, input_hashes: dict[str, str] | None = None) -> dict[str, Any]:
+    payload = _load_json_configuration(path, input_hashes)
     if not isinstance(payload, dict):
         raise HarnessError(f"mutation configuration at {path} must be an object")
     required = {"id", "eval_id", "target", "replace", "expected_violation"}
@@ -787,6 +790,14 @@ def _assert_file_hashes_unchanged(root: Path, before: dict[Path, str]) -> None:
         raise HarnessError(f"installed skill changed during eval: changed={changed}, added={added}")
 
 
+def _assert_hash_maps_equal(expected: dict[Path, str], actual: dict[Path, str], label: str) -> None:
+    changed = sorted(str(path) for path in expected.keys() & actual.keys() if expected[path] != actual[path])
+    missing = sorted(str(path) for path in expected.keys() - actual.keys())
+    added = sorted(str(path) for path in actual.keys() - expected.keys())
+    if changed or missing or added:
+        raise HarnessError(f"{label} does not match its recorded source snapshot: changed={changed}, missing={missing}, added={added}")
+
+
 def resolve_mutation_target(skill_root: Path, mutation: dict[str, Any]) -> Path:
     root = skill_root.resolve()
     relative = Path(mutation["target"])
@@ -827,12 +838,12 @@ def apply_mutation(skill_root: Path, mutation: dict[str, Any]) -> Path:
     return target
 
 
-def validate_result_schema(result: Any, schema_path: Path) -> None:
+def validate_result_schema(result: Any, schema_path: Path, schema_bytes: bytes | None = None) -> None:
     try:
         import jsonschema
     except ImportError as exc:  # pragma: no cover - environment dependency
         raise HarnessError("jsonschema is required for independent result validation") from exc
-    schema = json.loads(schema_path.read_text())
+    schema = json.loads(schema_bytes if schema_bytes is not None else schema_path.read_bytes())
     try:
         jsonschema.validate(instance=result, schema=schema)
     except jsonschema.ValidationError as exc:
@@ -840,9 +851,11 @@ def validate_result_schema(result: Any, schema_path: Path) -> None:
         raise HarnessError(f"structured result failed local schema validation at {location}: {exc.message}") from exc
 
 
-def write_provider_output_schema(generic_schema_path: Path, provider_schema_path: Path) -> None:
+def write_provider_output_schema(
+    generic_schema_path: Path, provider_schema_path: Path, schema_bytes: bytes | None = None
+) -> None:
     """Adapt the optional generic schema to Codex's strict output-schema requirements."""
-    schema = json.loads(generic_schema_path.read_text())
+    schema = json.loads(schema_bytes if schema_bytes is not None else generic_schema_path.read_bytes())
     def require_object_properties(node: Any) -> None:
         if isinstance(node, dict):
             if node.get("type") == "object":
@@ -938,11 +951,20 @@ def run_once(
     model: str | None,
     timeout: int,
     mutation: dict[str, Any] | None,
+    input_hashes: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     installed_hashes = _file_hashes(installed_root)
+    for relative, key in (
+        (Path("evals/evals.json"), "catalog_sha256"),
+        (Path("evals/scenarios.json"), "scenarios_sha256"),
+    ):
+        consumed_hash = (input_hashes or {}).get(key)
+        if consumed_hash is not None and installed_hashes.get(relative) != consumed_hash:
+            raise HarnessError(f"{relative} changed after its configuration snapshot was loaded")
     with tempfile.TemporaryDirectory(prefix="agent-communication-eval-") as tmp:
         temp_root = Path(tmp) / "agent-communication"
         shutil.copytree(installed_root, temp_root)
+        _assert_hash_maps_equal(installed_hashes, _file_hashes(temp_root), "copied skill tree")
         mutation_record = None
         if mutation:
             mutated_path, before = prepare_mutation(temp_root, mutation)
@@ -953,9 +975,20 @@ def run_once(
                 "before_sha256": before,
                 "after_sha256": _sha256(mutated_path),
             }
+        candidate_hashes = _file_hashes(temp_root)
+        expected_candidate_hashes = dict(installed_hashes)
+        if mutation_record:
+            relative_target = Path(mutation_record["target"])
+            expected_candidate_hashes[relative_target] = mutation_record["after_sha256"]
+        _assert_hash_maps_equal(expected_candidate_hashes, candidate_hashes, "candidate skill tree")
+        result_schema_path = temp_root / "evals" / "result.schema.json"
+        result_schema_bytes = result_schema_path.read_bytes()
+        result_schema_hash = hashlib.sha256(result_schema_bytes).hexdigest()
+        if result_schema_hash != candidate_hashes[Path("evals/result.schema.json")]:
+            raise HarnessError("result schema changed after its candidate snapshot was recorded")
         output_path = Path(tmp) / "result.json"
         provider_schema_path = Path(tmp) / "result.provider.schema.json"
-        write_provider_output_schema(temp_root / "evals" / "result.schema.json", provider_schema_path)
+        write_provider_output_schema(result_schema_path, provider_schema_path, result_schema_bytes)
         command = build_codex_command(
             codex_bin=codex_bin,
             cwd=temp_root,
@@ -983,11 +1016,20 @@ def run_once(
         except json.JSONDecodeError as exc:
             raise HarnessError(f"invalid structured final result: {exc}") from exc
         validate_result_schema(result, provider_schema_path)
-        validate_result_schema(result, temp_root / "evals" / "result.schema.json")
+        validate_result_schema(result, result_schema_path, result_schema_bytes)
         grade = grade_result(scenario, result)
 
+        _assert_hash_maps_equal(candidate_hashes, _file_hashes(temp_root), "evaluated candidate skill tree")
     _assert_file_hashes_unchanged(installed_root, installed_hashes)
-    return {"result": result, "grade": grade, "mutation": mutation_record}
+    provenance = {
+        "installed_skill_sha256": {str(path): digest for path, digest in sorted(installed_hashes.items())},
+        "candidate_skill_sha256": {str(path): digest for path, digest in sorted(candidate_hashes.items())},
+        "catalog_sha256": (input_hashes or {}).get("catalog_sha256"),
+        "scenarios_sha256": (input_hashes or {}).get("scenarios_sha256"),
+        "result_schema_sha256": result_schema_hash,
+        "mutation_config_sha256": (input_hashes or {}).get("mutation_config_sha256"),
+    }
+    return {"result": result, "grade": grade, "mutation": mutation_record, "provenance": provenance}
 
 
 def validate_coverage(catalog: list[dict[str, Any]], scenarios: list[dict[str, Any]]) -> None:
@@ -1009,6 +1051,7 @@ def compact_report(report: dict[str, Any]) -> dict[str, Any]:
                 "status": item["status"],
                 "failures": item["failures"],
                 "mutation": item["mutation"],
+                **({"provenance": item["provenance"]} if "provenance" in item else {}),
             }
             for item in report["runs"]
         ],
@@ -1030,8 +1073,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        catalog = load_catalog(SKILL_ROOT / "evals" / "evals.json")
-        scenarios = load_scenarios(SKILL_ROOT / "evals" / "scenarios.json")
+        catalog_path = SKILL_ROOT / "evals" / "evals.json"
+        scenarios_path = SKILL_ROOT / "evals" / "scenarios.json"
+        catalog_input_hashes: dict[str, str] = {}
+        scenarios_input_hashes: dict[str, str] = {}
+        input_hashes: dict[str, str] = {}
+        catalog = load_catalog(catalog_path, catalog_input_hashes)
+        scenarios = load_scenarios(scenarios_path, scenarios_input_hashes)
+        input_hashes["catalog_sha256"] = catalog_input_hashes[catalog_path.name]
+        input_hashes["scenarios_sha256"] = scenarios_input_hashes[scenarios_path.name]
         validate_coverage(catalog, scenarios)
         if args.list:
             print(json.dumps({"eval_ids": [entry["id"] for entry in catalog]}, indent=2))
@@ -1040,7 +1090,12 @@ def main(argv: list[str] | None = None) -> int:
         unknown = selected - {entry["id"] for entry in catalog}
         if unknown:
             raise HarnessError(f"unknown eval IDs: {sorted(unknown)}")
-        mutation = load_mutation(args.mutation) if args.mutation else None
+        if args.mutation:
+            mutation_input_hashes: dict[str, str] = {}
+            mutation = load_mutation(args.mutation, mutation_input_hashes)
+            input_hashes["mutation_config_sha256"] = mutation_input_hashes[args.mutation.name]
+        else:
+            mutation = None
         if mutation and mutation["eval_id"] not in selected:
             raise HarnessError("mutation eval_id must be among the selected evals")
         preflight_disabled_features(args.codex_bin)
@@ -1063,6 +1118,7 @@ def main(argv: list[str] | None = None) -> int:
                         model=args.model,
                         timeout=args.timeout,
                         mutation=mutation if mutation and mutation["eval_id"] == entry["id"] else None,
+                        input_hashes=input_hashes,
                     )
                 except (HarnessError, OSError, subprocess.SubprocessError) as exc:
                     harness_errors += 1
@@ -1073,6 +1129,7 @@ def main(argv: list[str] | None = None) -> int:
                             "status": "HARNESS_ERROR",
                             "failures": [str(exc)],
                             "mutation": None,
+                            "provenance": None,
                         }
                     )
                     continue
@@ -1089,6 +1146,7 @@ def main(argv: list[str] | None = None) -> int:
                             "facts": outcome["result"].get("facts"),
                         },
                         "mutation": outcome["mutation"],
+                        "provenance": outcome.get("provenance"),
                     }
                 )
         passes = sum(item["status"] == "PASS" for item in report["runs"])

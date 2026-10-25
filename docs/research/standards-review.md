@@ -375,3 +375,47 @@ synthetic JSONL fixture: both CLI calls exited 0, returned identical metadata an
 content. A fresh Luna source reviewer found no remaining actionable defect in raw-read bounds,
 descriptor cleanup, regressions or installation documentation. No private transcript was inspected.
 The PR holds CI, merge and delivery status; the preserved backup remains available for recovery.
+
+## Cold-review verification repairs (2026-10-25)
+
+Fresh Luna reviewers challenged both merged changes. Two proposed routing/path-race findings were
+withdrawn after scoped probes showed no material defect. The review confirmed two assurance gaps:
+case 49 did not machine-check completion separately from execution, and behavioral reports lacked
+hashes binding their results to the inputs consumed. These repairs change evaluation evidence only;
+the communication protocol and installed provider routes are unchanged.
+
+Case 49 now requires `completion_verified: false` when the operation is observed but required
+verification is absent. The parent reproduced the same false-completion result passing the previous
+scenario and failing the repaired scenario. Negative controls also reject a missing completion fact.
+This checks the structured conclusion; arbitrary explanatory prose still requires human review.
+
+New behavioral reports retain per-run execution-time hashes for the installed and evaluated skill
+files and consumed catalog, scenarios, result schema and mutation configuration. Mutated candidates
+are distinct from their installed source. Compact output preserves provenance, and changed inputs
+cannot produce a normal graded result with a misleading candidate binding. Existing retained reports
+remain unchanged; their missing input hashes cannot be supplied retrospectively.
+
+The cold review also performed one controlled live-subagent action with a unique action ID, revision
+and nonce. The recipient's result matched the parent's independent scratch-artifact read-back and
+SHA-256 check. That establishes one live-subagent result only. Persisted queue delivery remains
+unverified: the installed CLI exposes the queue command, but no existing test chat was designated
+for a live send. The evaluation methodology now describes a bounded native check using an authorized
+test task, independent action evidence and a deadline; absence of a response stays pending without
+redispatch. No unrelated chat or private transcript was used to fill this evidence gap.
+
+Verification commands:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider skills
+PYTHONDONTWRITEBYTECODE=1 python3 skills/agent-communication/scripts/run_behavioral_evals.py --eval 49 --runs 2 --model gpt-6-luna --codex-bin /opt/homebrew/bin/codex
+PYTHONDONTWRITEBYTECODE=1 python3 /Volumes/MacSSD/Developer/Codex/State/skills/.system/skill-creator/scripts/quick_validate.py skills/agent-communication
+git diff --check
+```
+
+Results: 204 tests and 246 subtests passed; two fresh case-49 runs passed with no harness errors,
+both retaining `completion_verified: false`. The parent independently compared every reported
+source/candidate file hash and catalog/scenario/schema digest with the frozen inputs. The new runs
+are retained under `completion-provenance-verified` in the existing
+[synthetic evidence record](communication-reliability-evidence.json). Package validation and
+whitespace checks passed. A separate cold Luna review found no actionable completion-guard defect;
+the PR records final provenance review, CI and merge status.

@@ -81,6 +81,7 @@
         "observation_health": {"enum": ["connected", "waiting", "reconciling", "unknown", "not_applicable"]},
         "progress_changed": {"type": "boolean"},
         "progress_kind": {"enum": ["phase_change", "evidence_added", "blocker_opened", "blocker_cleared", "attention_acknowledged", "verification_complete", "no_change", "unknown", "not_applicable"]},
+        "completion_verified": {"type": "boolean"},
         "native_revision_or_turn": {"type": ["string", "null"]},
         "report_identity_or_digest": {"type": ["string", "null"]},
         "attention_state": {"enum": ["none", "pending", "acknowledged", "unacknowledged", null]},
