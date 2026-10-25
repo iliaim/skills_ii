@@ -322,3 +322,56 @@ artifacts and required reports instead of trusting an ACK or a model's completio
 Final checkpoint: research and implementation verified locally; independent source reviews report
 no remaining actionable findings; normal PR/CI delivery is next. The PR is the authoritative delivery
 record; no host controllers, private session stores, Hermes or FightCard source were modified.
+
+## Installation reconciliation and bounded I/O follow-up (2026-10-25)
+
+The user authorized completing the remaining setup and iterating on confirmed improvements.
+Scope: reconcile the older Claude installation, document shared-checkout installation, and repair
+reproduced metadata-inspector I/O/cleanup defects. No provider session, host controller, dependency
+or communication transport change is needed. Acceptance is unchanged helper output semantics,
+an actual underlying read count within the configured cap, closed file/directory descriptors on
+failures, and all four installed packages resolving to this checkout with complete sibling references.
+
+A separate Luna comparison found no unique useful rule in the older Claude skill that the current
+packages lack. Do not restore its old mtime/FD/process-absence test as proof of safe continuation,
+or its treatment of resume as contact. Preserve the original whole directory as a backup outside
+active skill discovery, then link all four full sibling packages to the repository. This avoids
+maintaining another instruction copy or building an installer/update service.
+
+The existing Claude file was preserved at
+`~/.claude/skill-backups/20261025T171940.961147Z/agent-communication/SKILL.md` with SHA-256
+`2fb4d9747fb0baf3b3d6d7c0469188b72e2197ed876e60c7748585f7f06c45e1` before and after the move.
+Claude's configured root matched the reconciled default root. Direct verification checked all four
+package trees against the repository at both Claude's and Codex's installed paths, plus 58 relative
+targets per installation with no missing targets. Installed runtime discovery in a fresh Claude
+conversation remains separate from these verified filesystem facts; no session was started to test it.
+
+A fresh Luna audit and parent reproductions found two concrete defects in the new inspector:
+
+- Default Python buffering could read a whole 100,004-byte synthetic file when the logical scan cap
+  was one byte. Keep buffered line parsing, but cap the raw `readinto` operation beneath the buffer.
+  Making the entire reader unbuffered was rejected because raw `readline` can incur per-byte I/O.
+- Scan/read/stat failures closed the file but skipped the opened parent directory descriptor.
+  Enclose scanning and snapshot checking in one outer cleanup boundary so both descriptors close.
+
+Six new regression instances failed against the previous implementation: three underlying byte-cap
+checks and three read/stat/snapshot error-cleanup checks. All 28 inspector tests then passed after
+the focused repair. The public `inspect` arguments and metadata fields are unchanged; the new
+parameter belongs only to the private file-opening helper. No communication contract or model
+grader change was needed, so settled message-policy evidence was retained rather than rerun.
+
+Final follow-up checks:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q skills/agent-session-investigation/tests/test_inspect_jsonl.py
+PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q skills
+python3 /Volumes/MacSSD/Developer/Codex/State/skills/.system/skill-creator/scripts/quick_validate.py skills/agent-session-investigation
+git diff --check
+```
+
+Results: 28 inspector tests passed; the full suite passed 198 tests and 246 subtests; package and
+whitespace validation passed. The helper was also invoked via both installed provider paths on one
+synthetic JSONL fixture: both CLI calls exited 0, returned identical metadata and omitted fixture
+content. A fresh Luna source reviewer found no remaining actionable defect in raw-read bounds,
+descriptor cleanup, regressions or installation documentation. No private transcript was inspected.
+The PR holds CI, merge and delivery status; the preserved backup remains available for recovery.

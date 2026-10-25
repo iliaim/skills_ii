@@ -43,8 +43,9 @@ The repository-relative command assumes this checkout; an installed skill uses i
 path. The helper reads one regular file without printing text, paths, IDs or arbitrary record labels.
 It reports structural counts, scanned physical line/byte ranges, parse gaps, read limits and snapshot
 stability. The helper's physical line/byte coordinates are 1-based. Defaults are 10,000 physical
-lines, 1 MB per line and 16 MB total, including oversized-line
-draining. Raising a bound is a deliberate scoped read, never evidence that the earlier sample was complete.
+lines, 1 MB per line and 16 MB total. The total cap includes underlying file reads, buffering and
+oversized-line draining. Raising a bound is a deliberate scoped read, never evidence that the earlier
+sample was complete.
 It supports uncompressed JSONL only. For another source format use the provider's documented bounded
 read-only route; do not decompress in place or pretend the helper supports it.
 
