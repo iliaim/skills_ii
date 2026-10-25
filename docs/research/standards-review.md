@@ -455,3 +455,11 @@ An immediate wait can return the old bootstrap completion before the queued turn
 the exact incoming request and its own action-bound result. No new harness, queue consumer, retry
 service, production helper or dependency was added. These two same-chat observations establish the
 tested route and result only, not general delivery reliability or exactly-once execution.
+
+Final cold review used four fresh Luna reviewers across implementation, retained native evidence,
+protocol consistency and simplicity. No material code or native-evidence defect was found. The
+parent also performed a fresh exact native read of both action turns: their incoming and assistant
+messages matched the retained captures, and the current 135-byte artifact still matched the
+revision-2 values and hash. Two wording clarifications distinguish transport acceptance from receiver
+receipt and directory-integrity snapshots from model-visible inputs, including the possible presence
+of generated caches. No integrity guard, report format, runtime behavior or dependency changed.

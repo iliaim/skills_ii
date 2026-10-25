@@ -55,6 +55,9 @@ Each completed behavioral run retains execution-time SHA-256 provenance for the 
 the evaluated candidate (after any mutation), the catalog, scenarios, result schema and any mutation
 configuration. Compact output preserves this provenance. Historical reports without these fields
 remain historical evidence; hashing today's files cannot bind them retroactively.
+The directory maps record snapshot integrity and can include existing generated caches, so cache
+differences can change the maps between runs. The prompt composition described above determines
+the model-visible task content.
 
 CLI plans use tokenized `argv` arrays only. The output schema rejects raw shell command fields, while
 the deterministic grader rejects shell wrappers, destructive executables, pipelines, redirects, and
@@ -220,7 +223,8 @@ Use one harmless scratch action with a unique action ID, revision and nonce, a d
 output, and an agreed observation deadline. Capture the receiver's action-bound disposition and
 independently read back the resulting bytes or other required evidence. Apply the
 [message contract's bounded observation](message-contract.md#bound-the-observation-before-sending):
-queue acceptance alone is delivery evidence, and an absent response at the deadline stays pending.
+queue acceptance proves delivery to the transport only. Confirm receiver receipt and disposition
+from the exact native record. An absent response at the deadline stays pending.
 Do not resend or resume to make the check pass. Record the tested provider/route and observed
 result; one successful live-subagent check does not establish persisted-queue behavior or general
 delivery reliability. Missing test-target authority or observation capability is an explicit
