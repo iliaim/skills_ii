@@ -8,6 +8,7 @@ scan metadata, never source content or paths.
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
 import stat
@@ -37,6 +38,19 @@ class UnsafeInput(ValueError):
     """Input cannot be safely inspected under the file contract."""
 
 
+class _BudgetedFile(io.FileIO):
+    """Cap raw reads before buffering, including BufferedReader read-ahead."""
+
+    def __init__(self, fd: int, budget: int):
+        self.remaining = budget
+        super().__init__(fd, mode="rb")
+
+    def readinto(self, buffer):
+        count = super().readinto(memoryview(buffer)[:self.remaining])
+        self.remaining -= count or 0
+        return count
+
+
 def _positive_limit(value: str) -> int:
     try:
         parsed = int(value, 10)
@@ -57,7 +71,7 @@ def _absolute_path(path: Path) -> Path:
     return absolute
 
 
-def _open_regular(path: Path) -> tuple[BinaryIO, os.stat_result, Path, int, str]:
+def _open_regular(path: Path, byte_budget: int) -> tuple[BinaryIO, os.stat_result, Path, int, str]:
     """Open via no-follow directory descriptors so parent swaps cannot redirect it."""
     absolute = _absolute_path(path)
     directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
@@ -76,7 +90,13 @@ def _open_regular(path: Path) -> tuple[BinaryIO, os.stat_result, Path, int, str]
             raise UnsafeInput("input is unavailable or unsafe")
         if (descriptor_stat.st_dev, descriptor_stat.st_ino) != (path_stat.st_dev, path_stat.st_ino):
             raise UnsafeInput("input is unavailable or unsafe")
-        handle = os.fdopen(file_fd, "rb")
+        raw = _BudgetedFile(file_fd, byte_budget)
+        try:
+            handle = io.BufferedReader(raw)
+        except Exception:
+            raw.close()
+            file_fd = None
+            raise
         file_fd = None
         return handle, descriptor_stat, absolute, directory_fd, absolute.name
     except Exception as exc:
@@ -159,7 +179,7 @@ def inspect(
     complete = False
     after_fd: os.stat_result | None = None
 
-    handle, before_fd, absolute, parent_fd, basename = _open_regular(Path(path))
+    handle, before_fd, absolute, parent_fd, basename = _open_regular(Path(path), max_total_bytes)
     try:
         with handle:
             while True:
@@ -235,12 +255,13 @@ def inspect(
                     stopped_reason = "max_total_bytes"
                     break
             after_fd = os.fstat(handle.fileno())
+        stable = after_fd is not None and _stable(before_fd, after_fd, absolute, parent_fd, basename)
     finally:
-        if not handle.closed:
-            handle.close()
-
-    stable = after_fd is not None and _stable(before_fd, after_fd, absolute, parent_fd, basename)
-    os.close(parent_fd)
+        try:
+            if not handle.closed:
+                handle.close()
+        finally:
+            os.close(parent_fd)
     if stable and not complete and physical_lines >= max_records and bytes_scanned == before_fd.st_size:
         complete = True
         stopped_reason = "eof"

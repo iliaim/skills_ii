@@ -21,6 +21,14 @@ instructions and a read-only inspection helper; installation does not create a r
 queue consumer, watchdog or observer. Reliable follow-through still needs an active owner and a
 supported bounded observation route. Changes here do not modify Hermes or FightCard installations.
 
+For a shared local checkout, link each complete package into the provider's skill directory:
+`$CODEX_HOME/skills` (default `~/.codex/skills`) or `$CLAUDE_CONFIG_DIR/skills` (default
+`~/.claude/skills`). Preserve an older installation outside those discovery directories before
+replacing it; a backup left inside `skills/` can still expose conflicting instructions. Linking the
+full packages keeps references and helper scripts together and avoids separate copies drifting.
+Afterward, verify each entrypoint and sibling reference resolves to the intended checkout. Existing
+conversations can retain loaded instructions; verify discovery separately in a fresh conversation.
+
 ## Offline validation
 
 Run from the repository root with Python 3.14 (the version used by CI):

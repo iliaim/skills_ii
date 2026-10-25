@@ -91,6 +91,100 @@ def test_huge_line_drain_stops_at_total_budget(tmp_path):
     assert not scan["complete"]
 
 
+@pytest.mark.parametrize("budget,line_limit", [(1, 64), (1024, 64), (9000, 10000)])
+def test_byte_budget_caps_underlying_io_not_just_reported_bytes(tmp_path, monkeypatch, budget, line_limit):
+    source = tmp_path / "large.jsonl"
+    source.write_bytes(b"x" * 100_000 + b"\n{}\n")
+    real_open = inspector._open_regular
+    positions = []
+
+    class ObservedReader:
+        def __init__(self, handle):
+            self.handle = handle
+
+        def readline(self, limit):
+            result = self.handle.readline(limit)
+            positions.append(os.lseek(self.handle.fileno(), 0, os.SEEK_CUR))
+            return result
+
+        def __getattr__(self, name):
+            return getattr(self.handle, name)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.handle.close()
+
+    def observed_open(*args, **kwargs):
+        handle, *metadata = real_open(*args, **kwargs)
+        return ObservedReader(handle), *metadata
+
+    monkeypatch.setattr(inspector, "_open_regular", observed_open)
+    scan = run(source, max_total_bytes=budget, max_line_bytes=line_limit)["scan"]
+    assert scan["bytes"] <= budget
+    assert positions and max(positions) <= budget
+    assert not scan["complete"]
+
+
+@pytest.mark.parametrize("failure", ["readline", "fstat", "stability"])
+def test_inspection_error_closes_file_and_parent_descriptors(tmp_path, monkeypatch, failure):
+    source = tmp_path / "error.jsonl"
+    source.write_text("{}\n")
+    real_open = inspector._open_regular
+    real_fstat = inspector.os.fstat
+    descriptors = []
+
+    class FailingReader:
+        def __init__(self, handle):
+            self.handle = handle
+
+        def readline(self, limit):
+            if failure == "readline":
+                raise OSError("synthetic read failure")
+            return self.handle.readline(limit)
+
+        def __getattr__(self, name):
+            return getattr(self.handle, name)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.handle.close()
+
+    def failing_open(*args, **kwargs):
+        handle, before, absolute, parent_fd, basename = real_open(*args, **kwargs)
+        descriptors.extend([handle.fileno(), parent_fd])
+        return FailingReader(handle), before, absolute, parent_fd, basename
+
+    def failing_fstat(fd):
+        if failure == "fstat" and descriptors and fd == descriptors[0]:
+            raise OSError("synthetic stat failure")
+        return real_fstat(fd)
+
+    def failing_stability(*args):
+        raise OSError("synthetic stability failure")
+
+    monkeypatch.setattr(inspector, "_open_regular", failing_open)
+    monkeypatch.setattr(inspector.os, "fstat", failing_fstat)
+    if failure == "stability":
+        monkeypatch.setattr(inspector, "_stable", failing_stability)
+    with pytest.raises(OSError):
+        run(source)
+    assert len(descriptors) == 2
+    for fd in descriptors:
+        try:
+            with pytest.raises(OSError):
+                real_fstat(fd)
+        finally:
+            # Keep the deliberately failing old-code run from leaking test fds.
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+
 def test_exact_byte_cap_at_eof_is_complete(tmp_path):
     source = tmp_path / "exact.jsonl"
     source.write_bytes(b'{"type":"message"}\n')
