@@ -2,6 +2,10 @@
 
 Read this reference only after an exact Codex task ID is known and local rollout or filesystem/database freshness evidence is actually needed. Native `list_threads` and `read_thread` remain authoritative for task status and for ChatGPT-backed tasks.
 
+For artifact inspection, apply [agent-session-investigation](../../agent-session-investigation/SKILL.md)'s
+metadata-first, bounded-read and snapshot procedure to the already selected source. Do not restart
+task discovery. Its helper supports plain JSONL; it neither resolves identity nor reads databases.
+
 ## Where local Codex transcripts live
 
 Define the config root as `CODEX_HOME` when set, otherwise `~/.codex`. Persisted local Codex rollouts normally live at:
@@ -10,44 +14,54 @@ Define the config root as `CODEX_HOME` when set, otherwise `~/.codex`. Persisted
 <codex-root>/sessions/YYYY/MM/DD/rollout-<timestamp>-<thread-id>.jsonl
 ```
 
-Given an exact UUID task ID, locate candidates without reading message bodies:
+First use an exact `threads.id` to `rollout_path` mapping when the known state root exposes it
+(below). Given a validated exact UUID, a filename lookup is only a fallback candidate finder:
 
 ```sh
 CODEX_TRANSCRIPT_ROOT="${CODEX_HOME:-$HOME/.codex}"
 find "$CODEX_TRANSCRIPT_ROOT/sessions" -type f -name "rollout-*-${THREAD_ID}.jsonl*" -print
 ```
 
-Older rollouts may be stored compressed as `.jsonl.zst`. Pipe `zstd -dc FILE` into the `jq` commands
-below instead of passing the file, and never decompress a rollout in place.
+Older rollouts may be stored compressed as `.jsonl.zst`. Use a bounded read-only decoder if needed;
+the JSONL helper does not support compressed input. Never decompress in place or emit an unbounded
+decoded stream to the model.
 
-Validate that the candidate contains the exact ID and a corroborating working directory. A rollout can contain earlier migration or compaction metadata, so do not require every `session_meta` row to carry only one ID:
+Validate the candidate's canonical `session_meta.payload.id` and a corroborating working directory
+through a bounded metadata projection after structural inspection. A filename suffix and
+`payload.session_id` can refer to lineage; neither confirms the child thread's identity. Preserve
+earlier migration/compaction metadata separately and report conflicting canonical IDs as unresolved:
 
-```sh
-jq -r --arg id "$THREAD_ID" '
-  select(
-    .type == "session_meta"
-    and ((.payload.id // "") == $id or (.payload.session_id // "") == $id)
-  )
-  | [$id, (.payload.cwd // "")]
-  | @tsv
-' "$TRANSCRIPT" | tail -n 1
-```
+In that bounded host read, select `type == session_meta`, require `payload.id == THREAD_ID`,
+and retain only the canonical ID and needed `payload.cwd` corroboration. Do not substitute
+`payload.session_id`, accept the last match while discarding conflicts, or pipe an entire rollout
+through a content-emitting query.
 
 The current macOS implementation uses a versioned `state_*.sqlite` database whose `threads` table records the exact `rollout_path`, and versioned `thread_history_*.sqlite` files for transcript projections. Their names and schemas are internal and can change.
 
-When native evidence is unavailable or contradictory, validate that `THREAD_ID` is an exact UUID, then feature-detect every candidate instead of guessing a version:
+When native evidence is unavailable or contradictory, validate that `THREAD_ID` is an exact UUID,
+then feature-detect databases in the known root instead of guessing a version. Bound lock waits,
+read in place and close each connection immediately. A busy/failed store is unavailable evidence;
+do not retry it or copy it to bypass live access:
 
 ```zsh
 find "$CODEX_TRANSCRIPT_ROOT" -maxdepth 1 -type f -name 'state_*.sqlite' -print0 |
 while IFS= read -r -d '' CODEX_STATE_DB; do
-  REQUIRED_COLUMNS="$(sqlite3 -readonly "$CODEX_STATE_DB" "SELECT count(*) FROM pragma_table_info('threads') WHERE name IN ('id','rollout_path','cwd','updated_at_ms','recency_at_ms');")" || continue
-  test "$REQUIRED_COLUMNS" = "5" || continue
+  REQUIRED_COLUMNS="$(sqlite3 -readonly "$CODEX_STATE_DB" ".timeout 250" "PRAGMA query_only=ON; SELECT count(*) FROM pragma_table_info('threads') WHERE name IN ('id','rollout_path','cwd');")" || continue
+  test "$REQUIRED_COLUMNS" = "3" || continue
 
-  sqlite3 -readonly -separator $'\t' "$CODEX_STATE_DB" ".parameter init" ".parameter set @thread_id '$THREAD_ID'" "SELECT id, rollout_path, cwd, updated_at_ms, recency_at_ms FROM threads WHERE id = @thread_id;"
+  sqlite3 -readonly -separator $'\t' "$CODEX_STATE_DB" ".timeout 250" ".parameter init" ".parameter set @thread_id \"'$THREAD_ID'\"" "PRAGMA query_only=ON; SELECT id, rollout_path, cwd FROM threads WHERE id = @thread_id LIMIT 2;"
 done
 ```
 
-Query databases in place so SQLite can read current WAL sidecars. Exactly one matching ID/path is usable corroboration; zero or conflicting matches leave the local mapping `unknown`. Never write `queue_*.sqlite`, copy a live database away from its WAL merely for freshness, or modify any provider database directly. Apply the same table/column feature detection before inspecting a `thread_history_*.sqlite` projection.
+Query databases in place so SQLite can read current WAL sidecars. Exactly one matching ID/path,
+confirmed by canonical rollout ID, is usable corroboration; zero or conflicting matches leave the
+local mapping `unknown`. A database mapping alone cannot override conflicting rollout identity.
+The CLI binds the validated UUID in connection-local temporary parameter state before enabling
+`query_only`; enabling it first prevents that binding. The provider file is opened `-readonly`
+throughout. In a host language prefer the driver's parameter binding with `mode=ro`, private cache,
+`query_only=ON` and a short busy timeout; never interpolate an unvalidated ID into SQL.
+Never write `queue_*.sqlite`, copy a live database away from its WAL merely for freshness, or modify
+any provider database directly. Apply the same schema detection to a history projection.
 
 Query by the exact task ID only. Do not select or search `title`, summary, prompt, or message columns,
 and do not use `LIKE` discovery: local titles can contain an entire initial prompt, so broad matching
@@ -69,11 +83,9 @@ stat -f 'path=%N bytes=%z modified_epoch=%m modified=%Sm' -t '%Y-%m-%dT%H:%M:%S%
 
 On Linux or Git Bash: `stat -c 'path=%n bytes=%s modified_epoch=%Y modified=%y' "$TRANSCRIPT"`.
 
-Extract only the last persisted record timestamp:
-
-```sh
-jq -r 'select(.timestamp? != null) | .timestamp' "$TRANSCRIPT" | tail -n 1
-```
+After the bounded structural pass, project only the last parseable record timestamp in a host
+process; accept valid timestamp syntax rather than emit arbitrary strings from a `timestamp` field.
+Retain source identity/size/mtime before and after this read. A changing or capped read is incomplete.
 
 Report these separately:
 
@@ -87,27 +99,18 @@ Report these separately:
 
 ## Read the answer to a message you sent
 
-Prefer the place the request named for its answer. Otherwise read the exact rollout after your label
-line, decoding a `.jsonl.zst` file on each read:
+Prefer the canonical answer location or a bounded native read. For a fallback, use the investigation
+skill's scoped local projection after metadata inspection. Parse physical records; match the exact
+label in an incoming user/message item's dialogue, never by raw substring over the whole file.
+Then select only a later receiver-authored disposition/result bound to the action **and revision**.
+Return receipt/disposition classification and physical provenance first; quote a bounded, locally
+redacted excerpt only when needed and authorized. Never emit all later assistant `content`.
 
-```sh
-rollout_cat() { case "$1" in *.zst) zstd -dcq -- "$1" ;; *) cat -- "$1" ;; esac; }
-export LABEL_JSON="$(jq -nr --arg l "$LABEL" '$l | tojson | .[1:-1]')"  # rollouts store it escaped
-if [ -n "$LABEL_JSON" ] && rollout_cat "$ROLLOUT" >/dev/null; then
-  rollout_cat "$ROLLOUT" | grep -c -F -- "$LABEL_JSON"
-  rollout_cat "$ROLLOUT" | awk 'seen; index($0, ENVIRON["LABEL_JSON"]) { seen = 1 }' |
-    jq -cR 'fromjson? | select(.type == "response_item" and .payload.role? == "assistant")
-      | {phase: .payload.phase?, content: .payload.content}'
-else
-  echo 'answer: unreadable'
-fi
-```
-
-`answer: unreadable` (for example, `jq` or `zstd` is missing) means you cannot tell. A count of 0
-means your label has not arrived; classify it as the routes reference's step 2 does. A `commentary`
-phase is progress, not the answer, and only a record that names your ref or action answers you
-([routes](cross-provider-routes.md#find-out-what-happened)). Record shapes are internal: if no
-assistant record follows your label once the receiver is idle, report the answer as unreadable.
+Unparseable, changing, capped or unavailable evidence leaves receipt/answer unconfirmed. Zero matches
+in a bounded slice proves only that the message was not observed there. Commentary or a newer turn
+is not automatically progress; require action-bound evidence. Only a correlated disposition/result
+answers the request; a final-phase record alone proves nothing further. Apply
+[the route classification](cross-provider-routes.md#find-out-what-happened) without replay or resume.
 
 ## Privacy boundary
 

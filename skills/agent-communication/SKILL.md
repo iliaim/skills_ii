@@ -1,11 +1,17 @@
 ---
 name: agent-communication
-description: Find, inspect, contact, or continue existing tasks, process incoming task messages with explicit execution ownership, and inspect Codex or Claude session evidence. Route new Codex/ChatGPT task creation to delegate-to-thread.
+description: Find, inspect, contact, or continue existing tasks and process incoming messages with explicit execution ownership and acknowledgement evidence. Route standalone historical session investigations to agent-session-investigation and new Codex/ChatGPT tasks to delegate-to-thread.
 ---
 
 # Agent Communication
 
-Use this skill when an existing task or agent may own work, or when session transcript and freshness evidence is needed. It owns discovery, supported exact-ID observation, bounded communication, intentional continuation, and evidence reporting. It does not own creation of new Codex/ChatGPT tasks, parent acceptance, interruption, cleanup, worktree handoff, release, or session retirement. For Claude Code, this skill's provider reference also covers starting an explicitly requested new session; that session start is distinct from creating a Codex/ChatGPT task.
+Use this skill when an existing task or agent may own work, or when exact-ID transcript and freshness evidence is needed for that task. It owns discovery, supported exact-ID observation, bounded communication, intentional continuation, and evidence reporting. It does not own creation of new Codex/ChatGPT tasks, parent acceptance, interruption, cleanup, worktree handoff, release, or session retirement. For Claude Code, this skill's provider reference also covers starting an explicitly requested new session; that session start is distinct from creating a Codex/ChatGPT task.
+
+For a standalone historical question or root-cause retrospective, use
+[agent-session-investigation](../agent-session-investigation/SKILL.md). It owns metadata-first artifact
+inspection and historical corroboration; this skill retains exact task resolution and current state.
+When composing them, pass the already resolved source and question; do not restart discovery or
+interpret an investigation finding as permission to contact, continue or repair a session.
 
 For incoming task messages and outgoing requests, decisions, status replies or reports, read the
 [ordinary-message contract](references/message-contract.md). It owns sender/receiver processing and
@@ -141,6 +147,12 @@ and the next gate. A successful send is not that checkpoint.
 
 ## Send one safe handoff
 
+Check retained attempts for this action before choosing contact. After a transport-accepted or
+indeterminate persisted-task send, missing acknowledgement is an observation gap, not a diagnosis
+authorizing another message. Reconcile by read/wait under the provider rule; do not send a status
+nudge, a request to reconcile, or a reworded work request to obtain the missing ACK. An idle task
+does not change that boundary. The documented current-task subagent continuation route is separate.
+
 Before sending any owner message, perform a conversation-first check on the exact task: read the
 newest nonterminal turn with bounded content, distinguish `inProgress` from `idle`, and look for an
 explicit attention request, ownership handoff, or evidence that the owner cannot proceed. If the
@@ -153,6 +165,12 @@ Construct the bounded message and process its disposition using the
 [ordinary-message contract](references/message-contract.md). Preserve the exact identity tuple,
 applicable non-authorizations and required evidence. The provider reference controls the actual
 transport; the message contract does not create a new route or execution permission.
+
+Transport acceptance is not receiver acknowledgement. Follow the contract's
+[receipt/disposition table](references/message-contract.md#receipt-and-acknack) and
+[bounded observation procedure](references/message-contract.md#bound-the-observation-before-sending).
+For a current-task subagent, check whether the native route merely queues or also triggers an idle
+agent's turn; see [the Codex reference](references/codex-chatgpt.md#current-task-subagents).
 
 ## Keep communication separate from lifecycle control
 

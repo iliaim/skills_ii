@@ -20,6 +20,9 @@ An action identity may be an existing criterion, issue plus bounded phase, or re
 It is distinct from the task ID and transport message ID. Revisions describe material changes to that
 action, not retries. A result must identify the action/revision it answers. Include a payload digest
 when content binding affects a gate; a digest establishes integrity, not issuer authority.
+Preserve a receiver's evidence verbatim when relaying or accepting it; do not regenerate or repair
+its action/revision/digest to match the request. A mismatched binding remains unresolved until the
+canonical source is reconciled. A correct artifact alone does not repair a conflicting required report.
 
 For a legacy message, reconstruct missing fields from trusted task context and native provenance.
 Do not turn missing template fields into an approval ritual. Hold only the action whose identity,
@@ -103,6 +106,49 @@ A newer turn/report revision is freshness evidence, not necessarily execution pr
 generic acknowledgement, unrelated result, active process or stale snapshot establishes none of the
 later states by itself. Bind an execution claim to the actual action and evidence, and preserve an
 observation gap separately. A receiver's refusal is not a successful dispatch awaiting execution.
+
+### Receipt and ACK/NACK
+
+Use the existing dispositions rather than introducing another handshake:
+
+| Observed evidence for the same action/revision | What it establishes | What remains |
+|---|---|---|
+| Transport accepts or queues the send | Delivered to the transport | Receiver receipt and disposition unconfirmed |
+| The incoming message is observed in the exact receiver's native record | Receipt confirmed | Disposition pending; presence alone does not show that the receiver processed it |
+| Receiver records `accepted`, names itself as executor and the next action | Positive action acknowledgement (ACK) | Execution and verification evidence |
+| Receiver records `held`, the blocker and its resolving role | Receipt acknowledged; action blocked | The named dependency/input/authority and next gate |
+| Receiver records `refused` and the scope/authority conflict | Negative action disposition (NACK) | Resolve the conflict within existing authority; do not redispatch or switch routes to bypass it |
+
+A generic “got it” can confirm at most receipt when native provenance correlates it to the request.
+A quoted label in a tool result or an unrelated later
+turn proves neither receipt nor a disposition. Require native incoming-message provenance and
+action/revision correlation. An authorized action-bound result can establish acceptance and execution
+together; no separate ACK message or second round trip is required. A held/refused disposition is an
+answer, not transport failure, execution progress or successful completion. For attached-child attention
+decisions, the existing `attention_acknowledged` checkpoint contract still applies.
+
+### Bound the observation before sending
+
+For work whose result you will consume, retain the exact recipient, action/revision, send outcome,
+supported read/wait route, next check and end condition in the existing task record. Use the request
+or governing workflow's observation bounds. If none exists, make one bounded native observation;
+when still unconfirmed, report the pending action and the next supported check rather than poll
+indefinitely or silently abandon it. Do not invent a universal timeout or start a monitor automatically.
+
+Observe the receiver's own turn/checkpoint; callbacks remain optional and authority-bound. Use a
+native wait cursor where supported and back off when nothing changes. At the bound, report the last
+proved stage, receipt/disposition gap, blocker if known, and the existing observation/controller
+route. A completed observation attempt is not a completed work request. Continue independent work;
+leave the affected result pending. No acknowledgement guarantee exists without a receiver that
+actually runs and an observer that checks its evidence.
+
+For a queued or uncertain send, follow the provider's reconciliation/no-retry rule in
+[cross-provider routes](cross-provider-routes.md#find-out-what-happened). A deadline expiring does not
+prove loss, revoke ownership, authorize another writer, or make resume safe. Sending and scheduling
+are different: for current-task subagents, use the live/idle distinction in
+[the Codex reference](codex-chatgpt.md#current-task-subagents).
+
+### Correct an ownership contradiction
 
 When sender and receiver each wait for the other to perform the same action, identify the ownership
 contradiction and make one bounded correction within existing authority. Name the executor and next

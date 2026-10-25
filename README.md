@@ -1,12 +1,25 @@
 # Agent workflow skills
 
-This collection contains three complementary skills:
+This collection contains four complementary skills:
 
 - [agent-communication](skills/agent-communication/SKILL.md): inspect, contact, or continue existing tasks, process incoming messages with explicit execution ownership, and inspect session evidence.
 - [delegate-to-thread](skills/delegate-to-thread/SKILL.md): create one explicitly requested task with defined ownership.
 - [orchestrate-threads](skills/orchestrate-threads/SKILL.md): coordinate a bounded graph and verify its cumulative outcome.
+- [agent-session-investigation](skills/agent-session-investigation/SKILL.md): investigate a named session and question with read-only, metadata-first evidence and fresh corroboration.
 
 The skills require the provider capabilities described in their references. Live tool descriptions control supported operations; the Python tests simulate contracts and do not establish real provider delivery.
+
+For message reliability, distinguish transport delivery, receiver receipt, `accepted|held|refused`
+disposition, observed execution and verified completion. See the
+[ACK/disposition table](skills/agent-communication/references/message-contract.md#receipt-and-acknack)
+and [bounded observation](skills/agent-communication/references/message-contract.md#bound-the-observation-before-sending).
+On live-task surfaces that expose them, `send_message` does not start an idle subagent;
+`followup_task` can trigger its next turn. Persisted tasks use their own provider route and authority.
+
+Install the four sibling skill directories together to preserve their relative references. These are
+instructions and a read-only inspection helper; installation does not create a running receiver,
+queue consumer, watchdog or observer. Reliable follow-through still needs an active owner and a
+supported bounded observation route. Changes here do not modify Hermes or FightCard installations.
 
 ## Offline validation
 
