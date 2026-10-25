@@ -210,10 +210,11 @@ rejected. The installed skill must remain unchanged during each run.
 
 ## Bounded native delivery check
 
-The policy and paired harnesses cannot establish delivery through a real persisted queue. Check
-that separately only against an existing, explicitly authorized test task with a supported native
-observation route. Do not use an unrelated task or create a user-visible task merely to fill this
-evidence gap. Follow the provider's exact identity, conversation-first and contact rules.
+The policy and paired harnesses cannot establish delivery through a real persisted queue. Use an
+explicitly authorized test task with a supported native observation route. When the user requests a
+dedicated test chat, create it through `delegate-to-thread`; otherwise use an existing test task.
+Do not use an unrelated task or infer creation authority from a missing test result. Follow the
+provider's exact identity, conversation-first and contact rules.
 
 Use one harmless scratch action with a unique action ID, revision and nonce, a designated scratch
 output, and an agreed observation deadline. Capture the receiver's action-bound disposition and
@@ -224,3 +225,15 @@ Do not resend or resume to make the check pass. Record the tested provider/route
 result; one successful live-subagent check does not establish persisted-queue behavior or general
 delivery reliability. Missing test-target authority or observation capability is an explicit
 verification limit, not a failed delivery.
+
+A wait on an idle receiver can return its old completed turn before the queued turn starts. Require
+a native incoming record matching the sent request and a result for its action/revision; an earlier
+READY or completed turn is not that result. Preserve the remaining observation bound for the next
+supported check rather than busy-polling or sending another message.
+
+For an exact JSON fixture ending in one LF, construct bytes without a shell-escape ambiguity:
+`json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8") + bytes([10])`.
+Compare actual read-back bytes, not just the write exit status. If verification fails after a write,
+preserve the failed evidence. For a correction of that artifact, use an authorized material revision
+with an explicit scope and preimage guard. It is not an unchanged replay or a retroactive pass for
+the first attempt.

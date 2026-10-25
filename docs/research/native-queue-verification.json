@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "observed_date_utc": "2026-10-25",
+  "scope": "One explicitly requested local projectless Codex test chat; real codex queue requests and independently inspected scratch effects. Two material action revisions, one queue send per revision. Not a delivery reliability benchmark.",
+  "privacy": "Native task, turn and message identities, absolute runtime paths, precise event timestamps and raw native reports remain in the dedicated test chat and local scratch record. This public summary retains synthetic action data and observed checks.",
+  "source_commit": "b86b0d471a4961bc877b50a0ce8430e2a1f1634b",
+  "cli_version": "codex-cli 0.163.0",
+  "route": "same-host codex queue --thread EXACT_ID --message TEXT; inherited owning CODEX_HOME",
+  "setup": {
+    "exact_native_identity_and_cwd_correlated": true,
+    "bootstrap_completed_and_idle_before_send": true,
+    "nonce_generated_after_bootstrap": true,
+    "parent_did_not_write_receiver_artifact": true
+  },
+  "revisions": [
+    {
+      "action": {
+        "action_id": "persisted-queue-ra1dingl-1",
+        "revision": 1,
+        "nonce": "657efb4ca911a2cd15b1e399bc605f8a",
+        "value": "persisted-queue-execution"
+      },
+      "queue_exit_code": 0,
+      "native_incoming_message_matched_exact_sent_text": true,
+      "receiver_ack": "accepted, named itself executor and next write action",
+      "execution_observed": true,
+      "expected_bytes": 135,
+      "expected_sha256": "9263dc968d381e634f32372cb34c344d0e48216d67e0360cc9dc3fac6513a400",
+      "actual_bytes": 136,
+      "actual_sha256": "11e5e690d0f3c594a92f5bdd20163608428cc1d3c1c0811dff3ffdc4b13513d1",
+      "artifact_verification": "failed: literal backslash+n suffix (5c6e), not one LF (0a)",
+      "receiver_result": "held; no overwrite",
+      "initial_observation_bound_seconds": 180,
+      "terminal_report_arrived_after_initial_deadline": true,
+      "failed_bytes_preserved": true,
+      "ack_and_held_report_digests_recomputed": true
+    },
+    {
+      "action": {
+        "action_id": "persisted-queue-ra1dingl-1",
+        "revision": 2,
+        "nonce": "d69ffc10d29eeba82bdfa4047ef3b1e5",
+        "value": "persisted-queue-execution"
+      },
+      "queue_exit_code": 0,
+      "native_incoming_message_matched_exact_sent_text": true,
+      "receiver_ack": "accepted for revision 2, named itself executor and guarded correction action",
+      "repair_authority": "receiver verified the exact parent human user item authorizing issue fixes",
+      "material_change": "explicitly permit correction of the known failed artifact only after matching its 136-byte length and SHA-256; use encode plus bytes([10]) for LF",
+      "preimage_guard_sha256": "11e5e690d0f3c594a92f5bdd20163608428cc1d3c1c0811dff3ffdc4b13513d1",
+      "expected_bytes": 135,
+      "expected_sha256": "e0d592559377bacd10b89fe73c595ccb0cb771258e9aedb8cde0822579935446",
+      "actual_bytes": 135,
+      "actual_sha256": "e0d592559377bacd10b89fe73c595ccb0cb771258e9aedb8cde0822579935446",
+      "artifact_verification": "passed: action/revision/nonce, JSON values, exact serialization, length and hash independently checked",
+      "native_terminal_outcome": "completed",
+      "required_report_fields_and_digest_verified": true,
+      "reported_raw_bytes_and_hash_match_independent_readback": true,
+      "observation_bound_seconds": 300,
+      "verified_within_bound": true,
+      "unmet_requirements": []
+    }
+  ],
+  "auxiliary_diagnostic": {
+    "operation": "read-only app-server proxy initialize probe",
+    "result": "timed out before queue/list or any control operation; closed its own proxy only",
+    "used_for_acceptance": false
+  },
+  "limits": [
+    "Two observed requests in one chat, not statistical reliability or exactly-once guarantees.",
+    "No existing controller, daemon or provider transport was modified; no task was resumed, interrupted, moved or archived. No unrelated private session was inspected.",
+    "Revision 1 remains a failed artifact check; revision 2 does not retroactively make it pass.",
+    "Early wait returned the old completed bootstrap turn before a new queued turn was visible; old completion was not accepted as action completion."
+  ]
+}
