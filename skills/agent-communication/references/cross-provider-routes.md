@@ -27,18 +27,25 @@ records, stop there, report the answer as unreadable and keep the last state you
 1. **Delivered?** Use the route's own result as its provider reference maps it. `not-sent` covers
    that attempt only: fix the cause, or move down a route only as the section below allows. After
    `indeterminate`, go on to step 2.
-2. **Received?** Search the receiver's exact transcript, or its native read, for your label line.
-   After a delivered `codex queue`, a transcript that lacks it means not yet received, not lost;
-   after an `indeterminate` one, it stays `indeterminate`. Either way, never send it again by any
-   route: why it waits is not documented, and a second copy would also arrive. After another route,
-   the message may be held, refused or dropped with no sign to the sender: report it as unconfirmed
-   and tell the human.
+2. **Received?** Prefer the exact receiver's native read. A transcript fallback must find your exact
+   label in an incoming user/message record, not in a quotation, tool result or assistant echo.
+   After a delivered `codex queue`, a transcript that lacks it leaves receipt unconfirmed (not yet
+   observed), not lost; a bounded or unstable read cannot prove absence. After an `indeterminate`
+   send, the transport outcome stays `indeterminate`. In either case, do not send it again by any
+   route: the first copy may still arrive and a second creates duplicate work risk. After another
+   route, the receiver may hold, refuse or drop it with no sign to the sender: report it as unconfirmed.
+   For a pending `codex queue` send, reconciliation is read-only: do not use `send_message_to_thread`
+   for a status nudge, a “process the queued action” cue, or a reworded work request. Those are still
+   additional deliveries. The live-task subagent trigger procedure does not apply to this route.
 3. **Answered?** A later receiver record names your ref or action and gives a disposition or result
    ([contract](message-contract.md#observe-progress-in-the-sender)). Until then it is not answered
    yet; observe liveness as in [exact-ID observations](../SKILL.md#normalize-exact-id-observations).
 
-If no answer arrives within the wait your request or project sets, tell the human what is
-unconfirmed and where you sent it.
+Follow the [bounded observation procedure](message-contract.md#bound-the-observation-before-sending).
+If no answer arrives within its bound, report what is unconfirmed and where you sent it. Keep a
+previously proved working route `available` unless new route evidence contradicts it. An unanswered
+queued message is a pending inspection result, not `contact-unavailable` merely because the receiver
+has not acted. State that the work remains pending; reporting the gap does not complete the request.
 
 ## When the receiver cannot be reached
 

@@ -2,6 +2,10 @@
 
 Read this reference only for Claude session discovery, contact, continuation, transcript lookup, creation, or freshness. Installed Claude CLI and Desktop worker versions can differ; inspect the exact executable's current `--help` and tolerate missing JSON fields.
 
+For historical artifact inspection, use [agent-session-investigation](../../agent-session-investigation/SKILL.md)
+on the already selected source: metadata first, bounded reads, physical provenance and before/after
+snapshot checks. This reference retains exact session lookup and current state/contact procedures.
+
 ## Exact identity first, then live inventory
 
 When an exact Claude session ID is supplied, attempt an exact native session read or exact-session

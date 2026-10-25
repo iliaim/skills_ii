@@ -46,6 +46,8 @@ creation or creates a replacement.
   this skill once per ready child in coordinator creation-handoff mode.
 - **Existing task:** use `agent-communication` to identify, read, or contact it; never create a
   replacement because discovery failed.
+- **Historical session investigation:** use `agent-session-investigation` for read-only evidence;
+  investigating a failed handoff does not authorize creating a replacement task.
 - **Fork completed Codex history:** use the current fork operation when the user explicitly asks to
   fork. Unfinished turns may not be copied.
 - **Internal subtask for this response:** use authorized subagents, not a sidebar task.

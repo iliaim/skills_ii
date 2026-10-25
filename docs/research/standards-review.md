@@ -117,3 +117,208 @@ the contract/harness behavior; they do not prove real provider delivery, task cr
 stability. No live behavioral evaluation was run. The initial private-repository GitHub plan did not
 expose branch protection; no protection settings were changed. Dependency/action installation remains dependent
 on ordinary package and GitHub availability.
+
+## Communication reliability and session investigation (2026-10-25)
+
+### Lightweight completion contract
+
+Outcome: make queued-message acknowledgement and recovery explicit, and provide a separately
+invocable read-only session investigation workflow that communication and coordination can reuse.
+The user authorized research, independent Luna subagents, and applying improvements in this repository.
+This is interactive work with one integrated implementation; no unattended controller is needed.
+
+Read first: the message and relevant provider references in `skills/agent-communication/references`,
+the existing delegate/orchestration contracts, the installed Hermes `agent-session-forensics` skill
+and helper source, current-main FightCard orchestration/dispatch guidance, README, CI and existing tests.
+
+Writable scope: the communication contract/provider diagnostics and their evals, a small
+`agent-session-investigation` package, focused routing links in the other skills, README, and this
+existing research record. Protected scope: Hermes installation, FightCard checkout/hosts, private
+session stores, runtime/controller configuration, and unrelated repository content.
+
+Given a transport-accepted message with no action-bound receiver response, when the sender follows
+the revised instructions, then receipt, disposition, execution and completion remain separate;
+the sender uses a bounded observation and reports an unresolved queue without blind replay,
+takeover or implicit resume. An accepted request begins authorized work without a second handshake;
+held/refused responses name their blocker/conflict. No callback is required without authority.
+For current-task subagents, distinguish live `send_message` from `followup_task`, which the current
+native tool explicitly documents as triggering a turn for an idle existing agent. Feature-detect
+that surface; do not promise that a queued message wakes an idle recipient. This does not authorize
+persisted-session resume or new task creation. Verify this with fresh native Luna scenario probes.
+
+Given a session investigation, when the new skill is used, then it limits inspection to the named
+question/session, begins with metadata, preserves physical provenance and parse/snapshot limits,
+and distinguishes historical claims from fresh verification. It sends no messages and changes no
+session/controller state. Its helper supports one explicitly selected local Claude/Codex JSONL
+file, not corpus inventory or additional provider integrations. The dependency-free metadata
+inspector, adapted narrowly from Hermes, emits no transcript text, IDs, paths or arbitrary source
+labels. Defaults are 10,000 physical lines, 1 MB per line, and 16 MB total; oversized-line draining
+also consumes the total budget. Incomplete/unstable snapshots and parse gaps remain explicit.
+Semantic analysis, when needed, uses a separate purpose-authorized, locally redacted and bounded
+projection; the metadata helper does not perform it or claim to answer a semantic question.
+Here purpose authorization means an explicit human grant covering the named session/file and question;
+each excerpt is labelled untrusted before model input and retains physical line/byte provenance.
+Exact task identity and provider status remain owned by communication; report/graph acceptance
+remains owned by delegation/orchestration. Do not duplicate these contracts or copy FightCard's inbox.
+
+Checks: `python3 -m pytest -q skills`; both communication evaluator `--list` commands;
+the installed Skill Creator `quick_validate.py` for each changed/new package; `git diff --check`.
+Fresh Luna behavior probes cover queued-but-unconfirmed, received-without-disposition, held/refused,
+accepted/action-bound work, generic-ACK/unrelated-turn negative controls, and standalone investigation
+routing. Helper tests cover non-disclosure, caps, malformed input, change/replacement, symlinks and
+non-regular files. Existing hermetic model evals are used where compatible;
+harness failure stays distinct from behavior failure. Synthetic tests do not prove native delivery.
+
+Alternatives: retain only existing wording (does not address the observed usability gap); introduce
+a broker/receipt database/retry daemon (unnecessary and outside scope); move all provider references
+into forensics (would duplicate/misplace exact-ID contact and live-status ownership). Instead add
+one compact ACK/disposition/observation procedure and one independent retrospective workflow,
+sharing provider resolution through links. No new provider, runtime service, dependency or ADR.
+
+Documentation: update the message contract, affected routes and README; retain source research,
+challenge and exact observed checks here. Delivery uses a focused PR and repository CI.
+Stop successfully after all acceptance/checks and normal delivery pass; return for a genuine new
+product choice, unavailable authority, irreversible action or expanded objective.
+
+Pre-implementation checkpoint: research complete; baseline `python3 -m pytest -q skills` passed 163 tests and
+246 subtests on Python 3.14.3; next gate is independent challenge of this exact contract.
+
+### Research findings and decisions
+
+Five GPT-6 Luna researchers independently examined the existing communication contract, Hermes,
+FightCard, primary messaging standards, and scope/complexity. The final pre-implementation plan
+received a fresh cooperative read-only challenge with no unresolved findings; its section digest
+was `52726568f3c651a5683c88d7a0325bfadf19d879fdd300478c0c1c2c6a1437b3`.
+This was a lightweight interactive challenge, not protected host-enforced unattended assurance.
+The user had already authorized applying the improvements; no further plan approval was requested.
+
+- **Existing ACK/NACK:** `accepted`, `held` and `refused` already covered action dispositions.
+  Transport delivery, execution and completion were already separate. Receipt terminology and
+  queued-message follow-through were spread across references. Add one table and bounded observer
+  procedure to the existing message contract; retain the vocabulary and ownership instead of
+  adding a second protocol or requiring a callback/second handshake.
+- **A concrete idle-agent distinction:** this session's native collaboration descriptions say
+  `send_message` does not trigger a turn; `followup_task` triggers one for an idle existing agent.
+  Add that feature-detected distinction, plus an authorized continuation cue for an already queued
+  action. Neither tool's success proves action acceptance/execution. These tools are not the
+  persisted `codex queue` route; do not use the subagent cue to evade its no-replay rule.
+- **FightCard:** read the clean detached coordinator's guidance, then current-main source rather
+  than dispatching from that checkout. The
+  [multi-orchestrator inbox](https://github.com/iliaim/fightcardai/blob/42e5f58fdf205396773a85f19179206e4af2f8cb/.agents/skills/orchestrate-agents/references/multi-orchestrator.md)
+  uses ACKs with `STARTED`, `QUEUED(when)`, `DECLINED(reason)` and `DONE`, and a separate accepted
+  handoff. Its durable inbox/cursor/controller make those receipts meaningful. The
+  [worker-host recovery reference](https://github.com/iliaim/fightcardai/blob/42e5f58fdf205396773a85f19179206e4af2f8cb/.agents/skills/orchestrate-agents/references/worker-hosts.md)
+  retains whole startup handles and reconciles exact conversation/worktree/registry bindings
+  before another launch. Learn from the explicit dispositions and correlation; do not copy its
+  inbox, supervisor, resend policy or host controls into generic Codex communication.
+- **Hermes:** inspect the installed `agent-session-forensics` skill and helper source, not private
+  sessions. Its metadata-first structure, physical provenance, snapshot checks and untrusted-content
+  boundary support a useful standalone historical workflow. Adapt only a single-file metadata
+  inspector. Exclude corpus inventory, sampled keyword incidents, four-provider expansion,
+  FightCard-specific redactors/casebooks and a new session store. Hermes synthetic helper checks
+  were reported green by its researcher; parent acceptance relies on this repo's separately run
+  tests and inspected diff, not that report. Hermes itself was not changed.
+- **Provider diagnostics:** local Codex filename suffix/`session_id` is only a lead; require
+  canonical `session_meta.payload.id` and reconcile exact database `threads.id`/`rollout_path`.
+  Remove the example that dumped all subsequent assistant content and preserve gaps/conflicts.
+  Keep provider resolution in communication, artifact methodology in investigation, and graph/report
+  gates in their existing skills; conditional cross-links compose operations without rediscovery.
+
+Primary practice checked on 2026-10-25:
+
+- [RabbitMQ confirms and acknowledgements](https://www.rabbitmq.com/docs/confirms) distinguishes
+  publisher/broker confirmation from consumer processing acknowledgement. This supports keeping
+  transport acceptance separate from application evidence; it does not give Codex broker guarantees.
+- [Temporal message passing](https://docs.temporal.io/encyclopedia/workflow-message-passing)
+  distinguishes asynchronous Signals, read-only Queries and tracked Updates. This informs explicit
+  observation ownership; it does not imply that Codex has tracked request/reply or durable wake-up.
+- [A2A specification](https://a2a-protocol.org/latest/specification/) separates submitted, working,
+  input/auth-required, rejected and terminal task states, and makes message idempotency optional.
+  Reuse the distinction, not the protocol or assumed exactly-once behavior.
+
+No generic messaging standard can establish the delivery, persistence or wake-up guarantees of a
+specific native tool. A running receiver plus an active observer and an authoritative result are
+still necessary. These changes make gaps visible and recovery bounded; they do not guarantee
+delivery or turn the skill into a runtime service.
+
+### Review and validation observations
+
+Fresh Luna forward probes covered idle-agent follow-up, investigation with a stable-but-capped
+transcript and malicious quoted instructions, and held/refused/executing/stale-revision outcomes.
+Parent inspection confirmed: held retained the signed-manifest blocker and release-coordinator role;
+refused preserved routeability without a bypass; artifact execution remained incomplete without
+verification; revision 1 could not complete revision 2. The investigation probe kept the transcript's
+resume/secret-disclosure requests as untrusted evidence and did not infer completion from “done”.
+These are bounded model behavior probes, not proof of native queue delivery. Actual native
+`followup_task` calls in this work also returned later responses from the same existing agents;
+that demonstrates this session's route, not a general reliability rate.
+
+Two independent Luna reviews found and prompted repairs: reject `..` before path normalization so
+`symlink/../file` cannot select another source, remove the unbounded metadata example, qualify a
+generic ACK by native action correlation, and add a superseded-revision negative fixture. Grader
+checks cover only structured decisions/calls/facts; human-readable catalog assertions about blocker
+wording and unsupported completion claims were checked in the fresh natural-language probes, not
+claimed as machine-enforced prose checks.
+
+The parent reproduced a SQLite CLI example failure using synthetic state: `query_only=ON` prevented
+temporary parameter initialization, and an all-numeric UUID needed SQL-string-preserving CLI quoting.
+The exact revised documented shell block returned the one requested synthetic row with exit 0,
+empty stderr and byte-identical provider database. No real provider database was opened.
+
+Initial fresh CLI evaluations exposed real classification/replay failures and two underspecified new
+fixtures. The fixtures now supply the exact receiver/route observation required by their routeability
+assertions; no existing acceptance/no-contact checks were relaxed. Some runs were invalidated by
+pytest updating derived bytecode during the evaluator's full-directory integrity check. Those remain
+`HARNESS_ERROR`, not behavior passes; final evaluations run with the skill tree held unchanged.
+
+Installation observation: Codex's three existing skills are symlinked to this checkout. Claude's
+separate `agent-communication` installation is an older standalone file with different procedures;
+it has not been overwritten or moved. The new investigation package was added as a non-overwriting
+symlink alongside Codex's existing three; its resolved entrypoint bytes match this repo. Automatic
+catalog activation in a future chat was not exercised. Aligning the independent Claude copy is a separate installation
+follow-up, not evidence that modifying this repository updated every agent's runtime.
+
+
+Final local verification (Python 3.14.3):
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q skills
+python3 skills/agent-communication/scripts/run_behavioral_evals.py --list
+python3 skills/agent-communication/scripts/run_paired_evals.py --list
+git diff --check
+```
+
+Results: 192 tests and 246 subtests passed; the planned-action catalog listed 46 cases and paired
+catalog listed 24; no malformed catalogs or diff whitespace errors. All four packages passed the
+installed Skill Creator `quick_validate.py`. Relative Markdown links outside fenced pseudocode were
+checked (16 files, no missing targets). The inspector is covered by 22 synthetic tests including
+path selection, no value disclosure, physical/byte caps, unsafe file types and unstable snapshots.
+
+Fresh `gpt-6-luna` checks, with the communication skill tree held unchanged during each run:
+
+```sh
+python3 skills/agent-communication/scripts/run_behavioral_evals.py --eval 42 --runs 2 --model gpt-6-luna
+python3 skills/agent-communication/scripts/run_behavioral_evals.py --eval 45 --eval 46 --eval 47 --eval 48 --eval 49 --eval 50 --runs 1 --model gpt-6-luna
+python3 skills/agent-communication/scripts/run_behavioral_evals.py --eval 50 --runs 2 --model gpt-6-luna
+python3 skills/agent-communication/scripts/run_paired_evals.py --case nominal --case echo --case unfinished-accepted --model gpt-6-luna
+python3 skills/agent-communication/scripts/run_paired_evals.py --case nominal --model gpt-6-luna
+python3 skills/agent-communication/scripts/run_behavioral_evals.py --eval 42 --runs 1 --model gpt-6-luna --mutation skills/agent-communication/evals/mutations/042-no-label-means-lost.json --expect-failure
+```
+
+The queue case passed twice. Cases 45–49 passed; case 50 initially chose the safe but different
+`incomplete` label instead of execution-commitment `pending`. Clarifying the fixture's existing
+schema notation (without relaxing its checks) yielded two passes. Paired echo and unfinished-accepted
+passed. Initial nominal failed because the receiver miscopied a digest and the sender reconstructed
+matching evidence instead of preserving the receiver result. Add the explicit evidence-preservation
+rule; its fresh nominal repair check passed. The corrupt queue mutation produced the expected valid
+`BEHAVIOR_FAIL` for an extra contact, with no harness error, so `--expect-failure` exited 0.
+
+Retained [synthetic model evidence](communication-reliability-evidence.json) includes earlier failures
+and successful bounded repair checks with candidate hashes; the host-specific CLI path is omitted.
+Do not read this as a statistical reliability result, a claim that every run passed, or proof of
+native delivery. Instruction-following remains probabilistic: independently check exact bindings,
+artifacts and required reports instead of trusting an ACK or a model's completion claim.
+
+Final checkpoint: research and implementation verified locally; independent source reviews report
+no remaining actionable findings; normal PR/CI delivery is next. The PR is the authoritative delivery
+record; no host controllers, private session stores, Hermes or FightCard source were modified.

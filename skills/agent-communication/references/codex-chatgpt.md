@@ -124,7 +124,31 @@ title search, bounded-list absence, broad transcript search, or a replacement ta
 the exact pending entry repeats this same bounded lookup automatically; a user diagnosis request is
 not required.
 
-For Codex subagents in the current live task, use the collaboration message route with the known subagent task ID. Never invent an agent from a label. A subagent is not a user-visible task.
+## Current-task subagents
+
+Feature-detect the live collaboration tools; they are separate from persisted app tasks. Keep the
+exact agent ID/canonical task name returned by the original dispatch. Never invent one from a label.
+When the current surface exposes the following documented behavior:
+
+- `send_message` queues context for an existing agent but **does not trigger a turn**. Use it for
+  an agent that is running and needs the in-scope update; observe its later action-bound response.
+- `followup_task` sends a follow-up to an existing agent and **triggers a turn if it is idle**.
+  Use it for authorized unfinished work or a new bounded in-scope follow-up to that same live-task
+  agent. It also delivers to a running agent; do not blindly duplicate a request through both tools.
+- `list_agents` can resolve the agent's current state; `wait_agent` waits for a mailbox/status update.
+  A wake-up/status change is not itself the action result: inspect the resulting message and evidence.
+
+If state is unknown, inspect the exact agent before choosing. A tool's queue/trigger result is not an
+ACK, acceptance, execution or completion; use the [message contract](message-contract.md#receipt-and-acknack).
+If an earlier `send_message` already queued this action to an idle agent, inspect the retained send
+and latest receiver evidence. With authority to continue that agent, make one `followup_task` a
+continuation cue to process the already queued action/revision and reuse any existing disposition
+or effects; do not retransmit the work payload as a new assignment. Observe its resulting record.
+Uncertain execution still requires reconciliation before effects are repeated. Without continuation
+authority or a supported trigger, leave the action pending and report the gap.
+If these tools are unavailable or behave differently, retain that capability gap rather than invent
+a wake-up operation. A current-task subagent is not a user-visible task: this procedure grants no
+permission to create a thread, resume a persisted session, interrupt a writer or take over its work.
 
 ## Route new-task requests
 

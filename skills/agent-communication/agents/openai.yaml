@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent Communication"
   short_description: "Inspect tasks and resolve message execution ownership"
-  default_prompt: "Use $agent-communication to inspect, contact, continue, or process an incoming message for an existing task with explicit execution ownership; route new user-visible task creation to $delegate-to-thread."
+  default_prompt: "Use $agent-communication to inspect or contact an existing task, distinguish delivery from acknowledgement and execution, and observe its bounded result; route historical forensics to $agent-session-investigation and new task creation to $delegate-to-thread."

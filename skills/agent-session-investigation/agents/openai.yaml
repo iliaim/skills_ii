@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Session Investigation"
+  short_description: "Investigate session evidence without changing agent state"
+  default_prompt: "Use $agent-session-investigation to investigate a named session and question with metadata-first, bounded read-only evidence and fresh corroboration."

@@ -23,6 +23,8 @@ mutations.
 - One attached child: `delegate-to-thread` in coordinated-single mode.
 - Several attached children or an explicit parent-managed dependency graph: this skill.
 - An existing exact task: `agent-communication`; never create a replacement.
+- A historical session/root-cause investigation: `agent-session-investigation` for read-only findings;
+  retain this skill's graph and acceptance ownership when those findings inform a running parent.
 - Several existing exact tasks, or a mixed graph of existing and explicitly authorized new tasks:
   this skill. Register existing nodes without creation and use `agent-communication` for their
   supported exact-ID operations.
