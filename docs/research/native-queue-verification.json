@@ -71,5 +71,81 @@
     "No existing controller, daemon or provider transport was modified; no task was resumed, interrupted, moved or archived. No unrelated private session was inspected.",
     "Revision 1 remains a failed artifact check; revision 2 does not retroactively make it pass.",
     "Early wait returned the old completed bootstrap turn before a new queued turn was visible; old completion was not accepted as action completion."
-  ]
+  ],
+  "observer_follow_up": {
+    "observed_date_utc": "2026-10-27",
+    "source_commit": "58500ed32bc9ce136e0f661084e24c08a9fc6130",
+    "scope": "Existing dedicated test receiver; one CLI queue work request, one distinct app-native work request, and one read-only report correction. No new chat, receiver interruption, resume or controller change.",
+    "stalled_queue": {
+      "route": "codex queue with exact target and inherited owning state root",
+      "queue_exit_code": 0,
+      "observation_bound_seconds": 300,
+      "final_post_bound_check_seconds_after_send": 331.509,
+      "native_status_at_checks": "notLoaded",
+      "wait_result": "inactiveStatus, unchanged older completed turn",
+      "new_request_receipt_and_disposition_at_bound": "unconfirmed",
+      "artifact_at_post_bound_check": "absent",
+      "resend_or_route_switch_for_this_action": false,
+      "later_observation": "A distinct authorized app-native request coincided with receiver activation; the resulting turn first processed the older queued action.",
+      "old_completion_or_late_execution_counted_as_within_bound_success": false
+    },
+    "observer_interruption": {
+      "caller_wait_scope_termination_observed": true,
+      "native_wait_interrupted_by_new_user_input": true,
+      "native_interruption_result": "Wait interrupted by new input.",
+      "saved_target_host_and_per_target_cursor_reused": true,
+      "receiver_execution_not_cancelled": true,
+      "new_send_to_resume_observation": false,
+      "original_deadlines_not_retroactively_passed": true,
+      "app_or_host_restart_recovery": "not tested"
+    },
+    "late_artifacts": [
+      {
+        "action_alias": "stalled_queue_request",
+        "exact_values_and_bytes_verified": true,
+        "byte_count": 136,
+        "sha256": "5b223830aa61507077aa6eddc506b1183072fb9c741de04aa5b52b29aa6a2338",
+        "written_seconds_after_original_send": 554.811,
+        "one_execution_request": true,
+        "observed_exclusive_create_commands": 1,
+        "terminal_report_revision": 13,
+        "terminal_report_digest": "sha256:3f41bfd457c40e4558f62b2d94dbf5197ffb624496289bcf30755ad3aceb311f",
+        "report_fields_and_digest_verified": true
+      },
+      {
+        "action_alias": "separate_observer_request",
+        "exact_values_and_bytes_verified": true,
+        "byte_count": 146,
+        "sha256": "7e5ccdec2bdf822a449a32d6c658d276104d4483ca8aac3dd236d3cb42b35235",
+        "written_seconds_after_original_send": 347.69,
+        "one_execution_request": true,
+        "observed_exclusive_create_commands": 1,
+        "original_terminal_report_revision": 16,
+        "original_terminal_report_digest_valid": true,
+        "original_terminal_report_byte_copy_consistent": false,
+        "report_correction": "verified read-only superseding report 18; artifact unchanged",
+        "corrected_terminal_report_revision": 18,
+        "corrected_terminal_report_digest": "sha256:78b4cbdb31f45fe9f61faf42d828b8f553557cf0883a3ef0b6179057dee0675c",
+        "corrected_report_fields_digest_identity_and_supersession_verified": true,
+        "artifact_hash_length_and_mtime_unchanged_by_correction": true,
+        "redundant_raw_byte_copies_omitted": true
+      }
+    ],
+    "report_inconsistency": {
+      "observed": "Checkpoint 15 and terminal report 16 contain a base64 copy that decodes to 145 bytes with a misspelled value, while the actual artifact and reported UTF-8/hash/length are correct at 146 bytes. Both report digests verify.",
+      "superseded_report_acceptance": "original report held, then superseded; not retroactively passed",
+      "requested_fix": "One read-only correction with a newer report revision and explicit supersedes; omit unnecessary raw byte copies, preserve artifact and old reports.",
+      "correction_result": "Report 18 verified and accepted; correct hash, length, identity, required fields, digest and explicit supersedes of report 16; no artifact writes."
+    },
+    "prior_artifact_unchanged": true,
+    "limits": [
+      "One receiver and two distinct synthetic actions, not a reliability benchmark or exactly-once proof.",
+      "The 35-second and 40-second receiver delays are intentional fault injection, not measured natural delivery latency.",
+      "An accepted queue send did not establish wake-up of the unloaded receiver during this bound; the underlying runtime cause was not diagnosed.",
+      "The distinct app-native work request is not a recommended nudge or a retry of an outstanding queue request.",
+      "No Claude, Antigravity or Grok session was contacted; provider guidance is documentation and local CLI-help research only."
+    ],
+    "final_native_receiver_status": "idle",
+    "outstanding_test_actions": []
+  }
 }

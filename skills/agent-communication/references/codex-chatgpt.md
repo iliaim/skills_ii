@@ -185,6 +185,18 @@ Feature-detect against the exact executable being used. Require its top-level he
 
 Never assume an absolute application-bundle path is portable.
 
+Queue acceptance does not establish that an unloaded receiver will start. In a bounded local check,
+the CLI accepted a request while the exact native receiver remained `notLoaded`; `wait_threads`
+returned `inactiveStatus` and an older completed turn. Keep the new action pending until its own
+incoming record, disposition and result are observed. Do not count that older completion or the
+waiter's early return as the new action's outcome. If unchanged inactive results return immediately,
+back off within the observation bound instead of looping. Re-establishing observation uses the same
+target and its saved cursor; it is not another send, a receiver resume or proof of restart recovery.
+In the same check, a separate authorized app-native request started a turn that first processed the
+older queued action. Correlate each incoming record and result to its own action; activity after a
+new send need not belong to that send. This is local observed behavior, not a universal wake-up
+guarantee or permission to send a nudge for an outstanding request.
+
 `codex resume --include-non-interactive` only changes picker and `--last` selection. It is not a message route. `codex exec resume <SESSION_ID> <prompt>` is an intentional continuation route only for an exact, idle, persisted session whose rollout exists and whose writer is not active. Verify the resulting turn through JSON output or the persisted rollout. Never use resume for an ephemeral session, an active writer, an unresolved ID, or an automation with no messageable rollout.
 
 Forking copies completed history into a new task; it is neither fresh task creation nor owner contact. Use it only when the user explicitly asks to fork.

@@ -50,6 +50,15 @@ In the Codex app, treat “task,” “thread,” “chat,” and “conversatio
 
 ## Establish identity before contact or continuation
 
+Before selecting a route, establish which runtime is sending, its own native task/session identity
+when exposed, and its host context; then establish the recipient's runtime and owning host. Use the
+current native context for yourself and exact recipient evidence below, not a model brand, assumed
+shared machine or title match. A model running inside another product uses that product's route.
+The [message contract](references/message-contract.md#identify-both-ends-and-the-return-route) owns
+the endpoint fields, disclosure and return-address rules; do not infer a working reverse route from
+a working forward route. If a routing fact is unknown, resolve that fact before sending while
+continuing independent read-only work.
+
 When the user provides a `codex://threads/<thread-id>` URL or any exact provider task/session ID,
 resolve that exact ID first with the provider-specific native route. Do not start with bounded
 listing, title matching, transcript search, or worktree inference. Absence from a bounded listing is
@@ -87,11 +96,22 @@ Titles, summaries, names, branch names, encoded directories, and matching workin
 
 ## Load only the provider detail needed
 
-- For Codex/ChatGPT discovery, contact, or continuation, read [references/codex-chatgpt.md](references/codex-chatgpt.md). For new-task creation, use `delegate-to-thread` instead.
-- For local Codex rollout lookup or filesystem/database freshness diagnostics, also read [references/codex-local-transcripts.md](references/codex-local-transcripts.md).
-- For Claude discovery, contact, continuation, transcript lookup, or freshness, read [references/claude-code-sessions.md](references/claude-code-sessions.md).
-- For an automation, scheduler, launchd lane, unattended run, or durable mailbox, also read [references/automation-contact.md](references/automation-contact.md).
-- When sender and receiver are different providers or hosts, or no native route links them, also read [references/cross-provider-routes.md](references/cross-provider-routes.md).
+Choose from the sender → recipient pair and host relationship established above:
+
+| Situation | Read next |
+|---|---|
+| Codex → Codex on one host | [Codex/ChatGPT routes](references/codex-chatgpt.md) |
+| Claude → Claude on one host | [Claude session routes](references/claude-code-sessions.md) |
+| Codex → Claude, Claude → Codex, or another cross-runtime pair | [Cross-provider route selector](references/cross-provider-routes.md), then only its selected recipient reference |
+| Same runtime on different hosts | That runtime's reference plus the [cross-host selector](references/cross-provider-routes.md) |
+| Antigravity recipient, including `agy` | [Antigravity routes](references/antigravity.md); add the cross-provider selector when the sender runtime or host differs |
+| Grok Build or Grok API recipient | [Grok routes](references/grok.md); add the cross-provider selector when the sender runtime or host differs |
+| Automation, scheduler, launchd lane or controlled mailbox | [Automation contact](references/automation-contact.md) plus only the selected transport's reference |
+
+Read [local Codex transcripts](references/codex-local-transcripts.md) only for an actual rollout or
+filesystem/database diagnostic need. For another runtime, verify its documented capabilities before
+contact; do not borrow another provider's commands. New-task creation still belongs to
+`delegate-to-thread`.
 
 Do not load every provider reference for a single-provider request.
 
