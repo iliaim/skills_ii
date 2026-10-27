@@ -57,11 +57,16 @@ a logical role/name is a label, and neither it nor a shortened ID substitutes fo
 Agents with the same title on different hosts remain different endpoints. This requirement covers
 requests, decisions, reports and replies between agents, not ordinary user-facing prose.
 
-Give a supported return address bound to the sender: the exact native read/message operation and
+Give a supported return address bound to the sender: the exact native message operation and
 its required ID/host context, or an existing authorized mailbox/controller route the recipient can
 use. A title, transcript path, inaccessible local inbox or navigation link alone is not a reply route.
 A usable route does not grant callback permission; the receiver still follows the authorization
 rules below and can record its answer in its own turn for the sender to observe.
+When the answer is in the recipient's own turn, the sender reads/waits on that recipient's full
+native task/session ID and host: for Codex,
+`read_thread(threadId=RECIPIENT_TASK_ID, hostId=RECIPIENT_HOST_ID)`. Copy native argument values
+exactly; keep annotations outside them. The sender's return address is the destination for an
+authorized callback, not the observation target for an answer in the recipient's turn.
 
 Keep these details with the existing action/reference and label, in compact prose or the project's
 existing format; no separate registry, template or acknowledgement round trip is required. Check

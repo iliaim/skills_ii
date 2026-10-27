@@ -166,3 +166,28 @@ def test_endpoint_cases_reject_role_only_wrong_host_fabrication_and_duplicate_se
                 "task ID 10000000-0000-4000-8000-000000000053",
             )
             assert not grade(eval_id, facts, decision="contact", planned_calls=invented)["passed"]
+
+
+def test_reply_observation_reads_recipient_record_not_sender_return_address():
+    recipient_id = "20000000-0000-4000-8000-000000000054"
+    sender_id = "10000000-0000-4000-8000-000000000054"
+    facts = {"identity_correlated": True, "routeability": "available", "lifecycle_mutation_authorized": False}
+    correct_call = {"tool": "read_thread", "arguments": {"threadId": recipient_id, "hostId": "host-b"}}
+    correct = grade(54, facts, planned_calls=[correct_call])
+    assert correct["passed"], correct["failures"]
+
+    for task_id, host_id in [(sender_id, "host-a"), (sender_id, "host-b"), (recipient_id, "host-a"), (recipient_id, "host-b (recipient)")]:
+        wrong = grade(54, facts, planned_calls=[
+            {"tool": "read_thread", "arguments": {"threadId": task_id, "hostId": host_id}},
+        ])
+        assert not wrong["passed"]
+        assert any("required call read_thread" in failure for failure in wrong["failures"])
+
+    callback = {"tool": "send_message_to_thread", "arguments": {"threadId": sender_id, "hostId": "host-a", "prompt": "reply"}}
+    assert not grade(54, facts, planned_calls=[correct_call, callback])["passed"]
+
+    for tool in ("set_thread_archived", "clean", "delete", "reset", "fork_thread"):
+        mutation = {"tool": tool, "arguments": {"threadId": recipient_id}}
+        result = grade(54, facts, planned_calls=[correct_call, mutation])
+        assert not result["passed"], tool
+        assert any(tool in failure for failure in result["failures"])
