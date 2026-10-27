@@ -62,9 +62,11 @@ its required ID/host context, or an existing authorized mailbox/controller route
 use. A title, transcript path, inaccessible local inbox or navigation link alone is not a reply route.
 A usable route does not grant callback permission; the receiver still follows the authorization
 rules below and can record its answer in its own turn for the sender to observe.
-When the answer is in the recipient's own turn, the sender's read/wait operation targets the
-recipient's full native task/session ID and exact host value. Keep that observation target distinct from the
-sender's return address, which is the destination for an authorized callback.
+When the answer is in the recipient's own turn, the sender reads/waits on that recipient's full
+native task/session ID and host: for Codex,
+`read_thread(threadId=RECIPIENT_TASK_ID, hostId=RECIPIENT_HOST_ID)`. Copy native argument values
+exactly; keep annotations outside them. The sender's return address is the destination for an
+authorized callback, not the observation target for an answer in the recipient's turn.
 
 Keep these details with the existing action/reference and label, in compact prose or the project's
 existing format; no separate registry, template or acknowledgement round trip is required. Check

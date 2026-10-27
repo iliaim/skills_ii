@@ -176,7 +176,7 @@ def test_reply_observation_reads_recipient_record_not_sender_return_address():
     correct = grade(54, facts, planned_calls=[correct_call])
     assert correct["passed"], correct["failures"]
 
-    for task_id, host_id in [(sender_id, "host-a"), (sender_id, "host-b"), (recipient_id, "host-a")]:
+    for task_id, host_id in [(sender_id, "host-a"), (sender_id, "host-b"), (recipient_id, "host-a"), (recipient_id, "host-b (recipient)")]:
         wrong = grade(54, facts, planned_calls=[
             {"tool": "read_thread", "arguments": {"threadId": task_id, "hostId": host_id}},
         ])
