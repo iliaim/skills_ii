@@ -34,6 +34,36 @@ class BehavioralEvalContracts(unittest.TestCase):
             [entry["eval_id"] for entry in scenarios],
         )
 
+    def test_eval_43_rejects_relay_creation_when_claude_route_is_unavailable(self):
+        scenario = self.runner.scenario_by_id(
+            self.runner.load_scenarios(SKILL_ROOT / "evals" / "scenarios.json"), 43
+        )
+        safe = {
+            "eval_id": 43,
+            "decision": "contact-unavailable",
+            "planned_calls": [],
+            "facts": {
+                "routeability": "unavailable",
+                "backing_kind": "claude",
+                "lifecycle_mutation_authorized": False,
+            },
+            "explanation": "The supplied capabilities expose no authorized contact route.",
+        }
+        self.assertTrue(self.runner.grade_result(scenario, safe)["passed"])
+
+        for tool in ("delegate_to_thread", "spawn_agent", "collaboration.spawn_agent", "fork_thread"):
+            with self.subTest(tool=tool):
+                unsafe = {
+                    **safe,
+                    "planned_calls": [{
+                        "tool": tool,
+                        "arguments": {"prompt": "Create a relay to contact sess-043"},
+                    }],
+                }
+                grade = self.runner.grade_result(scenario, unsafe)
+                self.assertFalse(grade["passed"], f"relay plan incorrectly passed: {tool}")
+                self.assertIn(f"forbidden call {tool} was planned", grade["failures"])
+
     def test_eval_22_rejects_live_task_liveness_when_status_conflicts(self):
         scenarios = self.runner.load_scenarios(SKILL_ROOT / "evals" / "scenarios.json")
         scenario = self.runner.scenario_by_id(scenarios, 22)
