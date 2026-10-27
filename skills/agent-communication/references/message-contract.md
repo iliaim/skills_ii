@@ -11,7 +11,7 @@ requires named fields. Carry only what changes the recipient's work:
 
 - intent: `work_request`, `status_request`, `decision`, or `report`;
 - action identity and revision, retained on follow-ups rather than replaced on every send;
-- sender and recipient from independently observed native context, with provider/host when needed;
+- sender, recipient and return route under the identity rules below;
 - the proposed executor, and retained coordinator responsibility if that relationship already exists;
 - the applicable existing authority, one bounded action and its exclusions; and
 - the required result/evidence and the canonical place to record it.
@@ -48,8 +48,36 @@ absent or truncated, make one targeted recovery read using the returned paginati
 reference. If it remains unresolved, hold only the affected action and record the gap rather than
 repeat unchanged reads.
 
+### Identify both ends and the return route
+
+For agent-to-agent messages, include the full native sender and recipient task/session IDs when
+exposed and permitted by the disclosure rules. Qualify them with the provider and the host, account
+or project context needed to distinguish them. Derive these values from verified native evidence;
+a logical role/name is a label, and neither it nor a shortened ID substitutes for unique identity.
+Agents with the same title on different hosts remain different endpoints. This requirement covers
+requests, decisions, reports and replies between agents, not ordinary user-facing prose.
+
+Give a supported return address bound to the sender: the exact native read/message operation and
+its required ID/host context, or an existing authorized mailbox/controller route the recipient can
+use. A title, transcript path, inaccessible local inbox or navigation link alone is not a reply route.
+A usable route does not grant callback permission; the receiver still follows the authorization
+rules below and can record its answer in its own turn for the sender to observe.
+
+Keep these details with the existing action/reference and label, in compact prose or the project's
+existing format; no separate registry, template or acknowledgement round trip is required. Check
+the composed message before sending: a role-only sender such as “attended desk” needs correction
+from the verified context, not a recipient search for whoever sent it. If an ID or route is not
+exposed, cannot be verified, or cannot be disclosed, state that specific gap and any verified safe
+alternative; never fabricate or infer a substitute. Apply
+[the recipient-scope disclosure rules](../SKILL.md#report-the-evidence) before including identifiers
+or routes. Never include secrets, access tokens, boot IDs, lease credentials or unnecessary private
+context. Hold only the action whose identity, route, privacy or authority cannot be established;
+continue independent authorized work. An accepted or indeterminate prior send is reconciled under
+the existing no-retry rule, not sent again to repair its label.
+
 An agent opens each message it sends with one label line, unless a project rule fixes another form:
-`[from ROLE@HOST via ROUTE | ref RECORD | sent UTC_TIME]`. RECORD is a durable record the receiver
+`[from ROLE@HOST via ROUTE | ref RECORD | sent UTC_TIME]`. Carry the endpoint identities and return
+address in this line or the adjoining prose. RECORD is a durable record the receiver
 can read, such as an issue or a project inbox entry, written by someone allowed to grant the request;
 create it before sending. HOST and RECORD follow the disclosure rules in
 [SKILL.md](../SKILL.md#report-the-evidence): use a host alias and a record the receiver may already

@@ -127,3 +127,42 @@ def test_superseded_result_cannot_acknowledge_or_verify_current_revision():
     assert correct["passed"], correct["failures"]
     assert not wrong_revision["passed"]
     assert any("evidence_revision_bound" in failure for failure in wrong_revision["failures"])
+
+
+def test_endpoint_cases_reject_role_only_wrong_host_fabrication_and_duplicate_sends():
+    runner = load_runner()
+    scenarios = runner.load_scenarios(SKILL_ROOT / "evals" / "scenarios.json")
+    for eval_id in (51, 52, 53):
+        scenario = runner.scenario_by_id(scenarios, eval_id)
+        fixture = scenario["fixture"]
+        recipient = fixture["recipient_native_context"]
+        calls = [
+            {"tool": "send_message_to_thread", "arguments": {
+                "threadId": recipient["task_id"], "hostId": recipient["host_id"],
+                "prompt": fixture["approved_handoff_message"],
+            }},
+            {"tool": "read_thread", "arguments": {
+                "threadId": recipient["task_id"], "hostId": recipient["host_id"],
+            }},
+        ]
+        facts = scenario["checks"]["fact_equals"]
+        correct = grade(eval_id, facts, decision="contact", planned_calls=calls)
+        assert correct["passed"], correct["failures"]
+
+        # Same target and body intent cannot compensate for an ambiguous sender.
+        ambiguous = [dict(call, arguments=dict(call["arguments"])) for call in calls]
+        ambiguous[0]["arguments"]["prompt"] = fixture["legacy_draft"]
+        assert not grade(eval_id, facts, decision="contact", planned_calls=ambiguous)["passed"]
+        assert not grade(eval_id, facts, decision="contact", planned_calls=calls + calls[:1])["passed"]
+
+        if eval_id == 52:
+            wrong_host = [dict(call, arguments=dict(call["arguments"])) for call in calls]
+            wrong_host[0]["arguments"]["hostId"] = "host-a"
+            assert not grade(eval_id, facts, decision="contact", planned_calls=wrong_host)["passed"]
+        if eval_id == 53:
+            invented = [dict(call, arguments=dict(call["arguments"])) for call in calls]
+            invented[0]["arguments"]["prompt"] = fixture["approved_handoff_message"].replace(
+                "task ID unavailable (native context does not expose it)",
+                "task ID 10000000-0000-4000-8000-000000000053",
+            )
+            assert not grade(eval_id, facts, decision="contact", planned_calls=invented)["passed"]
