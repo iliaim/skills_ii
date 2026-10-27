@@ -93,11 +93,12 @@
       "caller_wait_scope_termination_observed": true,
       "native_wait_interrupted_by_new_user_input": true,
       "native_interruption_result": "Wait interrupted by new input.",
-      "saved_target_host_and_per_target_cursor_reused": true,
       "receiver_execution_not_cancelled": true,
       "new_send_to_resume_observation": false,
       "original_deadlines_not_retroactively_passed": true,
-      "app_or_host_restart_recovery": "not tested"
+      "app_or_host_restart_recovery": "not tested",
+      "cursor_reuse_evidence": "Parent-recorded reuse; resumed results corroborate target and host, but the actual resumed-call input arguments were not retained in these captures.",
+      "parent_recorded_target_host_and_cursor_reuse": true
     },
     "late_artifacts": [
       {
@@ -110,7 +111,9 @@
         "observed_exclusive_create_commands": 1,
         "terminal_report_revision": 13,
         "terminal_report_digest": "sha256:3f41bfd457c40e4558f62b2d94dbf5197ffb624496289bcf30755ad3aceb311f",
-        "report_fields_and_digest_verified": true
+        "report_fields_and_digest_verified": true,
+        "original_observation_bound_seconds": 300,
+        "artifact_observed_within_original_bound": false
       },
       {
         "action_alias": "separate_observer_request",
@@ -127,8 +130,11 @@
         "corrected_terminal_report_revision": 18,
         "corrected_terminal_report_digest": "sha256:78b4cbdb31f45fe9f61faf42d828b8f553557cf0883a3ef0b6179057dee0675c",
         "corrected_report_fields_digest_identity_and_supersession_verified": true,
-        "artifact_hash_length_and_mtime_unchanged_by_correction": true,
-        "redundant_raw_byte_copies_omitted": true
+        "redundant_raw_byte_copies_omitted": true,
+        "original_observation_bound_seconds": 300,
+        "artifact_observed_within_original_bound": false,
+        "artifact_hash_and_length_unchanged_by_correction": true,
+        "mtime_unchanged_recorded_by_parent": true
       }
     ],
     "report_inconsistency": {
@@ -137,7 +143,6 @@
       "requested_fix": "One read-only correction with a newer report revision and explicit supersedes; omit unnecessary raw byte copies, preserve artifact and old reports.",
       "correction_result": "Report 18 verified and accepted; correct hash, length, identity, required fields, digest and explicit supersedes of report 16; no artifact writes."
     },
-    "prior_artifact_unchanged": true,
     "limits": [
       "One receiver and two distinct synthetic actions, not a reliability benchmark or exactly-once proof.",
       "The 35-second and 40-second receiver delays are intentional fault injection, not measured natural delivery latency.",
@@ -146,6 +151,12 @@
       "No Claude, Antigravity or Grok session was contacted; provider guidance is documentation and local CLI-help research only."
     ],
     "final_native_receiver_status": "idle",
-    "outstanding_test_actions": []
+    "outstanding_test_actions": [],
+    "retained_evidence_limits": [
+      "Input-cursor reuse is recorded by the parent, not independently reconstructable from the retained output cursors; no historical call-argument receipt was created after the fact.",
+      "The parent recorded unchanged modification time, but numeric before/after mtime values were not retained. The artifact hash/length and read-only correction command are independently corroborated.",
+      "The parent recorded the prior test artifact as unchanged; the follow-up captures contain only that boolean, not its current readback, so this cold review did not independently recompute that comparison."
+    ],
+    "prior_artifact_unchanged_recorded_by_parent": true
   }
 }

@@ -190,10 +190,13 @@ the CLI accepted a request while the exact native receiver remained `notLoaded`;
 returned `inactiveStatus` and an older completed turn. Keep the new action pending until its own
 incoming record, disposition and result are observed. Do not count that older completion or the
 waiter's early return as the new action's outcome. If unchanged inactive results return immediately,
-back off within the observation bound instead of looping. Re-establishing observation uses the same
-target and its saved cursor; it is not another send, a receiver resume or proof of restart recovery.
-In the same check, a separate authorized app-native request started a turn that first processed the
-older queued action. Correlate each incoming record and result to its own action; activity after a
+back off within the observation bound instead of looping. When re-establishing observation, pass
+the saved target and its cursor. In this test, cursor reuse is parent-recorded because the resumed
+call arguments were not retained. This is read-only reconciliation, not another send, a receiver
+resume or proof of restart recovery.
+In the same check, a separate authorized app-native request coincided with activation and a turn
+that first processed the older queued action; the captures do not establish activation causality.
+Correlate each incoming record and result to its own action; activity after a
 new send need not belong to that send. This is local observed behavior, not a universal wake-up
 guarantee or permission to send a nudge for an outstanding request.
 

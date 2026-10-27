@@ -237,7 +237,9 @@ supported check rather than busy-polling or sending another message.
 
 For an observer-interruption check, retain the exact target/host, action/revision, send result,
 last proved stage and per-target wait cursor before ending the local observation scope. Reconstruct
-observation from that checkpoint in a fresh scope without sending again. Record whether an active
+observation from that checkpoint in a fresh scope without sending again. Retain the resumed call's
+actual input arguments alongside its native result; an advanced output cursor alone cannot prove
+reuse of the saved input cursor. Record whether an active
 wait was actually interrupted, or only local observer context was reconstructed. A receiver that
 remains `notLoaded` can exercise pending/no-ACK classification but cannot prove continued execution
 across interruption. Controlled delayed-ACK instructions count as fault injection only if the

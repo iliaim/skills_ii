@@ -106,7 +106,7 @@ Choose from the sender → recipient pair and host relationship established abov
 | Same runtime on different hosts | That runtime's reference plus the [cross-host selector](references/cross-provider-routes.md) |
 | Antigravity recipient, including `agy` | [Antigravity routes](references/antigravity.md); add the cross-provider selector when the sender runtime or host differs |
 | Grok Build or Grok API recipient | [Grok routes](references/grok.md); add the cross-provider selector when the sender runtime or host differs |
-| Automation, scheduler, launchd lane or controlled mailbox | [Automation contact](references/automation-contact.md) plus only the selected transport's reference |
+| Automation, scheduler, launchd lane or automation-controlled mailbox | [Automation contact](references/automation-contact.md) plus only the selected transport's reference |
 
 Read [local Codex transcripts](references/codex-local-transcripts.md) only for an actual rollout or
 filesystem/database diagnostic need. For another runtime, verify its documented capabilities before

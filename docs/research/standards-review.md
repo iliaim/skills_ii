@@ -473,24 +473,32 @@ The source checkout was clean at `58500ed32bc9ce136e0f661084e24c08a9fc6130` befo
 
 The [retained native summary](native-queue-verification.json) separates the original live test from
 this follow-up. One CLI queue request was accepted, but exact native checks showed `notLoaded`,
-an unchanged older completed turn and no matching new incoming record at the observation bound.
+an unchanged older completed turn and no matching new incoming record at the final post-bound
+check, 331.509 seconds after send (the bound was 300 seconds).
 The request stayed pending; the sender did not resend it. An independent, separately authorized
-app-native test request then started a turn that first consumed the older queued action. Thread
+app-native test request coincided with activation and a turn that first consumed the older queued
+action; the retained captures do not establish the cause of activation. Thread
 activity after a send therefore cannot identify which outstanding action is executing.
 
 The caller terminated only its own local wait scope and reconstructed observation from the saved
-exact target, host and cursor. New human input also interrupted a real native wait; its result was
-`Wait interrupted by new input.` Observation resumed against the same target and saved cursor,
-without resending or controlling the receiver. Both scratch artifacts were later independently
+exact target, host and cursor according to the parent record. New human input also interrupted a
+real native wait; its result was
+`Wait interrupted by new input.` Resumed results corroborate the same target and host. Input-cursor
+reuse is parent-recorded: the actual resumed-call arguments were not retained, and advanced output
+cursors alone cannot independently prove it. No request was resent to resume observation, and no
+receiver control was issued. Both scratch artifacts were later independently
 verified, including one observed exclusive-create command per action, exact values/bytes, length
 and SHA-256. Both were written after their original 300-second observation deadlines; those
 deadlines remain unresolved outcomes, not retroactive passes. This does not test app/host restart
-recovery or general delivery reliability. The earlier successful test artifact was unchanged.
+recovery or general delivery reliability. The parent recorded the earlier successful test artifact
+as unchanged; the follow-up capture retains only that boolean, so the cold reviewer did not
+independently recompute this comparison.
 
 Independent verification also found that the second action's checkpoint and terminal report carried
 an inaccurate base64 copy even though their report digests and the actual artifact were correct.
 The original conflicting report was held; verified read-only report 18 supersedes report 16 without
-rewriting or re-executing the artifact. Hash, length and modification time remained unchanged.
+rewriting or re-executing the artifact. Hash and length are independently corroborated. The parent
+also recorded unchanged modification time, but its numeric before/after values were not retained.
 The native summary retains the failed representation and the corrected report disposition.
 The evaluation recipe now checks supplied byte representations against the actual readback and
 recommends omitting redundant raw copies when acceptance does not need them.
@@ -516,3 +524,17 @@ Skill Creator `quick_validate.py skills/agent-communication` passed, as did `git
 All 47 local relative links across the six changed/new skill Markdown files resolved (fenced
 shape examples excluded). The delivery PR retains final CI evidence; the native summary retains
 the distinct pending-at-bound, late-execution and corrected-report results.
+
+Cold adversarial follow-up reviewed `2a6f5468` with five fresh GPT-6 Luna subagents at extra-high
+reasoning: routing, progressive disclosure, evaluation safety, native evidence and architecture.
+Repairs narrowed the automation-reference selector to automation-controlled mailboxes, explicitly
+recorded both action bounds, and separated recorded assertions from independently recomputable
+native evidence. Eval 43 also allowed relay delegation, spawning and forking to pass despite its
+no-relay assertion; all four escape plans now fail, with a safe no-call control retained. The new
+unit subtests failed before each guard was added; schema-valid full results reproduced the initial
+relay false passes. No runner DSL, runtime transport or native test action was added.
+
+Repair validation: `python3 -m pytest -q skills` passed 207 tests and 251 subtests; Skill Creator
+validation and `git diff --check` passed. Focused reviewer follow-ups checked the fixes. Missing
+historical resumed-call arguments and numeric mtime comparisons were labelled as evidence limits,
+not reconstructed after the fact. The native test recipe now retains actual resumed-call inputs.
