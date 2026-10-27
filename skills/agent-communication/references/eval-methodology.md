@@ -235,9 +235,24 @@ a native incoming record matching the sent request and a result for its action/r
 READY or completed turn is not that result. Preserve the remaining observation bound for the next
 supported check rather than busy-polling or sending another message.
 
+For an observer-interruption check, retain the exact target/host, action/revision, send result,
+last proved stage and per-target wait cursor before ending the local observation scope. Reconstruct
+observation from that checkpoint in a fresh scope without sending again. Record whether an active
+wait was actually interrupted, or only local observer context was reconstructed. A receiver that
+remains `notLoaded` can exercise pending/no-ACK classification but cannot prove continued execution
+across interruption. Controlled delayed-ACK instructions count as fault injection only if the
+receiver actually runs them; an accepted queue request alone does not prove the delay executed.
+App, host and controller restart recovery require their own authorized test and remain unverified.
+
 For an exact JSON fixture ending in one LF, construct bytes without a shell-escape ambiguity:
 `json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8") + bytes([10])`.
 Compare actual read-back bytes, not just the write exit status. If verification fails after a write,
 preserve the failed evidence. For a correction of that artifact, use an authorized material revision
 with an explicit scope and preimage guard. It is not an unchanged replay or a retroactive pass for
 the first attempt.
+
+When a report includes raw UTF-8, base64 or other redundant byte representations, decode and compare
+each with the independent readback, reported hash and length. A valid report digest proves integrity
+of the report, not consistency or truth of its contents. Omit raw byte copies when they are not
+needed by acceptance. If only the report conflicts, request one read-only superseding report within
+existing authority; preserve the correct artifact and the superseded evidence without re-execution.

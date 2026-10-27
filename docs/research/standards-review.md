@@ -463,3 +463,56 @@ messages matched the retained captures, and the current 135-byte artifact still 
 revision-2 values and hash. Two wording clarifications distinguish transport acceptance from receiver
 receipt and directory-integrity snapshots from model-visible inputs, including the possible presence
 of generated caches. No integrity guard, report format, runtime behavior or dependency changed.
+
+## Observer and transport follow-up (2026-10-27)
+
+The user authorized bounded observer-interruption and stalled/no-ACK checks using the existing
+dedicated native test receiver, plus focused fixes. A later instruction required sender-aware,
+recipient-aware routing and progressive disclosure across native peers, providers and hosts.
+The source checkout was clean at `58500ed32bc9ce136e0f661084e24c08a9fc6130` before these edits.
+
+The [retained native summary](native-queue-verification.json) separates the original live test from
+this follow-up. One CLI queue request was accepted, but exact native checks showed `notLoaded`,
+an unchanged older completed turn and no matching new incoming record at the observation bound.
+The request stayed pending; the sender did not resend it. An independent, separately authorized
+app-native test request then started a turn that first consumed the older queued action. Thread
+activity after a send therefore cannot identify which outstanding action is executing.
+
+The caller terminated only its own local wait scope and reconstructed observation from the saved
+exact target, host and cursor. New human input also interrupted a real native wait; its result was
+`Wait interrupted by new input.` Observation resumed against the same target and saved cursor,
+without resending or controlling the receiver. Both scratch artifacts were later independently
+verified, including one observed exclusive-create command per action, exact values/bytes, length
+and SHA-256. Both were written after their original 300-second observation deadlines; those
+deadlines remain unresolved outcomes, not retroactive passes. This does not test app/host restart
+recovery or general delivery reliability. The earlier successful test artifact was unchanged.
+
+Independent verification also found that the second action's checkpoint and terminal report carried
+an inaccurate base64 copy even though their report digests and the actual artifact were correct.
+The original conflicting report was held; verified read-only report 18 supersedes report 16 without
+rewriting or re-executing the artifact. Hash, length and modification time remained unchanged.
+The native summary retains the failed representation and the corrected report disposition.
+The evaluation recipe now checks supplied byte representations against the actual readback and
+recommends omitting redundant raw copies when acceptance does not need them.
+
+The skill now establishes the sender runtime/host and recipient runtime/host before selecting
+references, while the ordinary-message contract retains ownership of endpoint fields, authority and
+reply routes. The compact route selector preserves distinct Codex and Claude procedures and adds
+separate Antigravity and Grok references. Cross-provider instructions describe only the relevant
+capability leads; they do not install bridges, promise wake-up, or turn resume into messaging.
+Installed `claude`, `agy` and Grok Build help was checked; no cross-provider session was contacted.
+Grok's installed `--session-id` semantics differ from an online headless example, so local feature
+detection remains authoritative. Antigravity's documented native idle-peer wake-up is not borrowed
+for Codex's different subagent tools or external senders.
+
+One fresh independent Luna forward evaluation used three synthetic cases: local Codex peers,
+Claude-to-Codex over an existing authorized SSH route, and a Grok Build recipient with no verified
+send interface. It loaded only the applicable references and found no material routing defect.
+These are model behavior checks, not native cross-provider integration proof. No new service,
+dependency, queue consumer, mailbox format or production helper was introduced.
+
+Validation: `python3 -m pytest -q skills` passed 206 tests and 247 subtests; the installed
+Skill Creator `quick_validate.py skills/agent-communication` passed, as did `git diff --check`.
+All 47 local relative links across the six changed/new skill Markdown files resolved (fenced
+shape examples excluded). The delivery PR retains final CI evidence; the native summary retains
+the distinct pending-at-bound, late-execution and corrected-report results.
