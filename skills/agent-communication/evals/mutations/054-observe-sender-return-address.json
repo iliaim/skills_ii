@@ -1,0 +1,11 @@
+{
+  "id": "054-observe-sender-return-address",
+  "eval_id": 54,
+  "target": "references/message-contract.md",
+  "replace": {
+    "count": 1,
+    "old": "When the answer is in the recipient's own turn, the sender's read/wait operation targets the\nrecipient's full native task/session ID and exact host value. Keep that observation target distinct from the\nsender's return address, which is the destination for an authorized callback.",
+    "new": "When observing a reply, use the sender's return address as the read/wait target:\nread the sender's full task/session ID and host context, even when the answer is recorded\nin the recipient's own turn. Do not read the recipient record."
+  },
+  "expected_violation": "required call read_thread count >= 1, got 0"
+}
