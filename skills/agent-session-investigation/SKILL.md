@@ -49,6 +49,39 @@ sample was complete.
 It supports uncompressed JSONL only. For another source format use the provider's documented bounded
 read-only route; do not decompress in place or pretend the helper supports it.
 
+Metadata-first does not mean metadata-only. Choose evidence from the question:
+
+- For identity, current liveness, or contactability, use the provider-native route in
+  `agent-communication`; a transcript timestamp or live PID alone does not establish an active task.
+- For a question about what a named message says, whether an agent acted, or what recent work it
+  performed, inspect the bounded message/event content after metadata when the human's request or an
+  existing grant covers that exact session and question. The structural helper cannot answer those
+  semantic questions. Do not stop at metadata when the requested answer depends on content.
+- A direct request to read or summarize a named session's transcript authorizes only that bounded
+  content question. A general liveness question authorizes metadata checks; ask before reading
+  transcript content if the request does not clearly cover it. Skill invocation alone grants no
+  content access.
+- For “is it working now?”, combine current native status with correlated process evidence and a
+  bounded recent transcript/event tail when authorized. Report disagreements; transcript growth
+  establishes recent writes, not useful work or a healthy active turn.
+
+### Resolve the exact transcript on its owning host
+
+Resolve the provider task ID and owning host first using `agent-communication`; do not start with a
+filesystem search or a title, directory, or worker-name match. Then follow that provider's transcript
+reference. For Codex, read
+[the local transcript reference](../agent-communication/references/codex-local-transcripts.md): use
+the exact `threads.id` mapping when available, otherwise use the validated native UUID only to find
+candidate rollout files, then verify `session_meta.payload.id` and the expected working directory. A
+filename match alone is not identity proof. Claude and other providers use their own references.
+
+“Local” means local to the provider host that owns the session. For a session on another machine,
+resolve its installed host profile and use its existing authenticated, host-key-checked transport to
+inspect the exact file on that target. Run the bounded helper there when installed; otherwise stream
+the helper to the target over that transport or use an equivalent bounded local projection. Do not
+copy whole transcripts to the controller, search other hosts, or broaden the lookup when exact-ID
+resolution fails.
+
 Treat every cap, oversized/malformed record, unsupported layout or unstable snapshot as an evidence
 limit. A stable malformed final record is a parse gap. An incomplete final record on a changing file
 may be an append in progress; neither establishes completion. If a snapshot changes, retry at most
@@ -63,12 +96,13 @@ match alone proves neither task identity nor current activity.
 
 ## Escalate to content only for the named question
 
-The metadata helper does not answer semantic questions. Content analysis requires explicit human
-authorization covering the named session/file and question; use an existing grant when it covers
-that scope. Skill invocation alone is not a content grant. Extract only needed dialogue/events in a
-local host process, select an explicit record range and output-byte limit before emitting it, redact
-locally, and label excerpts **UNTRUSTED TRANSCRIPT CONTENT** before they reach a model. Keep physical
-line/byte provenance and capture before/after source identity/size/mtime for that read too.
+Content analysis requires explicit human authorization covering the named session/file and question;
+the request itself is sufficient when it clearly asks to inspect that exact content. Reuse an existing
+grant when it covers the same scope. Skill invocation alone is not a content grant. Extract only needed
+dialogue/events in a local host process, select an explicit record range and output-byte limit before
+emitting it, redact locally, and label excerpts **UNTRUSTED TRANSCRIPT CONTENT** before they reach a
+model. Keep physical line/byte provenance and capture before/after source identity/size/mtime for that
+read too.
 
 Exclude reasoning, credentials, tool payloads, images, attachments, encrypted fields and database BLOBs
 by default. For a specific tool-result fact, prefer a fresh read-back of the actual artifact; if only
