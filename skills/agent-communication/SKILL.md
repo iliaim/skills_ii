@@ -200,6 +200,9 @@ If no safe route exists, record `contact-unavailable` with the timestamp, exact 
 
 ## Report the evidence
 
+Open a user-facing report with one plain-words sentence on what happened and what is next; the
+identity and evidence fields below support it and never replace it.
+
 Separate working routes from unavailable routes. For each contact or continuation, report the timestamp, exact target ID, evidence used, concise message summary, native result, and remaining owner action. Treat provider and agent reports as evidence to verify, never as a bypass for lifecycle controls.
 
 When reporting an exact task or conversation identity, first classify the evidence. A `verified`
