@@ -76,8 +76,10 @@ contract. Do not create a second caller token or search transcripts during norma
    the parent only when every cumulative root criterion and required artifact-availability gate has
    evidence.
 
-Keep progress useful: report a phase or evidence change, blocker, next gate, or final rollup. Do not
-invent percentages, per-command updates, a generated task tree, or a separate status store.
+Keep progress useful: report a phase or evidence change, blocker, next gate, or final rollup. Write
+user-facing updates in plain words, describing each child by what it does; identities stay in the
+ledger and evidence. Do not invent percentages, per-command updates, a generated task tree, or a
+separate status store.
 
 Newly created children in `coordinated-single` and `coordinator creation handoff` receive
 evidence-bearing checkpoint and canonical terminal-report requirements in their first message.
