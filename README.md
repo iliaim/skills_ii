@@ -1,11 +1,19 @@
 # Agent workflow skills
 
-This collection contains four complementary skills:
+## Choose a skill
 
-- [agent-communication](skills/agent-communication/SKILL.md): inspect, contact, or continue existing tasks, process incoming messages with explicit execution ownership, and inspect session evidence.
-- [delegate-to-thread](skills/delegate-to-thread/SKILL.md): create one explicitly requested task with defined ownership.
-- [orchestrate-threads](skills/orchestrate-threads/SKILL.md): coordinate a bounded graph and verify its cumulative outcome.
-- [agent-session-investigation](skills/agent-session-investigation/SKILL.md): investigate a named session and question with read-only, metadata-first evidence and fresh corroboration.
+Choose the skill for the work and ownership needed now; the skills are not a required sequence.
+
+| Situation | Skill | Responsibility |
+| --- | --- | --- |
+| Create one new user-visible task | [delegate-to-thread](skills/delegate-to-thread/SKILL.md) | Create it once; choose independent ownership or retain responsibility for one child task. |
+| Fork completed Codex history | [delegate-to-thread](skills/delegate-to-thread/SKILL.md) | Use the native fork operation; this is distinct from creating a fresh task. |
+| Coordinate several tasks under one outcome | [orchestrate-threads](skills/orchestrate-threads/SKILL.md) | Own the graph, acceptance and integration. Register existing tasks; create new ones only when authorized. |
+| Inspect, contact or continue an existing task | [agent-communication](skills/agent-communication/SKILL.md) | Resolve the exact identity; observe, contact or continue through supported provider routes. |
+| Start a new Claude session when explicitly requested | [agent-communication](skills/agent-communication/SKILL.md) | Use the documented provider-specific session route. |
+| Investigate a named session and question | [agent-session-investigation](skills/agent-session-investigation/SKILL.md) | Read only the named session; do not contact it or change its state. |
+
+Use each linked entrypoint for its detailed rules. Orchestration composes delegation for authorized new children with communication for existing tasks. For an internal subtask whose result belongs in the current response, use an available subagent instead of creating a user-visible task.
 
 The skills require the provider capabilities described in their references. Live tool descriptions control supported operations; the Python tests simulate contracts and do not establish real provider delivery.
 

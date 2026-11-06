@@ -9,6 +9,26 @@ For ordinary messages after creation, use the
 It owns message intent and receiver processing; this contract retains creation authority, execution
 context and child reporting requirements.
 
+## Contents
+
+- [Objective boundary](#objective-boundary)
+- [Minimum-sufficient first message](#minimum-sufficient-first-message)
+- [Attached-child reporting](#attached-child-reporting) — coordinated-single or coordinator handoff
+- [Writable-child resource claims](#writable-child-resource-claims) — every writable attached child
+- [Conditional descendant-delegation handoff](#conditional-descendant-delegation-handoff) — only when authorized
+- [Direct execution and descendant boundary](#direct-execution-and-descendant-boundary)
+- [Repository execution context](#repository-execution-context) — repository-writing work
+- [Mutable load-bearing facts](#mutable-load-bearing-facts)
+- [Authoritative dispatch-state contract](#authoritative-dispatch-state-contract)
+  - [Capability and authority](#capability-and-authority)
+  - [Creation result and recovery](#creation-result-and-recovery)
+  - [Automatic exact-handle setup resolution](#automatic-exact-handle-setup-resolution) — `clientThreadId` only
+  - [Observation results](#observation-results) — when the parent observes the child
+- [Readiness gate](#readiness-gate)
+- [Progress and final evidence](#progress-and-final-evidence)
+- [Preferred provider creation contract](#preferred-provider-creation-contract)
+- [Platform references](#platform-references)
+
 ## Objective boundary
 
 Give one task one observable outcome or one bounded slice of a named broader objective:
