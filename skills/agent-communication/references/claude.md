@@ -81,12 +81,17 @@ A sender without Claude's native tools, such as a Codex task or a script, can ru
 is a relay model turn: separate execution with its own scope and authority, not a plain shell command.
 
 ```sh
-claude -p --permission-mode bypassPermissions 'Send a message to the running Claude Code session named @NAME. Message text exactly: "TEXT"'
+claude -p --permission-mode bypassPermissions 'Use your SendMessage tool (find the target with ListAgents) to send a message to the running Claude Code session named @NAME. Do not use claude --resume or start any other turn in that session. Message text exactly: "TEXT". Then print the exact result the send returned.'
 ```
 
 Observed 2026-11-11: the send printed JSON such as `{"success":true,"message":"... in that session's inbox, not yet read ...","msg_id":"<uuid>"}`. Delivery to
 an interactive bypass-mode receiver arrived about 12 s after launch, mid-turn between tool calls, with no approval prompt. Take `NAME` from `claude agents
 --json` after the exact-ID and `cwd` checks above. Open the message text with the [label line](message-contract.md#identify-the-action-and-roles).
+
+Observed 2026-11-11: with the shorter prompt "Send a message to the running Claude Code session named @NAME ...", one relay sender launched
+from a Codex task did not send. It read this skill's older reference, treated delivery as `claude -p --resume`, refused because the receiver was busy,
+and asked which route to use. Name the message tool and forbid resume in the relay prompt, as above. A relay that reports anything other than a send result
+is `not-sent`.
 
 - **Bypass is human-approved only.** Observed 2026-11-11: the receiver was in bypass mode, so the relay sender also used `bypassPermissions`; delivery was not
   held. A default prompting sender's message is held by a bypass-mode receiver, while a prompting receiver holds messages from a bypass sender. A human must
