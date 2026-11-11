@@ -3,8 +3,8 @@
 Read only for a Grok recipient. First identify whether it is Grok Build, an API conversation, a
 browser chat, or a Grok model hosted in another runtime. Use the hosting runtime's reference for
 the last case. The shared [message contract](message-contract.md) owns identity, authority,
-disposition and observation; [cross-provider routes](cross-provider-routes.md) owns cross-host
-selection and fallback.
+disposition and observation, and [its routing rules](message-contract.md#choose-one-route-per-message)
+own route selection and fallback.
 
 ## Grok Build
 
@@ -35,6 +35,8 @@ coding session, and a completed API response does not by itself verify external 
 If exact native identity, an authorized sending route or usable result observation is unavailable,
 report that gap and use only an existing authorized mailbox with a reader/poller. Cross-host
 communication needs an actual owning-host/runtime route; a shared filename does not provide it.
+The answer comes back through the verified worker output, API result or an agreed record. For another
+host, use a verified runtime/API route or an existing mailbox.
 No Grok session was contacted during the local help check, and no live cross-runtime delivery,
 authentication or wake-up behavior was verified. Starting/resuming workers or configuring bridges
 requires separate authority; this reference grants none.

@@ -1,8 +1,9 @@
 # Antigravity recipient routes
 
 Read only for an Antigravity recipient, including the `agy` CLI. The shared
-[message contract](message-contract.md) owns identity, authority, disposition and observation;
-[cross-provider routes](cross-provider-routes.md) owns cross-runtime/host selection and fallback.
+[message contract](message-contract.md) owns identity, authority, disposition and observation, and
+[its routing rules](message-contract.md#choose-one-route-per-message) own route selection and
+fallback.
 
 Distinguish an existing app/CLI conversation from a worker process already controlled by the
 caller. Resolve the exact conversation ID and owning host through supported native evidence;
@@ -15,7 +16,7 @@ The [native subagent documentation](https://antigravity.google/docs/subagents?ta
 describes routing by unique agent conversation IDs and automatic wake-up of idle subagents on
 incoming messages. This differs from the Codex live-subagent `send_message`/`followup_task`
 distinction. Use only the actual native tools exposed in that Antigravity surface; do not invent
-their names or apply internal-peer behavior to an external Codex sender, another host or an
+their names or apply internal-peer behavior to an external sender, another host or an
 unrelated persisted conversation. A documented wake-up still is not an action-bound ACK or verified
 completion. Killed subagents cannot be reawakened according to that reference.
 
@@ -42,6 +43,9 @@ verification of every requested effect.
 most recent one. Neither is ordinary messaging to an active owner. Starting/resuming a worker needs
 its own authority and exclusive execution context; this reference grants neither. Cross-host work
 uses a verified owning-host client or controller route, not a local path pretending to be remote.
+
+The answer comes back through the verified worker output or an agreed record. For another host, use a
+verified owning-host route or an existing mailbox.
 
 Documentation and local CLI help were checked on 2026-10-27. No Antigravity session was contacted,
 and no live cross-runtime delivery or wake-up behavior was verified.

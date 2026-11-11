@@ -1056,7 +1056,7 @@ class BehavioralEvalContracts(unittest.TestCase):
         self.assertIn("Plan the complete workflow through these staged responses", prompt)
 
     def test_mutation_changes_only_the_temporary_copy(self):
-        source_text = (SKILL_ROOT / "references" / "codex-chatgpt.md").read_text()
+        source_text = (SKILL_ROOT / "references" / "codex.md").read_text()
         mutation = self.runner.load_mutation(
             SKILL_ROOT / "evals" / "mutations" / "023-list-first.json"
         )
@@ -1070,7 +1070,7 @@ class BehavioralEvalContracts(unittest.TestCase):
 
         self.assertEqual(
             source_text,
-            (SKILL_ROOT / "references" / "codex-chatgpt.md").read_text(),
+            (SKILL_ROOT / "references" / "codex.md").read_text(),
         )
 
     def test_mutation_rejects_an_in_tree_symlink_target(self):
@@ -1081,7 +1081,7 @@ class BehavioralEvalContracts(unittest.TestCase):
             copied_root = Path(tmp) / "agent-communication"
             shutil.copytree(SKILL_ROOT, copied_root)
             link = copied_root / "references" / "linked-codex.md"
-            link.symlink_to(copied_root / "references" / "codex-chatgpt.md")
+            link.symlink_to(copied_root / "references" / "codex.md")
             linked_mutation = dict(mutation, target="references/linked-codex.md")
 
             with self.assertRaises(self.runner.HarnessError):
@@ -1754,7 +1754,7 @@ print(json.dumps({"type": "turn.started"}))
 print(json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": json.dumps(result)}}))
 print(json.dumps({"type": "turn.completed", "usage": {}}))
 '''
-        installed = (SKILL_ROOT / "references" / "codex-chatgpt.md").read_text()
+        installed = (SKILL_ROOT / "references" / "codex.md").read_text()
         with tempfile.TemporaryDirectory() as tmp:
             fake = Path(tmp) / "fake-codex"
             fake.write_text(fake_source)
@@ -1779,7 +1779,7 @@ print(json.dumps({"type": "turn.completed", "usage": {}}))
 
         self.assertEqual(0, green)
         self.assertEqual(0, red)
-        self.assertEqual(installed, (SKILL_ROOT / "references" / "codex-chatgpt.md").read_text())
+        self.assertEqual(installed, (SKILL_ROOT / "references" / "codex.md").read_text())
 
 
 if __name__ == "__main__":

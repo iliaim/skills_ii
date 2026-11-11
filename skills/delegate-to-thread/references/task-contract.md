@@ -330,7 +330,7 @@ destination. The `clientThreadId` is a provider-owned setup handle; the runtime 
 candidate UUID, and must make failure terminal and explicit. If the resolver reports `pending`, use
 the runtime's finite, low-frequency setup schedule; do not busy-poll or wait indefinitely. If the
 runtime exposes no resolver, use the provider-specific exact binding source described in
-[agent communication](../../agent-communication/references/codex-chatgpt.md#provider-specific-exact-setup-recovery)
+[agent communication](../../agent-communication/references/codex.md#provider-specific-exact-setup-recovery)
 when that local surface is available. No user request is a prerequisite for either route.
 
 Each bounded attempt must:

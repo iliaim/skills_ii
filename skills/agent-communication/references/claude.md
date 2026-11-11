@@ -1,12 +1,30 @@
-# Claude Code sessions
+# Claude Code sessions (recipient)
 
-Read this reference only for Claude session discovery, contact, continuation, transcript lookup, creation, or freshness. Installed Claude CLI and Desktop worker versions can differ; inspect the exact executable's current `--help` and tolerate missing JSON fields.
+Read this reference when the recipient is a Claude Code session: to find, read, message or continue
+it, or to start a new one on explicit request. Routes are keyed by the recipient; the sender can be
+any runtime that fits the route it uses. Installed Claude CLI and Desktop worker versions can
+differ; inspect the exact executable's current `--help` and tolerate missing JSON fields.
 
 For historical artifact inspection, use [agent-session-investigation](../../agent-session-investigation/SKILL.md)
 on the already selected source: metadata first, bounded reads, physical provenance and before/after
 snapshot checks. This reference retains exact session lookup and current state/contact procedures.
 
-## Exact identity first, then live inventory
+Observations marked "observed 2026-11-11" were measured once on one macOS host with Claude Code
+2.1.322 and codex-cli 0.167.1. They are dated test results, not guarantees; re-check them on the
+installed version.
+
+## Contents
+
+- [Find the session](#find-the-session)
+- [Message a running session](#message-a-running-session)
+- [Continue a persisted session](#continue-a-persisted-session)
+- [Start a new session](#start-a-new-session)
+- [Lifecycle and cost](#lifecycle-and-cost)
+- [Where Claude transcripts live](#where-claude-transcripts-live)
+- [Inspect recency and liveness separately](#inspect-recency-and-liveness-separately)
+- [Privacy and untrusted content](#privacy-and-untrusted-content)
+
+## Find the session
 
 When an exact Claude session ID is supplied, attempt an exact native session read or exact-session
 message route first when the installed Claude surface exposes one. If no exact read tool exists,
@@ -31,23 +49,108 @@ claude agents --json --all
 
 Because `--all` includes completed sessions, never use its unfiltered result as the starting set or as proof that every returned session is active. `--cwd <path>` narrows either inventory when supported.
 
-Observed rows can contain `sessionId`, `cwd`, `kind`, `name`, `pid`, and `startedAt`; other versions may add state or waiting fields. Treat every field as optional. Correlate the exact `sessionId` with `cwd` and PID/process-start or another durable owner marker. Names and working directories alone are leads.
+Observed rows can contain `sessionId`, `cwd`, `kind`, `name`, `pid`, `startedAt`, `status` (`busy`, `idle` or `waiting`) and `waitingFor`; other versions may differ. Treat every field as optional. Correlate the exact `sessionId` with `cwd` and PID/process-start or another durable owner marker. Names and working directories alone are leads.
 
 `claude logs <background-id>` can show recent terminal output for a background session on versions that support it. It is not the canonical transcript, and the background row ID may differ from `sessionId`.
 
 Claude Desktop can expose native session-management tools such as session listing, exact-session reads, transcript search, event listing, and messaging. When those tools are actually available, prefer them over filesystem discovery, feature-detect their current schema, and scope transcript search to the exact correlated session. Do not invent unavailable tools or use broad transcript search as owner discovery.
 
-## Contact, continuation, and creation are different
+## Message a running session
 
-Claude has no general shell `send-message` subcommand. Use an exposed Claude Desktop exact-session message tool when available. Otherwise, from a Claude session, use native `ListAgents`, verify the receiver's exact reference/session and working directory, then use `SendMessage`. A session on another machine is listed only while both sessions use Remote Control, and a message to another machine sent without Remote Control has no reply address. Do not talk directly to inbox sockets or token/key files.
+Claude has no general shell `send-message` subcommand. Messaging goes through a running Claude
+session's inbox; do not talk directly to inbox sockets or token/key files. Choose one route per
+message ([routing rules](message-contract.md#choose-one-route-per-message)):
 
-The sender sees only some outcomes. A result that begins `Not sent`, or a `Failed to send`, too-many-messages or too-large refusal, is `not-sent` for that attempt: nothing arrived, so fix the cause on your side or batch the content. If the reason names the receiver's setting, such as `crossSessionInbound`, never change it or [route around it](cross-provider-routes.md#when-the-receiver-cannot-be-reached). A dropped-at-inbox or expired report means the receiver never saw the message; put anything that still matters into one later message. Any other result shows delivery to the transport only: the receiver may still hold it for its human's approval, drop it unanswered, or refuse it with no sign to the sender, and older versions report no drops. Rely on this route for an unattended or print-mode worker only when that worker's own settings accept messages.
+| Sender | Route |
+|---|---|
+| A Claude session | Native: an exposed Desktop exact-session message tool, else `ListAgents` then `SendMessage`, or an `@name` mention |
+| Any other sender with a shell | CLI relay: a short-lived `claude -p` sender that performs the send |
+| No route verified, or none authorized | An existing mailbox, or `contact-unavailable` |
+
+### Native route (Claude sender)
+
+Use an exposed Claude Desktop exact-session message tool when available. Otherwise use native
+`ListAgents`, verify the receiver's exact reference/session and working directory, then use
+`SendMessage`; an `@name` mention (Claude Code 2.1.232 or later) addresses the same inbox. See the
+[official cross-session messaging documentation](https://code.claude.com/docs/en/cross-session-messaging).
+A session on another machine is listed only while both sessions use Remote Control, and a message to
+another machine sent without Remote Control has no reply address. On one machine the route is a
+per-user local socket; another machine also needs a claude.ai sign-in.
+
+### CLI route (any other sender with a shell)
+
+A sender without Claude's native tools, such as a Codex task or a script, can run a short-lived
+`claude -p` process whose one job is to send the message. This is a relay model turn: separate
+execution with its own scope and authority, not a plain shell command.
+
+```sh
+claude -p --permission-mode bypassPermissions 'Send a message to the running Claude Code session named @NAME. Message text exactly: "TEXT"'
+```
+
+Observed 2026-11-11: the send printed JSON such as
+`{"success":true,"message":"... in that session's inbox, not yet read ...","msg_id":"<uuid>"}`.
+Delivery to an interactive bypass-mode receiver arrived about 12 s after launch, mid-turn between
+tool calls, with no approval prompt. Take `NAME` from `claude agents --json` after the exact-ID
+and `cwd` checks above. Open the message text with the
+[label line](message-contract.md#identify-the-action-and-roles).
+
+- **The mode is the human's decision.** The tested receiver was in bypass mode, so the sender used
+  `bypassPermissions` too and the message was not held (see the pairing rule below); a receiver that
+  prompts holds messages from a bypass-mode sender. Choosing bypass mode for senders is a security
+  decision owned by the human; in the tested deployment it was approved in writing. Without that
+  approval, use an existing mailbox or report `contact-unavailable`.
+- **A sandboxed sender may not work.** Observed 2026-11-11: when the sender was a Codex task,
+  `claude` failed in Codex's `workspace-write` sandbox with `Not logged in · Please run /login`. It
+  worked with the sandbox off (`danger-full-access`). The cause is an inference, not proven: the
+  sandbox may block the macOS Keychain, where Claude's login lives. Running a sender unsandboxed is
+  also a human-owned security decision.
+- **Feature-detect first.** Require `claude` to be installed and logged in for the sending user;
+  otherwise report the route `unavailable`.
+- **The sender's name is automatic.** The receiver shows a name derived from the sender's working
+  directory (observed `scratchpad-94`, `tx-7a`) and the sender's permission mode. It does not say
+  which agent sent the message, so the message text itself must name its real sender (provider,
+  session or thread ID, host) under the
+  [identity rules](message-contract.md#identify-both-ends-and-the-return-route).
+
+### What the receiver must satisfy
+
+- **It must be running.** A message goes to a live inbox. A `claude -p` receiver has an inbox only
+  during its turn. Observed 2026-11-11: a test receiver started as
+  `claude -p --name xs-rx-a --permission-mode bypassPermissions --settings '{"crossSessionInbound":"accept"}' '<wait in short sleeps until a message arrives, then print it>'`
+  received the message and exited by itself. Use `claude agents --json` to confirm it is listed.
+- **Per the documentation**, a receiver in bypass-permissions mode holds messages for an approval
+  dialog (dropped after `dialogExpiry`, default 5 minutes) unless the sender is also in bypass mode,
+  and a receiver that prompts holds messages from a bypass-mode sender. `crossSessionInbound`
+  (`accept`, `hold` or `refuse`) overrides both. A message cannot approve a prompt, change settings
+  or run a slash command.
+- Never change the receiver's `crossSessionInbound` or other settings to get a message through.
+
+### Sender-visible outcomes
+
+The sender sees only some outcomes. A result that begins `Not sent`, or a `Failed to send`, too-many-messages or too-large refusal, is `not-sent` for that attempt: nothing arrived, so fix the cause on your side or batch the content. If the reason names the receiver's setting, such as `crossSessionInbound`, never change it or [route around it](message-contract.md#choose-one-route-per-message). A dropped-at-inbox or expired report means the receiver never saw the message; put anything that still matters into one later message. Any other result shows delivery to the transport only: the receiver may still hold it for its human's approval, drop it unanswered, or refuse it with no sign to the sender, and older versions report no drops. Rely on this route for an unattended or print-mode worker only when that worker's own settings accept messages.
 
 Read the answer where the request said it would be recorded; a `SendMessage` reply arrives as an incoming message. In a transcript fallback the answer is a later `assistant` entry, never a tool-use entry.
 
+## Continue a persisted session
+
 Use `claude --resume <session-id>` only for an intentional continuation of an exact persisted session proved idle. `claude --continue` selects the most recent conversation for a directory and is unsafe for owner contact. A print-mode `claude -p --resume <session-id> <prompt>` still creates a new turn. Never resume an active writer merely to deliver a handoff; concurrent resumes can interleave transcript writes.
 
-`--fork-session` creates a new session identity from old history and is not fresh creation. When the user explicitly asks for a new Claude session, start a new interactive session or an explicitly requested background session (`--bg`) using the current CLI contract. Do not add `--worktree`, `--cloud`, a chosen session ID, or bypass permissions unless the user and owning workflow explicitly require them.
+Resume is not messaging. Observed 2026-11-11: `claude -p --resume <id> "<text>"` started a second process
+that continued the transcript and answered itself. The live session never saw the text, and resuming
+an active session risks interleaved transcript writes. It is a continuation route only for an idle,
+persisted session.
+
+`--fork-session` creates a new session identity from old history and is not fresh creation.
+
+## Start a new session
+
+Only on explicit request. Start a new interactive session or an explicitly requested background session (`--bg`) using the current CLI contract. Do not add `--worktree`, `--cloud`, a chosen session ID, or bypass permissions unless the user and owning workflow explicitly require them.
+
+## Lifecycle and cost
+
+Observed 2026-11-11: a `claude -p` session ends by itself when its turn ends and leaves no process;
+its transcript stays on disk and can be resumed. An interactive session persists until closed. Each
+message or reply costs a full model turn, so avoid chatty loops.
 
 ## Where Claude transcripts live
 

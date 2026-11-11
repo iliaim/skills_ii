@@ -1,7 +1,7 @@
 {
   "id": "042-no-label-means-lost",
   "eval_id": 42,
-  "target": "references/cross-provider-routes.md",
+  "target": "references/message-contract.md",
   "replace": {
     "count": 1,
     "old": "2. **Received?** Prefer the exact receiver's native read. A transcript fallback must find your exact\n   label in an incoming user/message record, not in a quotation, tool result or assistant echo.\n   After a delivered `codex queue`, a transcript that lacks it leaves receipt unconfirmed (not yet\n   observed), not lost; a bounded or unstable read cannot prove absence. After an `indeterminate`\n   send, the transport outcome stays `indeterminate`. In either case, do not send it again by any\n   route: the first copy may still arrive and a second creates duplicate work risk. After another\n   route, the receiver may hold, refuse or drop it with no sign to the sender: report it as unconfirmed.\n   For a pending `codex queue` send, reconciliation is read-only: do not use `send_message_to_thread`\n   for a status nudge, a \u201cprocess the queued action\u201d cue, or a reworded work request. Those are still\n   additional deliveries. The live-task subagent trigger procedure does not apply to this route.",

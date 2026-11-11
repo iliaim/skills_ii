@@ -3,6 +3,16 @@
 Read this reference only when maintaining or running this skill's evals. It is not part of the
 provider workflow.
 
+## Contents
+
+- [What the harness proves](#what-the-harness-proves)
+- [Safety boundary](#safety-boundary)
+- [Run the evals](#run-the-evals)
+- [Prove the guard can fail](#prove-the-guard-can-fail)
+- [Add or change a case](#add-or-change-a-case)
+- [Paired sender/receiver evaluations](#paired-senderreceiver-evaluations)
+- [Bounded native delivery check](#bounded-native-delivery-check)
+
 ## What the harness proves
 
 `evals/evals.json` is the human-readable catalog. `evals/scenarios.json` gives every catalog entry a

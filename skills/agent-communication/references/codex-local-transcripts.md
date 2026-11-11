@@ -6,6 +6,13 @@ For artifact inspection, apply [agent-session-investigation](../../agent-session
 metadata-first, bounded-read and snapshot procedure to the already selected source. Do not restart
 task discovery. Its helper supports plain JSONL; it neither resolves identity nor reads databases.
 
+## Contents
+
+- [Where local Codex transcripts live](#where-local-codex-transcripts-live)
+- [Inspect recency without dumping content](#inspect-recency-without-dumping-content)
+- [Read the answer to a message you sent](#read-the-answer-to-a-message-you-sent)
+- [Privacy boundary](#privacy-boundary)
+
 ## Where local Codex transcripts live
 
 Define the config root as `CODEX_HOME` when set, otherwise `~/.codex`. Persisted local Codex rollouts normally live at:
@@ -110,7 +117,7 @@ Unparseable, changing, capped or unavailable evidence leaves receipt/answer unco
 in a bounded slice proves only that the message was not observed there. Commentary or a newer turn
 is not automatically progress; require action-bound evidence. Only a correlated disposition/result
 answers the request; a final-phase record alone proves nothing further. Apply
-[the route classification](cross-provider-routes.md#find-out-what-happened) without replay or resume.
+[the route classification](message-contract.md#find-out-what-happened) without replay or resume.
 
 ## Privacy boundary
 

@@ -30,7 +30,7 @@ If no route exists, report `contact-unavailable` with the exact identity tuple a
 
 For Codex app-server control, an authorized live scheduler uses `turn/steer` only with the exact expected turn ID. An authorized idle persisted task can use `thread/resume` followed by `turn/start`. If the active turn is not steerable or the persisted task/rollout is unresolved, use the scheduler's durable mailbox or recovery route.
 
-For Claude, use native live inventory and a verified Claude-to-Claude message route. Never use a session's inbox socket or token/key directly. Provider-native control is still communication, not authority to publish, clean up, or change lifecycle state.
+For a Claude session, use native live inventory and a verified route from [the Claude reference](claude.md#message-a-running-session). Never use a session's inbox socket or token/key directly. Provider-native control is still communication, not authority to publish, clean up, or change lifecycle state.
 
 ## Durable mailbox invariants
 

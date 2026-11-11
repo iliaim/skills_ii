@@ -1,8 +1,17 @@
 # Ordinary task messages
 
 Read this contract when sending or receiving a native message about an existing task. It owns
-message intent, execution ownership and action correlation. Task creation, graph acceptance,
-resource claims, integration and lifecycle controls remain with their existing owners.
+message intent, execution ownership, action correlation, route choice and reconciliation of an
+uncertain send. Task creation, graph acceptance, resource claims, integration and lifecycle controls remain with their existing owners.
+
+## Contents
+
+- [Identify the action and roles](#identify-the-action-and-roles)
+- [Process the intent in the receiver's own turn](#process-the-intent-in-the-receivers-own-turn)
+- [Observe progress in the sender](#observe-progress-in-the-sender)
+- [Choose one route per message](#choose-one-route-per-message)
+- [Find out what happened](#find-out-what-happened)
+- [Replays, changes and ownership transfers](#replays-changes-and-ownership-transfers)
 
 ## Identify the action and roles
 
@@ -176,10 +185,10 @@ leave the affected result pending. No acknowledgement guarantee exists without a
 actually runs and an observer that checks its evidence.
 
 For a queued or uncertain send, follow the provider's reconciliation/no-retry rule in
-[cross-provider routes](cross-provider-routes.md#find-out-what-happened). A deadline expiring does not
+[Find out what happened](#find-out-what-happened). A deadline expiring does not
 prove loss, revoke ownership, authorize another writer, or make resume safe. Sending and scheduling
 are different: for current-task subagents, use the live/idle distinction in
-[the Codex reference](codex-chatgpt.md#current-task-subagents).
+[the Codex reference](codex.md#current-task-subagents).
 
 ### Correct an ownership contradiction
 
@@ -188,6 +197,61 @@ contradiction and make one bounded correction within existing authority. Name th
 action; observe its disposition and result. Reuse the governing coordinator's correction/no-progress
 bounds. Without a new diagnosis or materially different correction, preserve the work and report
 the unresolved action instead of resending the instruction or starting a duplicate writer.
+
+## Choose one route per message
+
+Message only a receiver that your task or a project rule lets you message. Otherwise write to the
+mailbox or tell the human, and leave widening that rule to the human. Judge routeability from the
+sender's side. A mailbox here is a durable, auditable record that the project defines and the
+receiver reads; this skill defines no format for it.
+
+Routes are keyed by the recipient's runtime (the routing table in [SKILL.md](../SKILL.md#load-only-the-recipient-detail-needed));
+the sender's runtime only decides which of that recipient's routes it can use. Choose by the
+recipient's hosting runtime and exact session, not the model's brand. A model API request is separate
+from messaging an existing browser or IDE conversation. Keep the same action identity, disposition and
+observation contract across transports; verify sending, observation and wake-up capabilities
+independently. A shared mailbox requires an existing authorized reader or poller; writing a record
+alone neither schedules execution nor confirms receipt.
+
+Use one route per message: the recipient reference's native route for the sender's runtime, then its
+CLI route behind feature detection, then the mailbox. Move down only after a technical `not-sent` or
+a missing route. A refusal by the human, a permission rule or the receiver's own inbound setting is a
+decision, not a failure: after one, try no other route but a mailbox your task or a project rule
+already allows. When none works or a refusal stops you, record `contact-unavailable` as
+[SKILL.md](../SKILL.md#keep-communication-separate-from-lifecycle-control) requires, and tell the
+human.
+
+Routes documented only by a vendor are leads, not locally verified integrations. Add a thin adapter
+only for a demonstrated missing route and only when authorized; keep this contract instead of adding
+a second queue, status database or acknowledgement protocol.
+
+## Find out what happened
+
+Check in order and stop at the first step that fails. If you cannot decode or parse the receiver's
+records, stop there, report the answer as unreadable and keep the last state you proved.
+
+1. **Delivered?** Use the route's own result as its recipient reference maps it. `not-sent` covers
+   that attempt only: fix the cause, or move down a route only as [Choose one route per message](#choose-one-route-per-message) allows. After
+   `indeterminate`, go on to step 2.
+2. **Received?** Prefer the exact receiver's native read. A transcript fallback must find your exact
+   label in an incoming user/message record, not in a quotation, tool result or assistant echo.
+   After a delivered `codex queue`, a transcript that lacks it leaves receipt unconfirmed (not yet
+   observed), not lost; a bounded or unstable read cannot prove absence. After an `indeterminate`
+   send, the transport outcome stays `indeterminate`. In either case, do not send it again by any
+   route: the first copy may still arrive and a second creates duplicate work risk. After another
+   route, the receiver may hold, refuse or drop it with no sign to the sender: report it as unconfirmed.
+   For a pending `codex queue` send, reconciliation is read-only: do not use `send_message_to_thread`
+   for a status nudge, a “process the queued action” cue, or a reworded work request. Those are still
+   additional deliveries. The live-task subagent trigger procedure does not apply to this route.
+3. **Answered?** A later receiver record names your ref or action and gives a disposition or result
+   ([sender observation](#observe-progress-in-the-sender)). Until then it is not answered
+   yet; observe liveness as in [exact-ID observations](../SKILL.md#normalize-exact-id-observations).
+
+Follow the [bounded observation procedure](#bound-the-observation-before-sending).
+If no answer arrives within its bound, report what is unconfirmed and where you sent it. Keep a
+previously proved working route `available` unless new route evidence contradicts it. An unanswered
+queued message is a pending inspection result, not `contact-unavailable` merely because the receiver
+has not acted. State that the work remains pending; reporting the gap does not complete the request.
 
 ## Replays, changes and ownership transfers
 
