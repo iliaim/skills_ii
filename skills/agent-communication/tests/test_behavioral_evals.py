@@ -1490,7 +1490,7 @@ else:
         advanced_delegation = (SKILL_ROOT.parent / "delegate-to-thread" / "references" / "advanced-delegation.md").read_text()
         orchestration_contract = (SKILL_ROOT.parent / "orchestrate-threads" / "references" / "orchestration-contract.md").read_text()
         advanced_modes = (SKILL_ROOT.parent / "orchestrate-threads" / "references" / "advanced-modes.md").read_text()
-        communication_skill = (SKILL_ROOT / "SKILL.md").read_text()
+        communication_skill = (SKILL_ROOT / "SKILL.md").read_text() + (SKILL_ROOT / "references" / "exact-id-observations.md").read_text()
 
         for field in ("child_id", "report_revision", "report_identity_or_digest", "evidence_refs", "next_gate", "acceptance_map", "checks_and_observed_results", "supersedes"):
             self.assertIn(field, delegate_contract)
