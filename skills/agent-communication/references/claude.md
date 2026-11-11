@@ -90,8 +90,9 @@ an interactive bypass-mode receiver arrived about 12 s after launch, mid-turn be
 
 Observed 2026-11-11: with the shorter prompt "Send a message to the running Claude Code session named @NAME ...", one relay sender launched
 from a Codex task did not send. It read this skill's older reference, treated delivery as `claude -p --resume`, refused because the receiver was busy,
-and asked which route to use. Name the message tool and forbid resume in the relay prompt, as above. A relay that explicitly reports it did not send is
-`not-sent`; any other outcome without a send result is `indeterminate`.
+and asked which route to use. Name the message tool and forbid resume in the relay prompt, as above. Classify a relay as `not-sent` only when nothing could have
+been sent, for example `claude` is missing or not logged in, or the relay ended before any send call; the relay model saying it did not send is not that evidence
+on its own. Any other outcome without a send result is `indeterminate`.
 
 - **Bypass is human-approved only.** Observed 2026-11-11: the receiver was in bypass mode, so the relay sender also used `bypassPermissions`; delivery was not
   held. A default prompting sender's message is held by a bypass-mode receiver, while a prompting receiver holds messages from a bypass sender. A human must
