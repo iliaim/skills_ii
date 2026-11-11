@@ -1754,7 +1754,7 @@ class DelegateContractCaseTests(unittest.TestCase):
         self.assertIn("No separate caller-generated correlation token", contract)
 
     def test_cross_skill_recovery_state_vocabulary_is_unambiguous(self):
-        provider = (SKILL_ROOT.parent / "agent-communication" / "references" / "codex-chatgpt.md").read_text()
+        provider = (SKILL_ROOT.parent / "agent-communication" / "references" / "codex.md").read_text()
         orchestration = (SKILL_ROOT.parent / "orchestrate-threads" / "references" / "orchestration-contract.md").read_text()
         self.assertIn("return `queued/unmonitorable` with the evidence", provider)
         self.assertIn("`contact-unavailable` only after an", provider)

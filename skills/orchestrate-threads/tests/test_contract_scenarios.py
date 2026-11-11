@@ -45,7 +45,7 @@ class OrchestrationContractScenarioTests(unittest.TestCase):
     def test_queued_creation_is_unmonitorable_and_does_not_wake_parent(self):
         skill = (SKILL_ROOT / "SKILL.md").read_text()
         contract = (SKILL_ROOT / "references" / "orchestration-contract.md").read_text()
-        agent_contract = (SKILL_ROOT.parent / "agent-communication" / "references" / "codex-chatgpt.md").read_text()
+        agent_contract = (SKILL_ROOT.parent / "agent-communication" / "references" / "codex.md").read_text()
         self.assertIn("`queued/unmonitorable`", skill)
         self.assertIn("queued/unmonitorable", contract)
         self.assertIn("cannot be observed,", contract)
