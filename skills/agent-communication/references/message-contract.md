@@ -193,8 +193,10 @@ the last state you proved.
    as [Choose one route per message](#choose-one-route-per-message) allows. After `indeterminate`, go on to step 2.
 2. **Received?** Prefer the exact receiver's native read; the recipient reference specifies it. A transcript fallback must find your exact label in an incoming
    user/message record, not a quotation, tool result or assistant echo. Missing evidence in a bounded or unstable read leaves receipt unconfirmed, not lost.
-   After a delivered or `indeterminate` send, do not send the message again by any route: it may still arrive, and a second copy risks duplicate work. Another
-   route may hold, refuse or drop a message without notifying the sender; report receipt as unconfirmed.
+   After a delivered send, report missing receipt as unconfirmed, not lost. An `indeterminate` transport result stays
+   `indeterminate`; after either outcome, do not send the message again by any route because it may still arrive and a
+   second copy risks duplicate work. Another route may hold, refuse or drop a message without notifying the sender; report
+   receipt as unconfirmed.
 3. **Answered?** A later receiver record names your ref or action and gives a disposition or result ([sender observation](#observe-progress-in-the-sender)).
    Until then it is not answered yet; observe liveness as in [exact-ID observations](exact-id-observations.md#normalize-exact-id-observations).
 

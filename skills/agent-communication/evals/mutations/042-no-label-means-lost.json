@@ -4,7 +4,7 @@
   "target": "references/message-contract.md",
   "replace": {
     "count": 1,
-    "old": "2. **Received?** Prefer the exact receiver's native read; the recipient reference specifies it. A transcript fallback must find your exact label in an incoming\n   user/message record, not a quotation, tool result or assistant echo. Missing evidence in a bounded or unstable read leaves receipt unconfirmed, not lost.\n   After a delivered or `indeterminate` send, do not send the message again by any route: it may still arrive, and a second copy risks duplicate work. Another\n   route may hold, refuse or drop a message without notifying the sender; report receipt as unconfirmed.",
+    "old": "2. **Received?** Prefer the exact receiver's native read; the recipient reference specifies it. A transcript fallback must find your exact label in an incoming\n   user/message record, not a quotation, tool result or assistant echo. Missing evidence in a bounded or unstable read leaves receipt unconfirmed, not lost.\n   After a delivered send, report missing receipt as unconfirmed, not lost. An `indeterminate` transport result stays\n   `indeterminate`; after either outcome, do not send the message again by any route because it may still arrive and a\n   second copy risks duplicate work. Another route may hold, refuse or drop a message without notifying the sender; report\n   receipt as unconfirmed.",
     "new": "2. **Received?** Search the receiver's exact transcript for your label line. If it is missing, the message was lost: report `routeability: unavailable` and send it again."
   },
   "expected_violation": "total contact call count must be <= 0"

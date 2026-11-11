@@ -161,6 +161,10 @@ resume or proof of restart recovery. In the same check, a separate authorized ap
 older queued action; the captures do not establish activation causality. Correlate each incoming record and result to its own action; activity after a new send
 need not belong to that send. This is local observed behavior, not a universal wake-up guarantee or permission to send a nudge for an outstanding request.
 
+For a pending `codex queue` message, reconcile read-only. Do not use `send_message_to_thread` for a status nudge, a cue to
+process the queued action, or a reworded request; each would be another delivery. The live-task subagent trigger procedure
+does not apply to this route.
+
 Observed 2026-11-11 (same host): `codex queue --thread <exact-id> --message "<text>"` with `CODEX_HOME` set to the state root that owns the rollout printed
 `Queued message <id> for thread <id>.` To an idle, loaded interactive Codex TUI thread on the same host, the thread started a new turn on it within seconds. To
 a finished `codex exec` session the message was accepted but not processed until that session was next resumed; 9 s later the resume turn consumed it first.
