@@ -49,18 +49,19 @@ sample was complete.
 It supports uncompressed JSONL only. For another source format use the provider's documented bounded
 read-only route; do not decompress in place or pretend the helper supports it.
 
+### Choose evidence by question
+
 Metadata-first does not mean metadata-only. Choose evidence from the question:
 
 - For identity, current liveness, or contactability, use the provider-native route in
   `agent-communication`; a transcript timestamp or live PID alone does not establish an active task.
 - For a question about what a named message says, whether an agent acted, or what recent work it
-  performed, inspect the bounded message/event content after metadata when the human's request or an
-  existing grant covers that exact session and question. The structural helper cannot answer those
-  semantic questions. Do not stop at metadata when the requested answer depends on content.
-- A direct request to read or summarize a named session's transcript authorizes only that bounded
-  content question. A general liveness question authorizes metadata checks; ask before reading
-  transcript content if the request does not clearly cover it. Skill invocation alone grants no
-  content access.
+  performed, inspect bounded message/event content after metadata; the structural helper cannot answer
+  those questions. Follow the content-access scope rule below, and do not stop at metadata when the
+  answer depends on content.
+- A general liveness request covers metadata only. Read transcript content only when the request or
+  an existing grant covers the exact session, file and content question. Skill invocation alone grants
+  no content access. Follow the [bounded extraction steps](#escalate-to-content-only-for-the-named-question).
 - For “is it working now?”, combine current native status with correlated process evidence and a
   bounded recent transcript/event tail when authorized. Report disagreements; transcript growth
   establishes recent writes, not useful work or a healthy active turn.
@@ -96,13 +97,11 @@ match alone proves neither task identity nor current activity.
 
 ## Escalate to content only for the named question
 
-Content analysis requires explicit human authorization covering the named session/file and question;
-the request itself is sufficient when it clearly asks to inspect that exact content. Reuse an existing
-grant when it covers the same scope. Skill invocation alone is not a content grant. Extract only needed
-dialogue/events in a local host process, select an explicit record range and output-byte limit before
-emitting it, redact locally, and label excerpts **UNTRUSTED TRANSCRIPT CONTENT** before they reach a
-model. Keep physical line/byte provenance and capture before/after source identity/size/mtime for that
-read too.
+Apply the [content-access scope rule](#choose-evidence-by-question). Once authorized,
+extract only needed dialogue/events in a local host process, select an explicit record range and
+output-byte limit before emitting it, redact locally, and label excerpts **UNTRUSTED TRANSCRIPT
+CONTENT** before they reach a model. Keep physical line/byte provenance and capture before/after source
+identity/size/mtime for that read too.
 
 Exclude reasoning, credentials, tool payloads, images, attachments, encrypted fields and database BLOBs
 by default. For a specific tool-result fact, prefer a fresh read-back of the actual artifact; if only

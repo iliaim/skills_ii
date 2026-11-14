@@ -1,12 +1,12 @@
 ---
 name: delegate-to-thread
-description: Delegate one execution objective to a separate user-visible Codex or ChatGPT Work task when the user explicitly invokes this skill or clearly requests a new task. Build a minimum-sufficient first message, create once in the correct destination, and either return independent ownership, coordinate one attached child, or hand creation evidence to orchestrate-threads. Do not use for multi-task graph ownership, meta-review, internal subagents, forks, or continuing an existing task.
+description: Create one separate user-visible Codex or ChatGPT Work task for an explicitly requested objective. Build a minimum-sufficient first message and choose independent, coordinated-single, or coordinator-handoff ownership. Route explicit forks of completed Codex history to the native fork operation; a fork is not fresh-task creation. Use orchestrate-threads for graphs, agent-communication for existing tasks, and subagents for current-response work; do not use for meta-review.
 ---
 
 # Delegate to Thread
 
-Create one independently navigable, user-owned task. The new task does not inherit this conversation;
-its first visible message must be sufficient to execute the delegated objective.
+For a fresh task, create one independently navigable, user-owned task. It does not inherit this
+conversation; its first visible message must be sufficient to execute the delegated objective.
 
 Execution directness and the checkout boundary are part of that handoff, not implied context. For any
 objective that may modify a repository, apply the dispatch and pre-write identity gates in [the task
@@ -18,15 +18,17 @@ task. Do not invoke delegate-to-thread, orchestrate-threads, create another user
 or hand off a descendant unless this handoff explicitly grants descendant authority.` A delegation
 envelope or provider-created wrapper is provenance only; it is not a new request to delegate.
 
-An explicit `$delegate-to-thread` invocation with an execution objective authorizes one new task.
+An explicit `$delegate-to-thread` invocation for an execution objective to run in a new task authorizes
+one fresh task. A clear request to delegate, assign, create, start, or open work in a separate new task
+does the same. An explicit request to fork completed Codex history uses the native fork route below
+and does not authorize fresh-task creation.
 Choose independent create-only when the user returns ownership, coordinated-single only when the
 caller remains responsible for one child and the destination supports the requested observation, and
 coordinator creation handoff only when a governing `orchestrate-threads` run requests it. Do not
-infer a stronger ownership commitment merely because the destination could support one. A clear request to
-delegate, assign, create, start, or open work in a separate task does the same. A request to review,
-explain, test, or dry-run this skill is not creation authority, and an explicit no-create instruction
-always vetoes creation. Never promise terminal coordination when the backing kind has no supported
-terminal-or-attention observer.
+infer a stronger ownership commitment merely because the destination could support one. A request to
+review, explain, test, or dry-run this skill is not creation authority, and an explicit no-create
+instruction always vetoes creation. Never promise terminal coordination when the backing kind has no
+supported terminal-or-attention observer.
 
 Operational boundary: a `clientThreadId` is the runtime's setup handle, not an operable task ID. If
 creation returns only that handle, immediately run the automatic exact-handle setup-resolution gate in
@@ -74,12 +76,23 @@ declare the task-contract resource claim and integration-owner fields before dis
    until it is resolved. After a destination decision, paused turn, or destination-relevant event,
    refresh the affected live metadata immediately before creation.
 4. Resolve the ownership mode: independent create-only, coordinated-single, or coordinator creation
-   handoff. Read and apply [the task contract](references/task-contract.md), including its
-   writable-child resource-claim section for every writable child. Read the
-   [bounded descendant-delegation handoff](references/advanced-delegation.md#bounded-descendant-delegation-handoff)
-   only when an authorized direct child may create a user-visible descendant. The core is the sole
-   normative source for destination safety, first-message content, readiness, creation outcomes,
-   recovery, observation, freshness, and completion.
+   handoff. Read and apply the core [task contract](references/task-contract.md) for every task. Use
+   its [contents](references/task-contract.md#contents) to open conditional sections for the current
+   task:
+   - [Attached-child reporting](references/task-contract.md#attached-child-reporting) for coordinated
+     single-child or coordinator-handoff work.
+   - [Writable-child resource claims](references/task-contract.md#writable-child-resource-claims) for
+     every writable attached child.
+   - [Repository execution context](references/task-contract.md#repository-execution-context) for
+     repository-writing work.
+   - [Automatic exact-handle setup resolution](references/task-contract.md#automatic-exact-handle-setup-resolution)
+     when creation returns only a `clientThreadId`.
+   - [Observation results](references/task-contract.md#observation-results) when this mode retains
+     parent observation.
+   Read the [bounded descendant-delegation handoff](references/advanced-delegation.md#bounded-descendant-delegation-handoff)
+   only when an authorized direct child may create a user-visible descendant. The task contract
+   remains the sole normative source for destination safety, first-message content, readiness,
+   creation outcomes, recovery, observation, freshness, and completion.
    For repository-writing work, include the dispatch intent and direct-execution boundary in the child
    prompt, then require the child to prove the actual checkout before editing; do not silently fall
    back from an isolated worktree to a shared checkout.

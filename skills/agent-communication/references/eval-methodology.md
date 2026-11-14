@@ -1,67 +1,60 @@
 # Behavioral eval methodology
 
-Read this reference only when maintaining or running this skill's evals. It is not part of the
-provider workflow.
+Read this reference only when maintaining or running this skill's evals. It is not part of the provider workflow.
+
+## Contents
+
+- [What the harness proves](#what-the-harness-proves)
+- [Safety boundary](#safety-boundary)
+- [Run the evals](#run-the-evals)
+- [Prove the guard can fail](#prove-the-guard-can-fail)
+- [Add or change a case](#add-or-change-a-case)
+- [Paired sender/receiver evaluations](#paired-senderreceiver-evaluations)
+- [Bounded native delivery check](#bounded-native-delivery-check)
 
 ## What the harness proves
 
-`evals/evals.json` is the human-readable catalog. `evals/scenarios.json` gives every catalog entry a
-synthetic fixture and deterministic constraints over a structured planned action trace. The harness
-tests policy selection, intended call order and arguments, evidence classification, and forbidden
-lifecycle actions. It does not claim to test provider integrations or real message delivery.
+`evals/evals.json` is the human-readable catalog. `evals/scenarios.json` gives every catalog entry a synthetic fixture and deterministic constraints over a
+structured planned action trace. The harness tests policy selection, intended call order and arguments, evidence classification, and forbidden lifecycle
+actions. It does not claim to test provider integrations or real message delivery.
 
-Provider-specific facts stay separate when one aggregate value would erase a real distinction. For
-example, `codex_local_transcript` and `chatgpt_local_transcript` independently represent mixed task
-inventories; do not collapse them into the aggregate `local_transcript` field for grading.
+Provider-specific facts stay separate when one aggregate value would erase a real distinction. For example, `codex_local_transcript` and
+`chatgpt_local_transcript` independently represent mixed task inventories; do not collapse them into the aggregate `local_transcript` field for grading.
 
-Staged `simulated_responses` are not pre-observed facts. A result must plan the corresponding call
-before consuming one, and it must include the complete downstream workflow in the same trace. Use
-this form when a later inspection depends on an earlier schema or identity check.
+Staged `simulated_responses` are not pre-observed facts. A result must plan the corresponding call before consuming one, and it must include the complete
+downstream workflow in the same trace. Use this form when a later inspection depends on an earlier schema or identity check.
 
-The simulated model receives `SKILL.md`, only the references named by that scenario, its synthetic
-evidence, and the user request. It never receives the expected output, prose assertions, grader
-checks, or mutation expectation.
+The simulated model receives `SKILL.md`, only the references named by that scenario, its synthetic evidence, and the user request. It never receives the
+expected output, prose assertions, grader checks, or mutation expectation.
 
 ## Safety boundary
 
-The runner uses a temporary copy of the skill and invokes `codex exec` ephemerally with user config,
-rules, shell, unified execution, apps, plugins, browser, computer use, hooks, workspace helpers, and
-multi-agent surfaces disabled. It also sets the current top-level `web_search="disabled"` policy
-explicitly rather than relying on the deprecated `web_search_request` feature flag. It proves the
-feature overrides before every run, uses a read-only sandbox, and rejects unknown JSONL event types
-or any actual tool item. A tool attempt, timeout, CLI failure, malformed JSON, or schema failure is
-`HARNESS_ERROR`, never a behavior result.
+The runner uses a temporary copy of the skill and invokes `codex exec` ephemerally with user config, rules, shell, unified execution, apps, plugins, browser,
+computer use, hooks, workspace helpers, and multi-agent surfaces disabled. It also sets the current top-level `web_search="disabled"` policy explicitly rather
+than relying on the deprecated `web_search_request` feature flag. It proves the feature overrides before every run, uses a read-only sandbox, and rejects
+unknown JSONL event types or any actual tool item. A tool attempt, timeout, CLI failure, malformed JSON, or schema failure is `HARNESS_ERROR`, never a behavior
+result.
 
-Some desktop builds report `unified_exec: true` even after the override. The preflight admits that
-state only when the same exact executable proves `shell_tool: false`: Codex's tool selection requires
-both features and returns a disabled shell type when `shell_tool` is off. Every independently exposed
-surface must still report `false`. Re-check this invariant against Codex's official
-`codex-rs/tools/src/tool_config.rs` if the feature model changes.
+Some desktop builds report `unified_exec: true` even after the override. The preflight admits that state only when the same exact executable proves `shell_tool:
+false`: Codex's tool selection requires both features and returns a disabled shell type when `shell_tool` is off. Every independently exposed surface must still
+report `false`. Re-check this invariant against Codex's official `codex-rs/tools/src/tool_config.rs` if the feature model changes.
 
-Only the model's structured `planned_calls` are graded. They are proposed actions, not executed
-actions. The runner independently validates every result against `result.schema.json`, admits only
-explicit supported tool identities and aliases, rejects invented namespaces, unknown tools, and
-unapproved executables, and maps provider-specific lifecycle flags such as Claude's short resume and
-continue forms before applying scenario prohibitions. It also rejects unsafe shell-wrapper or
-destructive CLI plans and applies both matching-call and total-call limits. Reports retain the
-synthetic structured decision, planned calls, and facts needed to debug a grade, but not prompts or
-model explanations.
+Only the model's structured `planned_calls` are graded. They are proposed actions, not executed actions. The runner independently validates every result against
+`result.schema.json`, admits only explicit supported tool identities and aliases, rejects invented namespaces, unknown tools, and unapproved executables, and
+maps provider-specific lifecycle flags such as Claude's short resume and continue forms before applying scenario prohibitions. It also rejects unsafe
+shell-wrapper or destructive CLI plans and applies both matching-call and total-call limits. Reports retain the synthetic structured decision, planned calls,
+and facts needed to debug a grade, but not prompts or model explanations.
 
-Case 49 requires the structured `completion_verified` fact to remain false when required
-verification is absent, even if an action-bound operation proves execution. The grader enforces
-that fact; it does not check whether arbitrary explanatory prose contradicts it.
+Case 49 requires the structured `completion_verified` fact to remain false when required verification is absent, even if an action-bound operation proves
+execution. The grader enforces that fact; it does not check whether arbitrary explanatory prose contradicts it.
 
-Each completed behavioral run retains execution-time SHA-256 provenance for the installed skill,
-the evaluated candidate (after any mutation), the catalog, scenarios, result schema and any mutation
-configuration. Compact output preserves this provenance. Historical reports without these fields
-remain historical evidence; hashing today's files cannot bind them retroactively.
-The directory maps record snapshot integrity and can include existing generated caches, so cache
-differences can change the maps between runs. The prompt composition described above determines
-the model-visible task content.
+Each completed behavioral run retains execution-time SHA-256 provenance for the installed skill, the evaluated candidate (after any mutation), the catalog,
+scenarios, result schema and any mutation configuration. Compact output preserves this provenance. Historical reports without these fields remain historical
+evidence; hashing today's files cannot bind them retroactively. The directory maps record snapshot integrity and can include existing generated caches, so cache
+differences can change the maps between runs. The prompt composition described above determines the model-visible task content.
 
-CLI plans use tokenized `argv` arrays only. The output schema rejects raw shell command fields, while
-the deterministic grader rejects shell wrappers, destructive executables, pipelines, redirects, and
-control syntax so command injection cannot hide inside a token array.
+CLI plans use tokenized `argv` arrays only. The output schema rejects raw shell command fields, while the deterministic grader rejects shell wrappers,
+destructive executables, pipelines, redirects, and control syntax so command injection cannot hide inside a token array.
 
 ## Run the evals
 
@@ -83,16 +76,14 @@ Run every configured case once for a bounded smoke pass:
 python3 scripts/run_behavioral_evals.py --runs 1 --compact
 ```
 
-Exit `0` means all selected behavior checks passed, `1` means valid structured behavior failed, and
-`2` means the harness could not establish a trustworthy result. Any recorded `HARNESS_ERROR` takes
-exit priority `2`, including mixed reports and runs using `--expect-failure`; the harness continues
-through the selected cases and reports each result.
+Exit `0` means all selected behavior checks passed, `1` means valid structured behavior failed, and `2` means the harness could not establish a trustworthy
+result. Any recorded `HARNESS_ERROR` takes exit priority `2`, including mixed reports and runs using `--expect-failure`; the harness continues through the
+selected cases and reports each result.
 
 ## Prove the guard can fail
 
-Mutations are declarative exact-text replacements applied only to the temporary copy. The runner
-requires the target to stay inside that copy, refuses symlinks and replacement-count drift, records
-before/after hashes, and verifies the installed files remain unchanged.
+Mutations are declarative exact-text replacements applied only to the temporary copy. The runner requires the target to stay inside that copy, refuses symlinks
+and replacement-count drift, records before/after hashes, and verifies the installed files remain unchanged.
 
 ```sh
 python3 scripts/run_behavioral_evals.py \
@@ -102,78 +93,57 @@ python3 scripts/run_behavioral_evals.py \
   --expect-failure
 ```
 
-The red-control command succeeds only when a `BEHAVIOR_FAIL` run of the mutation's selected eval
-contains the named expected violation and every selected run is free of harness errors. A matching
-diagnostic or a failure in another eval cannot prove the mutation. An unobserved expectation exits
-`1`; a harness error anywhere exits `2`, even when valid mutation evidence was also observed. Follow
-it with repeated green runs of the unmodified skill.
-An offline test applies each mutation to a copy of the skill and checks that its eval loads the
-target, so editing a guarded paragraph fails until the mutation's `old` text is updated; then
-observe it red again as step 7 requires.
+The red-control command succeeds only when a `BEHAVIOR_FAIL` run of the mutation's selected eval contains the named expected violation and every selected run is
+free of harness errors. A matching diagnostic or a failure in another eval cannot prove the mutation. An unobserved expectation exits `1`; a harness error
+anywhere exits `2`, even when valid mutation evidence was also observed. Follow it with repeated green runs of the unmodified skill. An offline test applies
+each mutation to a copy of the skill and checks that its eval loads the target, so editing a guarded paragraph fails until the mutation's `old` text is updated;
+then observe it red again as step 7 requires.
 
 ## Add or change a case
 
-Scenario checks use a closed grammar: `decision_in`, `forbidden_calls`, `required_calls`,
-`required_call_any`, `required_order`, `fact_equals`, `fact_in`, `min_tool_counts`, `max_tool_counts`,
-`max_contact_calls`, and `must_precede_if_present`. Call rules admit only `tool`, `tool_prefix`,
-`arguments`, `argument_rules`, `min_count`, and `max_count`; expected `arguments` remain arbitrary
-data. Every supplied `tool` or `tool_prefix` selector must be non-empty text. Argument conditions
-admit `key`, `operator`, `value`, and `option` for `cli_option_equals`;
-supported operators are `lte`, `equals`, `contains`, `contains_text`, and `cli_option_equals`.
-`lte` requires a numeric value; `contains_text` and `cli_option_equals` require text values.
-Each `required_order` step is a tool name or a call rule without counts, and matches the next call
-after the previous step that satisfies it.
-Precedence rules admit only `first` and `second`. Unknown constraint names or operators fail during
-loading, before preflight or model execution, even when the rule would match no calls. Malformed
+Scenario checks use a closed grammar: `decision_in`, `forbidden_calls`, `required_calls`, `required_call_any`, `required_order`, `fact_equals`, `fact_in`,
+`min_tool_counts`, `max_tool_counts`, `max_contact_calls`, and `must_precede_if_present`. Call rules admit only `tool`, `tool_prefix`, `arguments`,
+`argument_rules`, `min_count`, and `max_count`; expected `arguments` remain arbitrary data. Every supplied `tool` or `tool_prefix` selector must be non-empty
+text. Argument conditions admit `key`, `operator`, `value`, and `option` for `cli_option_equals`; supported operators are `lte`, `equals`, `contains`,
+`contains_text`, and `cli_option_equals`. `lte` requires a numeric value; `contains_text` and `cli_option_equals` require text values. Each `required_order`
+step is a tool name or a call rule without counts, and matches the next call after the previous step that satisfies it. Precedence rules admit only `first` and
+`second`. Unknown constraint names or operators fail during loading, before preflight or model execution, even when the rule would match no calls. Malformed
 catalog, scenario, or mutation JSON is also a path-specific harness error.
 
 1. Add the human request and assertions to `evals/evals.json`.
 2. Add exactly one same-ID entry to `evals/scenarios.json`; do not assume IDs are contiguous.
-3. Use synthetic identifiers and evidence. Never copy private transcripts, credentials, sockets,
-   keys, or real message contents into fixtures.
+3. Use synthetic identifiers and evidence. Never copy private transcripts, credentials, sockets, keys, or real message contents into fixtures.
 4. Grade structured calls and facts, not narrative wording.
-5. Constrain the total number of contact calls separately from target-matching rules; a correct target
-   must not hide an extra send. Put the approved handoff message in the synthetic fixture and require
-   exact equality on every native or CLI contact route so contradictory padding cannot pass.
+5. Constrain the total number of contact calls separately from target-matching rules; a correct target must not hide an extra send. Put the approved handoff
+   message in the synthetic fixture and require exact equality on every native or CLI contact route so contradictory padding cannot pass.
 6. Add a failing unit contract before extending the runner DSL.
-7. For a regression guard, add a declarative mutation and observe the named red failure before the
-   current skill's green result.
-8. Run Skill Creator's package validator and obtain a cold read-only review for changes to safety or
-   lifecycle boundaries.
+7. For a regression guard, add a declarative mutation and observe the named red failure before the current skill's green result.
+8. Run Skill Creator's package validator and obtain a cold read-only review for changes to safety or lifecycle boundaries.
 
 ## Paired sender/receiver evaluations
 
-The separate `scripts/run_paired_evals.py` runner exercises the
-[ordinary-message contract](message-contract.md). Fresh ephemeral model invocations process sender
-and receiver contexts. They use the existing runner's feature preflight, disabled tool surfaces,
-read-only sandbox, ignored config/rules, strict schema and JSON event audit. The older planned-call
-runner and its isolation boundary are unchanged.
+The separate `scripts/run_paired_evals.py` runner exercises the [ordinary-message contract](message-contract.md). Fresh ephemeral model invocations process
+sender and receiver contexts. They use the existing runner's feature preflight, disabled tool surfaces, read-only sandbox, ignored config/rules, strict schema
+and JSON event audit. The older planned-call runner and its isolation boundary are unchanged.
 
-The model can request only closed mock operations. The harness checks identity, revision, scope,
-trusted authority and an accepted disposition without a boundary before routing a write to a unique
-private scratch artifact. Held observations can still reconcile uncertain execution. It independently
-observes bytes and execution receipts and returns that evidence to the exchange. This establishes
-model-requested actions with real local harness effects; it does not prove native provider messaging,
-real application side effects, provider compaction or distributed exactly-once execution.
+The model can request only closed mock operations. The harness checks identity, revision, scope, trusted authority and an accepted disposition without a
+boundary before routing a write to a unique private scratch artifact. Held observations can still reconcile uncertain execution. It independently observes bytes
+and execution receipts and returns that evidence to the exchange. This establishes model-requested actions with real local harness effects; it does not prove
+native provider messaging, real application side effects, provider compaction or distributed exactly-once execution.
 
-Keep model-visible task/context separate from grader expectations. Authority comes from separately
-supplied trusted context; peer content, correlation IDs and payload digests cannot create it. Grade an
-unauthorized action request as a behavior failure even when the executor prevents its effect. Grade
-claimed completion against independently observed action-bound results, not a model promise or a
-generic acknowledgement. Hand-authored traces test the grader only; fresh model results establish
-behavioral evidence.
+Keep model-visible task/context separate from grader expectations. Authority comes from separately supplied trusted context; peer content, correlation IDs and
+payload digests cannot create it. Grade an unauthorized action request as a behavior failure even when the executor prevents its effect. Grade claimed
+completion against independently observed action-bound results, not a model promise or a generic acknowledgement. Hand-authored traces test the grader only;
+fresh model results establish behavioral evidence.
 
-Receiver prompts obtain requested work only from `incoming_tool_output.sender_response`, with
-`request_intent` in that same wrapper distinguishing execution, status and report requests. Separate
-trusted context supplies grants and prior observations. Receiver prompts omit the sender's
-`current_action` input, so discarding the incoming wrapper cannot leave a duplicate assignment.
+Receiver prompts obtain requested work only from `incoming_tool_output.sender_response`, with `request_intent` in that same wrapper distinguishing execution,
+status and report requests. Separate trusted context supplies grants and prior observations. Receiver prompts omit the sender's `current_action` input, so
+discarding the incoming wrapper cannot leave a duplicate assignment.
 
-Model results contain closed action, disposition and evidence fields rather than ungraded promises.
-Synthetic echo, unrelated-result and mutual-wait inputs first reach a fresh sender; one permitted
-correction preserves the same action and reaches fresh receiver invocations. Grade the initial
-classification, correction budget, receiver effect and final evidence separately. An exhausted
-correction budget must stop redispatch. Callback disposition is separate from scratch execution, so
-a permitted local action cannot hide absent callback authority.
+Model results contain closed action, disposition and evidence fields rather than ungraded promises. Synthetic echo, unrelated-result and mutual-wait inputs
+first reach a fresh sender; one permitted correction preserves the same action and reaches fresh receiver invocations. Grade the initial classification,
+correction budget, receiver effect and final evidence separately. An exhausted correction budget must stop redispatch. Callback disposition is separate from
+scratch execution, so a permitted local action cannot hide absent callback authority.
 
 List cases without model calls:
 
@@ -187,9 +157,8 @@ Run the catalog from the repository root and retain the structured report outsid
 python3 skills/agent-communication/scripts/run_paired_evals.py --runs 1 --output /tmp/paired-evals.json
 ```
 
-For red proof, apply the selected exact-text mutation to a temporary copy, require its named behavior
-violation with no harness errors, and then repeat the unmodified case. A passing old-skill baseline
-is useful evidence and must not be rewritten as a failure. For example:
+For red proof, apply the selected exact-text mutation to a temporary copy, require its named behavior violation with no harness errors, and then repeat the
+unmodified case. A passing old-skill baseline is useful evidence and must not be rewritten as a failure. For example:
 
 ```sh
 python3 skills/agent-communication/scripts/run_paired_evals.py \
@@ -199,62 +168,45 @@ python3 skills/agent-communication/scripts/run_paired_evals.py \
   --case nominal --case echo --case mutual-wait --runs 3 --output /tmp/paired-green.json
 ```
 
-CLI errors, timeouts, malformed outputs,
-schema failures or actual tool attempts are harness errors, never behavioral red. Exit `2` takes
-precedence over behavior failure (`1`) or success (`0`), including mutation runs.
+CLI errors, timeouts, malformed outputs, schema failures or actual tool attempts are harness errors, never behavioral red. Exit `2` takes precedence over
+behavior failure (`1`) or success (`0`), including mutation runs.
 
-Fixtures and reports use synthetic task identities and action data only. Do not put live transcripts,
-credentials or reasoning into the catalog or retained reports. Preserve candidate/mutation hashes
-and independent execution observations so a cold checker can distinguish fresh results from unit
-fixtures. Preflight failures retain a fixed diagnostic category rather than raw CLI stderr. Reports
-must stay outside the source, containing skill collection and Git checkout, including symlink and
-hardlink aliases. Use an external report path such as `/tmp/paired-evals.json` if a destination is
-rejected. The installed skill must remain unchanged during each run.
+Fixtures and reports use synthetic task identities and action data only. Do not put live transcripts, credentials or reasoning into the catalog or retained
+reports. Preserve candidate/mutation hashes and independent execution observations so a cold checker can distinguish fresh results from unit fixtures. Preflight
+failures retain a fixed diagnostic category rather than raw CLI stderr. Reports must stay outside the source, containing skill collection and Git checkout,
+including symlink and hardlink aliases. Use an external report path such as `/tmp/paired-evals.json` if a destination is rejected. The installed skill must
+remain unchanged during each run.
 
 ## Bounded native delivery check
 
-The policy and paired harnesses cannot establish delivery through a real persisted queue. Use an
-explicitly authorized test task with a supported native observation route. When the user requests a
-dedicated test chat, create it through `delegate-to-thread`; otherwise use an existing test task.
-Do not use an unrelated task or infer creation authority from a missing test result. Follow the
-provider's exact identity, conversation-first and contact rules.
+The policy and paired harnesses cannot establish delivery through a real persisted queue. Use an explicitly authorized test task with a supported native
+observation route. When the user requests a dedicated test chat, create it through `delegate-to-thread`; otherwise use an existing test task. Do not use an
+unrelated task or infer creation authority from a missing test result. Follow the provider's exact identity, conversation-first and contact rules.
 
-Use one harmless scratch action with a unique action ID, revision and nonce, a designated scratch
-output, and an agreed observation deadline. Capture the receiver's action-bound disposition and
-independently read back the resulting bytes or other required evidence. Apply the
-[message contract's bounded observation](message-contract.md#bound-the-observation-before-sending):
-queue acceptance proves delivery to the transport only. Confirm receiver receipt and disposition
-from the exact native record. An absent response at the deadline stays pending.
-Do not resend or resume to make the check pass. Record the tested provider/route and observed
-result; one successful live-subagent check does not establish persisted-queue behavior or general
-delivery reliability. Missing test-target authority or observation capability is an explicit
-verification limit, not a failed delivery.
+Use one harmless scratch action with a unique action ID, revision and nonce, a designated scratch output, and an agreed observation deadline. Capture the
+receiver's action-bound disposition and independently read back the resulting bytes or other required evidence. Apply the [message contract's bounded
+observation](message-contract.md#bound-the-observation-before-sending): queue acceptance proves delivery to the transport only. Confirm receiver receipt and
+disposition from the exact native record. An absent response at the deadline stays pending. Do not resend or resume to make the check pass. Record the tested
+provider/route and observed result; one successful live-subagent check does not establish persisted-queue behavior or general delivery reliability. Missing
+test-target authority or observation capability is an explicit verification limit, not a failed delivery.
 
-A wait on an idle receiver can return its old completed turn before the queued turn starts. Require
-a native incoming record matching the sent request and a result for its action/revision; an earlier
-READY or completed turn is not that result. Preserve the remaining observation bound for the next
-supported check rather than busy-polling or sending another message.
+A wait on an idle receiver can return its old completed turn before the queued turn starts. Require a native incoming record matching the sent request and a
+result for its action/revision; an earlier READY or completed turn is not that result. Preserve the remaining observation bound for the next supported check
+rather than busy-polling or sending another message.
 
-For an observer-interruption check, retain the exact target/host, action/revision, send result,
-last proved stage and per-target wait cursor before ending the local observation scope. Reconstruct
-observation from that checkpoint in a fresh scope without sending again. Retain the resumed call's
-actual input arguments alongside its native result; an advanced output cursor alone cannot prove
-reuse of the saved input cursor. Record whether an active
-wait was actually interrupted, or only local observer context was reconstructed. A receiver that
-remains `notLoaded` can exercise pending/no-ACK classification but cannot prove continued execution
-across interruption. Controlled delayed-ACK instructions count as fault injection only if the
-receiver actually runs them; an accepted queue request alone does not prove the delay executed.
-App, host and controller restart recovery require their own authorized test and remain unverified.
+For an observer-interruption check, retain the exact target/host, action/revision, send result, last proved stage and per-target wait cursor before ending the
+local observation scope. Reconstruct observation from that checkpoint in a fresh scope without sending again. Retain the resumed call's actual input arguments
+alongside its native result; an advanced output cursor alone cannot prove reuse of the saved input cursor. Record whether an active wait was actually
+interrupted, or only local observer context was reconstructed. A receiver that remains `notLoaded` can exercise pending/no-ACK classification but cannot prove
+continued execution across interruption. Controlled delayed-ACK instructions count as fault injection only if the receiver actually runs them; an accepted queue
+request alone does not prove the delay executed. App, host and controller restart recovery require their own authorized test and remain unverified.
 
-For an exact JSON fixture ending in one LF, construct bytes without a shell-escape ambiguity:
-`json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8") + bytes([10])`.
-Compare actual read-back bytes, not just the write exit status. If verification fails after a write,
-preserve the failed evidence. For a correction of that artifact, use an authorized material revision
-with an explicit scope and preimage guard. It is not an unchanged replay or a retroactive pass for
-the first attempt.
+For an exact JSON fixture ending in one LF, construct bytes without a shell-escape ambiguity: `json.dumps(payload, sort_keys=True, separators=(",", ":"),
+ensure_ascii=True).encode("utf-8") + bytes([10])`. Compare actual read-back bytes, not just the write exit status. If verification fails after a write, preserve
+the failed evidence. For a correction of that artifact, use an authorized material revision with an explicit scope and preimage guard. It is not an unchanged
+replay or a retroactive pass for the first attempt.
 
-When a report includes raw UTF-8, base64 or other redundant byte representations, decode and compare
-each with the independent readback, reported hash and length. A valid report digest proves integrity
-of the report, not consistency or truth of its contents. Omit raw byte copies when they are not
-needed by acceptance. If only the report conflicts, request one read-only superseding report within
-existing authority; preserve the correct artifact and the superseded evidence without re-execution.
+When a report includes raw UTF-8, base64 or other redundant byte representations, decode and compare each with the independent readback, reported hash and
+length. A valid report digest proves integrity of the report, not consistency or truth of its contents. Omit raw byte copies when they are not needed by
+acceptance. If only the report conflicts, request one read-only superseding report within existing authority; preserve the correct artifact and the superseded
+evidence without re-execution.

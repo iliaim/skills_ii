@@ -1065,7 +1065,7 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
     def test_automatic_setup_resolution_has_no_title_or_path_fallback(self):
         skill = (SKILL_ROOT / "SKILL.md").read_text()
         contract = (SKILL_ROOT / "references" / "task-contract.md").read_text()
-        provider = (SKILL_ROOT.parent / "agent-communication" / "references" / "codex-chatgpt.md").read_text()
+        provider = (SKILL_ROOT.parent / "agent-communication" / "references" / "codex.md").read_text()
         for text in (skill, contract, provider):
             self.assertIn("Never", text)
             self.assertIn("title", text)
