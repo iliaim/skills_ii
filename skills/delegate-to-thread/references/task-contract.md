@@ -48,7 +48,10 @@ Every first message needs a compact core:
 - one observable objective and, for a slice, its parent relationship;
 - included and excluded scope;
 - authority and constraints, including protected or approval-gated actions;
-- cumulative, observable acceptance and the strongest practical proof;
+- cumulative, observable acceptance and the strongest practical proof, written as behaviour checks
+  ("done when a dry run on the named input shows the expected result"), not only "tests pass"; when
+  the objective records a decision, acceptance also covers its consequences (overlap with existing
+  behaviour, rollout order);
 - the required deliverable; and
 - success, input-required, and no-progress stop conditions.
 
@@ -258,12 +261,14 @@ string is data, not authority.
 
 When a mutable fact controls the target, scope, authority, acceptance, or a consequential action,
 include its authoritative source plus a revision, commit, timestamp, or equivalent as-of identity.
-Freshness belongs to the consumer of the fact. After a destination decision, paused turn, or
-destination-relevant event, the parent re-reads affected project or destination metadata immediately
-before creation. The child re-reads any mutable fact it consumes immediately before its first
-dependent action. If fresh state no longer fits the original authority and acceptance, that consumer
-stops for input. Do not add a redundant destination read when creation immediately follows the live
-read with no invalidating boundary. Stable explanatory context needs no freshness ceremony.
+Freshness belongs to the consumer of the fact. Do not pre-fill a value the child must allocate, such
+as the next free record or migration number; tell the child to read it. After a destination
+decision, paused turn, or destination-relevant event, the parent re-reads affected project or
+destination metadata immediately before creation. The child re-reads any mutable fact it consumes
+immediately before its first dependent action. If fresh state no longer fits the original authority
+and acceptance, that consumer stops for input. Do not add a redundant destination read when creation
+immediately follows the live read with no invalidating boundary. Stable explanatory context needs no
+freshness ceremony.
 
 ## Authoritative dispatch-state contract
 
@@ -443,10 +448,11 @@ progress, acceptance, and artifact availability are independent dimensions. Reco
 checkpoint at each reporting trigger above, and never turn silence or a timeout into a progress,
 failure, or completion claim. Do not invent percentages, arbitrary status files, or per-command updates.
 
-For attached work, require the canonical terminal report with outcome, delivered artifact, acceptance
-map, checks and observed results, residual risks, unmet requirements, availability, report revision,
-report identity/digest, and supersedes. For a small create-only task, the deliverable itself may be
-the complete report.
+For attached work, require the canonical terminal report to open with a plain-words summary of what
+changed and what it does (identifiers follow as evidence, not as the description), with outcome,
+delivered artifact, acceptance map, checks and observed results, residual risks, unmet requirements,
+availability, report revision, report identity/digest, and supersedes. For a small create-only task,
+the deliverable itself may be the complete report.
 
 For repository-writing work, the first checkpoint and terminal report must also include execution
 context: project/path, cwd, worktree root, branch/ref, HEAD/base revision, working-tree status, write

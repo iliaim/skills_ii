@@ -16,7 +16,8 @@ Define one root outcome with:
 
 - included scope and explicit non-goals;
 - the authority and constraints shared by the run;
-- cumulative, observable parent acceptance and the strongest practical proof;
+- cumulative, observable parent acceptance and the strongest practical proof, stated as behaviour
+  checks rather than only "tests pass";
 - a terminal success rule plus input-required and no-progress stops; and
 - bounded child outcomes, each mapped to a root criterion.
 
@@ -72,8 +73,9 @@ challenger before implementation or after a named phase, dispatch a cold read-on
 bounded read-only subagents when the result belongs in the current response. The review request must
 include the exact contract path, the candidate or artifact revision, the read-only boundary, the
 checkpoint, and the required disposition. A gate opens only from a report that identifies the exact
-reviewed revision, maps findings to criteria, lists dispositions, records unresolved blockers, and is
-bound to a native turn/event identity or a SHA-256 report digest. Commentary or status text alone is
+reviewed revision, marks each criterion met, unmet, or unverified, flags changes outside scope, maps
+findings to criteria, lists dispositions, records unresolved blockers, and is bound to
+a native turn/event identity or a SHA-256 report digest. Commentary or status text alone is
 not review evidence.
 
 Before the first dispatch, resolve the run-specific limits that materially govern:
@@ -212,9 +214,11 @@ root's governance:
 - At terminal execution, retrieve only missing canonical evidence and map every delegated criterion.
   Recompute dependency and cumulative root gates rather than trusting the child's status.
 - For a safely repairable in-scope defect or proof gap, continue the same exact child with only the
-  unmet criterion, grounded finding, and next gate, within its correction bound. Stronger contrary
-  evidence may move acceptance back to `pending` or `rejected` and close affected dependency gates;
-  preserve the raw record and mark prior derived evidence superseded.
+  unmet criterion, grounded finding, excluded scope, and next gate, within its correction bound.
+  Before accepting the corrected revision, compare it with the reviewed one and reject any change
+  that does not map to the finding (for example a widened allow-list, credential, or permission).
+  Stronger contrary evidence may move acceptance back to `pending` or `rejected` and close affected
+  dependency gates; preserve the raw record and mark prior derived evidence superseded.
 - If a running child loses authority while still executing, hold acceptance, integration, and all
   dependent gates. Use only a supported hold/stop route; if the runtime cannot enforce the revocation,
   report the child as uncontrollable and do not treat later child claims as authorized evidence.
@@ -237,8 +241,10 @@ Every writable child contract names:
 
 Accepting a child's bounded result does not authorize integration. The orchestrator integrates only
 when the user and repository lifecycle already grant that authority and the owning procedure permits
-the action. Otherwise report accepted-but-not-integrated, the availability state, preserved evidence,
-and the exact next gate. Never implicitly merge, publish, hand off, interrupt, clean, or retire work.
+the action; it then uses the repository's established merge method (check recent history; for
+example merge commits rather than squash). Otherwise report accepted-but-not-integrated, the
+availability state, preserved evidence, and the exact next gate. Never implicitly merge, publish,
+hand off, interrupt, clean, or retire work.
 
 ## Conditional modes
 

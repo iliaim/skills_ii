@@ -159,6 +159,9 @@ lifecycle state to compensate.
 
 ## Report the evidence
 
+Open a user-facing report with one plain-words sentence on what happened and what is next; the
+identity and evidence fields below support it and never replace it.
+
 Use the [exact-ID observation and reporting contract](references/exact-id-observations.md) for identity blocks, evidence classification, disclosure and
 routeability. Report each contact or continuation with its timestamp, exact target ID, evidence, message summary, native result and remaining owner action.
 Verify provider and agent reports; they do not bypass lifecycle controls.
