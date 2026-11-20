@@ -169,6 +169,9 @@ Observed 2026-11-11 (same host): `codex queue --thread <exact-id> --message "<te
 `Queued message <id> for thread <id>.` To an idle, loaded interactive Codex TUI thread on the same host, the thread started a new turn on it within seconds. To
 a finished `codex exec` session the message was accepted but not processed until that session was next resumed; 9 s later the resume turn consumed it first.
 
+These desktop observations record transport behavior only: they grant no message, resume, or
+lifecycle authority.
+
 The answer comes back through the place the request named, else the rollout ([transcripts](codex-local-transcripts.md#read-the-answer-to-a-message-you-sent)).
 
 ## Continue an idle persisted session
