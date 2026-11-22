@@ -65,3 +65,14 @@ evaluations remain policy simulations. Neither harness establishes native provid
 and reproducible checks.
 
 See the [standards review](docs/research/standards-review.md) for source research, findings, improvement decisions, and verification limits.
+
+## License
+
+This repository's skills, scripts and documentation are licensed under the [MIT License](LICENSE).
+Copyright (c) 2026 Ilia Imerlishvili.
+Each skill package includes a copy of the license for standalone installation.
+
+## Contributions
+
+By submitting a contribution, you agree to license it under the same [MIT License](LICENSE).
+You retain copyright in your original contributions; no copyright assignment is required.
