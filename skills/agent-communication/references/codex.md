@@ -132,8 +132,8 @@ line; older binaries can print generic help and exit successfully for an unknown
 
 Never assume an absolute application-bundle path is portable.
 
-For any shell-based sender without app tools, or over SSH on the thread-owning host, `codex queue` without `--remote` reaches
-only the local app server's sessions. Its message becomes an ordinary user turn in the thread, with no documented way to withdraw it.
+For any shell-based sender without app tools, or over SSH on the thread-owning host, `codex queue` without `--remote` uses the local app server.
+The server can persist a queued message for a thread that it does not have loaded. The message becomes ordinary user input when a turn consumes it.
 
 1. Check that you may message this thread ([routing rules](message-contract.md#choose-one-route-per-message)), then feature-detect that host's executable as
    above.
@@ -151,6 +151,19 @@ only the local app server's sessions. Its message becomes an ordinary user turn 
    may have run. Then follow the [reconciliation rules](message-contract.md#find-out-what-happened).
 
 Do not send into a session that another controller drives, by keystrokes or a live app-server connection, unless that controller's rules allow it.
+
+### Reconcile a queue when another server may own the thread
+
+`notLoaded` describes the app server that answered the read. When that server reports an unloaded thread or an interrupted stored turn, correlate the exact
+thread with the owning controller before inferring liveness or considering continuation. A desktop process holding the thread's writer lock, together with
+fresh operations recorded on the same exact turn while the status read disagrees, is evidence of a live writer. A lock file or a recent timestamp alone is
+insufficient. Record the server's reported status and the corroborated owner activity separately. For an action that is still listed in the pending queue,
+report transport acceptance and pending receiver disposition, even when the owner is working. Observe the owning controller and reconcile the existing
+submission after a turn boundary. Preserve the active writer and the pending entry when the owning route cannot be verified.
+
+Some CLI versions offer `codex queue --resume`. It adds a new message and then tries to load the thread. A resume failure can emit a warning while the queue
+command still exits successfully. Keep ordinary sends on the send-only route above and reconcile pending entries read-only. Any intentional continuation
+requires the separate authority and idle-writer evidence under [Continue an idle persisted session](#continue-an-idle-persisted-session).
 
 Queue acceptance does not establish that an unloaded receiver will start. In a bounded local check, the CLI accepted a request while the exact native receiver
 remained `notLoaded`; `wait_threads` returned `inactiveStatus` and an older completed turn. Keep the new action pending until its own incoming record,

@@ -1,0 +1,11 @@
+{
+  "id": "055-trust-daemon-over-writer",
+  "eval_id": 55,
+  "expected_violation": "fact runtime_liveness must equal 'live', got 'not_live'",
+  "target": "references/codex.md",
+  "replace": {
+    "count": 1,
+    "old": "`notLoaded` describes the app server that answered the read. When that server reports an unloaded thread or an interrupted stored turn, correlate the exact\nthread with the owning controller before inferring liveness or considering continuation. A desktop process holding the thread's writer lock, together with\nfresh operations recorded on the same exact turn while the status read disagrees, is evidence of a live writer. A lock file or a recent timestamp alone is\ninsufficient. Record the server's reported status and the corroborated owner activity separately. For an action that is still listed in the pending queue,\nreport transport acceptance and pending receiver disposition, even when the owner is working. Observe the owning controller and reconcile the existing\nsubmission after a turn boundary. Preserve the active writer and the pending entry when the owning route cannot be verified.",
+    "new": "When the app server's exact read reports `notLoaded` and its stored turn is interrupted, report the recipient's runtime and task liveness as not_live. Apply this rule even if a desktop writer lock and fresh same-turn operations show activity on a different local process. Keep an already queued action pending and do not resend it."
+  }
+}
