@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chief of Staff"
+  short_description: "Coordinate orchestrators, workers, and briefings from one executive session"
+  default_prompt: "Use $chief-of-staff to act as the central executive coordinator across streams, run /setup or /briefing, triage attention, and delegate implementation to $orchestrate-agents or $dispatch-workers without editing project source inline."
