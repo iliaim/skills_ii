@@ -117,6 +117,14 @@ def test_chief_blocks_project_source_edits_across_claude_codex_and_agy() -> None
             "conversationId": "123",
             "cwd": "/repo",
             "toolCall": {
+                "name": "create_file",
+                "args": {"Path": "/repo/src/app.py"},
+            },
+        },
+        {
+            "conversationId": "123",
+            "cwd": "/repo",
+            "toolCall": {
                 "name": "replace_file_content",
                 "args": {"TargetFile": "/repo/src/app.py"},
             },
@@ -137,6 +145,13 @@ def test_chief_blocks_project_source_edits_across_claude_codex_and_agy() -> None
         assert parsed["decision"] == "deny"
         assert "dispatch-workers" in parsed["reason"]
         assert "orchestrate-agents" in parsed["reason"]
+
+    for denied_file_tool in ("delete_file", "remove_file", "move_file", "rename_file"):
+        code, _ = guard.evaluate(
+            json.dumps({"cwd": "/repo", "tool_name": denied_file_tool, "tool_input": {"path": "/repo/src/app.py"}}),
+            env=env,
+        )
+        assert code == 2
 
     denied_commands = (
         "git commit -m 'test'",
@@ -227,9 +242,16 @@ def test_chief_blocks_shell_substitution_python_flags_git_c_utility_flags_and_co
         "echo hi >(tee /repo/src/app.py)",
         "cat <> /repo/src/app.py",
         "cat <>/repo/src/app.py",
+        # 1b. Executable path spoofing & expansion-phase mismatch on non-echo/printf commands
+        "./scripts/test",
+        "/tmp/evil/git status",
+        'git diff "$(echo --output=/repo/src/app.py)"',
+        "find . $(echo -delete)",
+        'ec$(echo ho) pwn',
         # 2. Untrusted python script paths & dangerous output flags
         "python3 ~/.config/skills-ii/setup_init.py --repo-root /repo",
         "python3 /tmp/briefing_board.py --snapshot ~/.local/state/skills-ii/b.html",
+        "python3 /other-dir/chief-of-staff/scripts/setup_init.py --repo-root /repo",
         "python3 skills/chief-of-staff/scripts/briefing_board.py --snapshot /repo/src/app.py",
         "python3 skills/chief-of-staff/scripts/briefing_board.py --live-bootstrap-file=/repo/src/url.txt",
         "python3 skills/chief-of-staff/scripts/setup_init.py --repo-root /repo --fleet-config /repo/src/fleet.json",
@@ -359,13 +381,25 @@ def test_chief_allows_orchestration_config_and_fails_closed_on_bad_json(tmp_path
         )
         assert (code, out) == (0, ""), f"Expected Write allow for {path}, got {(code, out)}"
 
-    # Relative path without cwd must fail closed
+    # Relative or repo-local .agents/orchestration* writes without cwd must fail closed
     assert guard._allowed_chief_path(".agents/orchestration.json", cwd=None, env=env) is False
+    assert guard._allowed_chief_path("/repo/.agents/orchestration.json", cwd=None, env=env) is False
+    assert guard._allowed_chief_path("/other-worktree/.agents/orchestration.json", cwd="/repo", env=env) is False
     no_cwd_code, _ = guard.evaluate(
         json.dumps({"tool_name": "Write", "tool_input": {"file_path": ".agents/orchestration.json"}}),
         env=env,
     )
     assert no_cwd_code == 2
+    no_cwd_abs_code, _ = guard.evaluate(
+        json.dumps({"tool_name": "Write", "tool_input": {"file_path": "/repo/.agents/orchestration.json"}}),
+        env=env,
+    )
+    assert no_cwd_abs_code == 2
+    ok_with_cwd_code, ok_with_cwd_out = guard.evaluate(
+        json.dumps({"cwd": "/repo", "tool_name": "Write", "tool_input": {"file_path": "/repo/.agents/orchestration.json"}}),
+        env=env,
+    )
+    assert (ok_with_cwd_code, ok_with_cwd_out) == (0, "")
 
     # Ancestor symlink checks
     repo_dir = tmp_path / "repo"
@@ -475,6 +509,9 @@ def test_skill_package_frontmatter_line_budget_and_links() -> None:
     yaml_text = openai_yaml.read_text(encoding="utf-8")
     for required_key in ("interface:", "display_name:", "short_description:", "default_prompt:"):
         assert required_key in yaml_text
+    short_desc_match = re.search(r'^\s*short_description:\s*"([^"]+)"', yaml_text, flags=re.MULTILINE)
+    assert short_desc_match is not None
+    assert 25 <= len(short_desc_match.group(1)) <= 64
 
     ref_dir = SKILL_DIR / "references"
     assert (ref_dir / "modes.md").is_file()

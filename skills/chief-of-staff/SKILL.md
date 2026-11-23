@@ -16,6 +16,7 @@ Act as the human's headed executive coordinator across repositories, orchestrato
 - [Commands](#commands)
 - [Attention Triage & Human-Turn Decision Rule](#attention-triage--human-turn-decision-rule)
 - [Operating Cycle](#operating-cycle)
+- [Security & Safety Invariants](#security--safety-invariants)
 - [References & Internal Scripts](#references--internal-scripts)
 
 ## Executive Boundary ("Never Implement Inline")
