@@ -1,5 +1,5 @@
 {
-  "schema": "orchestrate-threads-scenarios/v1",
+  "schema": "orchestrate-agents-scenarios/v1",
   "scenarios": [
     {
       "id": "route-independent-side-task",
@@ -34,7 +34,7 @@
         "acceptance": "pending_until_evidence_mapping"
       },
       "forbidden_operations": [
-        "Promote one attached child to orchestrate-threads without a graph",
+        "Promote one attached child to orchestrate-agents without a graph",
         "Treat child terminal status as accepted parent evidence",
         "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
       ],
@@ -48,9 +48,9 @@
     {
       "id": "route-multi-task-orchestration",
       "request": "Coordinate a release-readiness project across separate research, implementation, and verification tasks, with implementation depending on accepted research and verification depending on an available implementation artifact.",
-      "expected_route": "Use orchestrate-threads as the root graph and acceptance owner; call delegate-to-thread once per ready child in coordinator creation handoff mode, then use agent-communication for exact-ID observation and continuation.",
+      "expected_route": "Use orchestrate-agents as the root graph and acceptance owner; call delegate-to-thread once per ready child in coordinator creation handoff mode, then use agent-communication for exact-ID observation and continuation.",
       "expected_state": {
-        "owner": "orchestrate-threads",
+        "owner": "orchestrate-agents",
         "mode": "multi_task_graph",
         "root_acceptance": "cumulative_pending",
         "dispatch": "dependency_gated",
@@ -66,7 +66,7 @@
         "A shallow dependency graph whose edges distinguish accepted_evidence from available_artifact",
         "Creation, observation, acceptance, and integration ownership are not duplicated"
       ],
-      "pass_condition": "Pass only if orchestrate-threads owns the graph and parent rollup while the neighboring skills retain their narrow operational ownership."
+      "pass_condition": "Pass only if orchestrate-agents owns the graph and parent rollup while the neighboring skills retain their narrow operational ownership."
     },
     {
       "id": "route-current-response-subagent",
@@ -113,9 +113,9 @@
     {
       "id": "adopt-single-child-into-graph",
       "request": "The attached implementation child has uncovered two independent follow-up tasks. Convert this into a coordinated graph without losing or restarting the existing child.",
-      "expected_route": "Promote ownership to orchestrate-threads by adopting the existing child's exact identity, host, cursor, contract reference, and current evidence; delegate-to-thread ceases observation and no task is recreated.",
+      "expected_route": "Promote ownership to orchestrate-agents by adopting the existing child's exact identity, host, cursor, contract reference, and current evidence; delegate-to-thread ceases observation and no task is recreated.",
       "expected_state": {
-        "owner": "orchestrate-threads",
+        "owner": "orchestrate-agents",
         "mode": "adopted_graph",
         "existing_child": "preserved",
         "duplicate_observer": "none",
@@ -123,7 +123,7 @@
       },
       "forbidden_operations": [
         "Recreate, fork, rename-match, or replace the original child",
-        "Leave delegate-to-thread and orchestrate-threads both owning observation",
+        "Leave delegate-to-thread and orchestrate-agents both owning observation",
         "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
       ],
       "required_evidence": [
@@ -138,7 +138,7 @@
       "request": "Plan five children. Two share one checkout and would edit the same file, two use isolated worktrees but overlap one path, one depends on another's verified finding, and the live waiter can observe at most eight targets. Begin only safe ready work.",
       "expected_route": "Before dispatch, resolve material hard ceilings and local budgets plus a shallow graph; serialize conflicting writers in the shared checkout, allow isolated worktree execution only with a named integration conflict gate, and hold unmet dependants.",
       "expected_state": {
-        "owner": "orchestrate-threads",
+        "owner": "orchestrate-agents",
         "limits": "resolved_before_first_dispatch",
         "shared_destination_conflict": "held",
         "isolated_overlap": "dispatchable_with_integration_gate",
@@ -163,7 +163,7 @@
       "request": "The observation and corrective-continuation budgets are exhausted, but two children still have no accepted evidence. Keep going until everything finishes.",
       "expected_route": "Stop at an exhausted hard ceiling. A coordinator-local budget may be recomputed transparently only after material progress and only while objective, scope, authority, cost, and risk remain unchanged.",
       "expected_state": {
-        "owner": "orchestrate-threads",
+        "owner": "orchestrate-agents",
         "execution": "incomplete_or_suspended",
         "acceptance": "not_complete",
         "hard_ceiling": "not_exceeded",
@@ -608,7 +608,7 @@
     },
     {
       "id": "writing-goals-protected-workflow",
-      "request": "A full protected writing-goals run is already active. Use orchestrate-threads to dispatch parallel child slices even though the protected host supports only sequential dispatch.",
+      "request": "A full protected writing-goals run is already active. Use orchestrate-agents to dispatch parallel child slices even though the protected host supports only sequential dispatch.",
       "expected_route": "Treat protected host state as lifecycle authority, keep any transcript ledger derived, and fail closed on unsupported parallel dispatch rather than bypassing or importing writing-goals machinery.",
       "expected_state": {
         "lifecycle_authority": "writing-goals_protected_host",
@@ -618,7 +618,7 @@
       },
       "forbidden_operations": [
         "Copy or modify writing-goals roles, receipts, scripts, cursors, or protected state",
-        "Use orchestrate-threads as a second lifecycle authority",
+        "Use orchestrate-agents as a second lifecycle authority",
         "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
       ],
       "required_evidence": [
@@ -771,9 +771,9 @@
     {
       "id": "coordinate-existing-task-set",
       "request": "Coordinate tasks T1, T2, and T3 under one parent objective. These exact task IDs already exist; no host IDs were supplied and the selected same-host operations do not require them. Monitor progress, contact them when supported, and roll up evidence without creating any new task.",
-      "expected_route": "Use orchestrate-threads as the root graph and acceptance owner, register T1, T2, and T3 as existing graph nodes with their exact identities, and use agent-communication only for supported exact-ID observation and contact; do not invoke delegate-to-thread or any task creation.",
+      "expected_route": "Use orchestrate-agents as the root graph and acceptance owner, register T1, T2, and T3 as existing graph nodes with their exact identities, and use agent-communication only for supported exact-ID observation and contact; do not invoke delegate-to-thread or any task creation.",
       "expected_state": {
-        "owner": "orchestrate-threads",
+        "owner": "orchestrate-agents",
         "mode": "existing_tasks_graph",
         "identities": "exact_ids_preserved",
         "creation_count": 0,
@@ -790,7 +790,7 @@
         "All supplied exact task IDs are registered unchanged; hostId is retained only when returned or required by the backing operation",
         "The graph records a creation count of zero and no creation owner is invoked",
         "Only agent-communication operations supported for each exact-ID backing kind are used for observation or contact",
-        "Orchestrate-threads retains graph, acceptance, and rollup ownership without claiming creation"
+        "Orchestrate-agents retains graph, acceptance, and rollup ownership without claiming creation"
       ],
       "pass_condition": "Pass only if the existing tasks are coordinated under one graph with exact operable identities preserved, zero creation, no delegate-to-thread invocation, and no create_thread, fork_thread, or replacement creation."
     },

@@ -1,6 +1,6 @@
 # Orchestration contract
 
-This is the normative contract for `orchestrate-threads`. Live tool descriptions control current
+This is the normative contract for `orchestrate-agents`. Live tool descriptions control current
 operations, fields, backing-kind support, and result shapes. `delegate-to-thread` remains the sole
 owner of one-task creation and its child prompt; `agent-communication` remains the sole owner of
 supported exact-ID inspection, waiting, contact, and continuation.

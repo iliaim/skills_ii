@@ -6,7 +6,7 @@ from pathlib import Path
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 
 FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
-MARKDOWN_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)#]+)(?:#([^)]+))?\)")
+MARKDOWN_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)#]*)(?:#([^)]+))?\)")
 
 
 def _parse_frontmatter(text: str) -> dict[str, str]:
@@ -126,13 +126,23 @@ def test_no_broken_internal_links_and_old_dir_removed() -> None:
     md_files = [SKILL_ROOT / "SKILL.md", *sorted((SKILL_ROOT / "references").rglob("*.md"))]
     for md_path in md_files:
         text = md_path.read_text(encoding="utf-8")
+        assert "orchestrate-threads" not in text.lower(), (
+            f"Stale orchestrate-threads reference in {md_path.relative_to(SKILL_ROOT)}"
+        )
         for target, anchor in MARKDOWN_LINK_RE.findall(text):
             if target.startswith(("http://", "https://", "mailto:")):
                 continue
-            resolved = (md_path.parent / target).resolve()
+            if not target and not anchor:
+                continue
+            resolved = md_path if not target else (md_path.parent / target).resolve()
             assert resolved.exists(), f"Broken link {target!r} in {md_path.relative_to(SKILL_ROOT)}"
             if anchor and resolved.suffix == ".md":
                 target_anchors = set(_headings_and_anchors(resolved.read_text(encoding="utf-8")).values())
                 assert anchor in target_anchors, (
-                    f"Broken anchor #{anchor} for {target} in {md_path.relative_to(SKILL_ROOT)}"
+                    f"Broken anchor #{anchor} for {target or md_path.name} in {md_path.relative_to(SKILL_ROOT)}"
                 )
+
+    scenarios_text = (SKILL_ROOT / "evals" / "scenarios.json").read_text(encoding="utf-8")
+    assert "orchestrate-threads" not in scenarios_text.lower(), (
+        "Stale orchestrate-threads reference in evals/scenarios.json"
+    )
