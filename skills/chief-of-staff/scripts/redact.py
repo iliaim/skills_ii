@@ -62,23 +62,25 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         "[REDACTED_OAUTH_TOKEN]",
     ),
     (
-        re.compile(r"(?i)\b(authorization|cookie|set-cookie|cf-access-jwt-assertion|x-api-key)\s*:\s*[^\r\n]+"),
+        re.compile(r"(?i)\b(authorization|cookie|set-cookie|cf-access-jwt-assertion|x-api-key)[ \t]*:[ \t]*[^\r\n]+"),
         r"\1: [REDACTED]",
     ),
     (
-        re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{8,}"),
+        re.compile(r"(?i)\bbearer[ \t]+[A-Za-z0-9._~+/=-]{8,}"),
         "Bearer [REDACTED]",
     ),
     (
         re.compile(
             r'(?i)("(?:authorization|cookie|set-cookie|cf-access-jwt-assertion|x-api-key'
-            r'|access_?token|refresh_?token|id_token|api_?key|client_secret|password|secret)"\s*:\s*)'
-            r'"(?:\\.|[^"\\])*"'
+            r'|access_?token|refresh_?token|id_token|api_?key|client_secret|password|secret|token)"\s*:\s*)'
+            r'"(?:\\.|[^"\\]){0,16384}"'
         ),
         r'\1"[REDACTED]"',
     ),
     (
-        re.compile(r"([a-zA-Z][a-zA-Z0-9+.-]*://[^/\s:@\"']*:)[^@\s/\"']+(@)"),
+        re.compile(
+            r"(?<![a-zA-Z0-9+.-])([a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^/\s:@\"']{0,256}:)[^@\s/\"']{1,1024}(@)"
+        ),
         r"\1[REDACTED]\2",
     ),
 )
@@ -112,6 +114,11 @@ _PEM_HEADER_RE = re.compile(r"-----BEGIN [A-Z0-9 ]{0,32}PRIVATE KEY-----")
 _PEM_BODY_CHARS_RE = re.compile(r"[A-Za-z0-9+/=\r\n \t:,-]*")
 _PEM_FOOTER_RE = re.compile(r"-----END [A-Z0-9 ]{0,32}PRIVATE KEY-----")
 _PEM_MAX_BODY_CHARS = 16384
+_INLINE_JSON_KEY_RE = re.compile(
+    r'(?i)("(?:authorization|cookie|set-cookie|cf-access-jwt-assertion|x-api-key'
+    r'|access_?token|refresh_?token|id_token|api_?key|client_secret|password|secret|token)"\s*:\s*)"'
+)
+_INLINE_JSON_MAX_CHARS = 16384
 
 
 def _scrub_pem_blocks(text: str) -> str:
@@ -144,13 +151,66 @@ def _scrub_pem_blocks(text: str) -> str:
     return "".join(parts)
 
 
+def _scrub_inline_json(text: str) -> str:
+    """Redact bounded inline JSON string secret values in linear time without regex backtracking."""
+    if '"' not in text:
+        return text
+    parts: list[str] = []
+    pos = 0
+    length = len(text)
+    while pos < length:
+        match = _INLINE_JSON_KEY_RE.search(text, pos)
+        if match is None:
+            parts.append(text[pos:])
+            break
+        parts.append(text[pos:match.end()])
+        scan = match.end()
+        limit = min(length, scan + _INLINE_JSON_MAX_CHARS)
+        close_idx = -1
+        while scan < limit:
+            quote_idx = text.find('"', scan, limit)
+            if quote_idx == -1:
+                break
+            backslashes = 0
+            check = quote_idx - 1
+            while check >= match.end() and text[check] == "\\":
+                backslashes += 1
+                check -= 1
+            if backslashes % 2 == 0:
+                close_idx = quote_idx
+                break
+            scan = quote_idx + 1
+        if close_idx != -1:
+            parts.append('[REDACTED]"')
+            pos = close_idx + 1
+        else:
+            pos = match.end()
+    return "".join(parts)
+
+
+_PATTERN_TRIGGERS: tuple[tuple[re.Pattern[str], str, tuple[str, ...] | None], ...] = (
+    (PATTERNS[1][0], PATTERNS[1][1], ("gh", "github_pat_")),
+    (PATTERNS[2][0], PATTERNS[2][1], ("sk-",)),
+    (PATTERNS[3][0], PATTERNS[3][1], ("AKIA",)),
+    (PATTERNS[4][0], PATTERNS[4][1], ("AIza",)),
+    (PATTERNS[5][0], PATTERNS[5][1], ("ya29.",)),
+    (PATTERNS[6][0], PATTERNS[6][1], (":",)),
+    (PATTERNS[7][0], PATTERNS[7][1], (" ", "\t")),
+)
+
+
 def scrub_secrets(text: str) -> str:
     """Redact known credential patterns from plain text in bounded time."""
     if not text:
         return text
     result = _scrub_pem_blocks(text)
-    for pattern, replacement in PATTERNS[1:]:
-        result = pattern.sub(replacement, result)
+    for pattern, replacement, needles in _PATTERN_TRIGGERS:
+        if needles is None or any(needle in result for needle in needles):
+            result = pattern.sub(replacement, result)
+    result = _scrub_inline_json(result)
+    if "://" in result and "@" in result:
+        url_pattern, url_replacement = PATTERNS[-1]
+        result = url_pattern.sub(url_replacement, result)
     return result
 
 
