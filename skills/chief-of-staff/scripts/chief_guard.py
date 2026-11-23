@@ -75,10 +75,10 @@ class _QuoteState:
         self.in_single = self.in_double = self.escaped = False
 
     def step(self, ch: str) -> bool:
-        """Advance one character; return True when `ch` is a quote/escape syntax delimiter."""
+        """Advance one character; return True when `ch` is a quote/escape syntax delimiter or escaped."""
         if self.escaped:
             self.escaped = False
-            return False
+            return True
         if ch == "\\" and not self.in_single:
             self.escaped = True
             return True
@@ -156,32 +156,26 @@ def _resolve_lexical_path(raw_path: str, cwd: str | None, env: Mapping[str, str]
         return None
     if expanded.startswith("/"):
         norm = _norm_posix(expanded)
-    else:
-        cwd_norm = _resolve_valid_cwd(cwd, env)
-        if cwd_norm is None:
-            return None
+    elif (cwd_norm := _resolve_valid_cwd(cwd, env)) is not None:
         norm = _norm_posix(f"{cwd_norm}/{expanded}")
+    else:
+        return None
     return None if _has_traversal(norm) else norm
 
 
 def _chief_writable_user_roots(env: Mapping[str, str] | None) -> tuple[list[str], list[str]]:
-    source_env = env if env is not None else os.environ
-    home = _home_dir(source_env)
+    source_env, home = (env if env is not None else os.environ), _home_dir(env)
     cfg_roots, st_roots = [f"{home}/.config"], [f"{home}/.local/state"]
     for var, target in (("XDG_CONFIG_HOME", cfg_roots), ("XDG_STATE_HOME", st_roots)):
-        val = source_env.get(var)
-        if val and not _has_traversal(val):
+        if (val := source_env.get(var)) and not _has_traversal(val):
             target.append(_norm_posix(_expand_home(val, home)))
     user_roots = [f"{root}/{ns}" for root in cfg_roots + st_roots for ns in _ALLOWED_CONFIG_NAMESPACES]
-
     gemini_roots = [f"{home}/.gemini"]
     for key in ("GEMINI_ROOT", "GEMINI_HOME", "AGY_GEMINI_ROOT"):
-        val = source_env.get(key)
-        if val and not _has_traversal(val):
+        if (val := source_env.get(key)) and not _has_traversal(val):
             g_norm = _norm_posix(_expand_home(val, home))
             gemini_roots.extend((g_norm, f"{g_norm}/.gemini"))
-    brain_roots = [f"{groot}/{prod}/brain" for groot in gemini_roots for prod in _ALLOWED_GEMINI_PRODUCTS]
-    return user_roots, brain_roots
+    return user_roots, [f"{g}/{p}/brain" for g in gemini_roots for p in _ALLOWED_GEMINI_PRODUCTS]
 
 
 def _allowed_chief_path(raw_path: str, cwd: str | None = None, env: Mapping[str, str] | None = None) -> bool:
@@ -190,9 +184,8 @@ def _allowed_chief_path(raw_path: str, cwd: str | None = None, env: Mapping[str,
     if norm is None or _has_unsafe_symlink(norm):
         return False
     cwd_norm = _resolve_valid_cwd(cwd, env)
-    if cwd_norm is not None and not _has_unsafe_symlink(cwd_norm):
-        if any(norm == f"{cwd_norm}/{rel}" for rel in _ALLOWED_REPO_ORCH_FILES):
-            return True
+    if cwd_norm is not None and not _has_unsafe_symlink(cwd_norm) and any(norm == f"{cwd_norm}/{r}" for r in _ALLOWED_REPO_ORCH_FILES):
+        return True
     user_roots, brain_roots = _chief_writable_user_roots(env)
     return any(_is_under_dir(norm, root) and norm != root for root in user_roots + brain_roots)
 
@@ -321,11 +314,24 @@ def _scan_and_strip_redirections(segment: str, cwd: str | None, env: Mapping[str
                 while j < n and segment[j].isspace():
                     j += 1
                 t_buf, t_qs = [], _QuoteState()
-                while j < n and not (not t_qs.step(segment[j]) and t_qs.unquoted and segment[j].isspace()):
+                while j < n and not (
+                    not t_qs.step(segment[j]) and t_qs.unquoted and (segment[j].isspace() or segment[j] in "<>&();|")
+                ):
                     t_buf.append(segment[j])
                     j += 1
-                target = "".join(t_buf)
-                if not t_qs.balanced or not target or (target != "/dev/null" and not _allowed_chief_path(target, cwd=cwd, env=env)):
+                raw_target = "".join(t_buf)
+                if not t_qs.balanced or not raw_target or _has_active_expansion(raw_target):
+                    return None
+                try:
+                    unquoted = shlex.split(raw_target)
+                except ValueError:
+                    return None
+                if len(unquoted) != 1:
+                    return None
+                target = unquoted[0]
+                if target.startswith("~") and not (raw_target == "~" or raw_target.startswith("~/")):
+                    return None
+                if target != "/dev/null" and not _allowed_chief_path(target, cwd=cwd, env=env):
                     return None
                 out.append(" ")
                 i = j

@@ -202,6 +202,8 @@ def test_chief_blocks_project_source_edits_across_claude_codex_and_agy() -> None
         "sort -u README.md",
         "uniq -c README.md",
         "rg --line-number chief README.md",
+        r"rg \$foo README.md",
+        'echo ok > "/repo/.agents/orchestration.json"',
         "find . -maxdepth 2 -name '*.md'",
     )
     for cmd in allowed_commands:
@@ -242,6 +244,9 @@ def test_chief_blocks_shell_substitution_python_flags_git_c_utility_flags_and_co
         "echo hi >(tee /repo/src/app.py)",
         "cat <> /repo/src/app.py",
         "cat <>/repo/src/app.py",
+        'echo pwn > ~/.config/skills-ii/".."/".."/".."/repo/src/app.py',
+        "echo hi > ~/.config/skills-ii/ok>/repo/src/app.py",
+        'echo ok > "~/ok"',
         # 1b. Executable path spoofing & expansion-phase mismatch on non-echo/printf commands
         "./scripts/test",
         "/tmp/evil/git status",
