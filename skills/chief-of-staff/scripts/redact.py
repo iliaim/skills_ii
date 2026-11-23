@@ -77,7 +77,7 @@ RULES: tuple[tuple[tuple[str, ...], re.Pattern[str], str], ...] = (
         "Bearer [REDACTED]",
     ),
     (
-        ("@",),
+        ("://",),
         re.compile(
             r"(?<![a-zA-Z0-9+.-])([a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^/\s:@\"']{0,256}:)[^@\s/\"']{1,1024}(@)"
         ),
@@ -115,7 +115,7 @@ def _protected_root_dirs() -> frozenset[Path]:
 
 
 _PEM_HEADER_RE = re.compile(r"-----BEGIN [A-Z0-9 ]{0,32}PRIVATE KEY-----")
-_PEM_BODY_CHARS_RE = re.compile(r"(?:\\[rn]|[A-Za-z0-9+/=\r\n \t:,-])*")
+_PEM_BODY_CHARS_RE = re.compile(r"[A-Za-z0-9+/=\r\n \t:,-]*")
 _PEM_FOOTER_RE = re.compile(r"-----END [A-Z0-9 ]{0,32}PRIVATE KEY-----")
 _PEM_MAX_BODY_CHARS = 16384
 _INLINE_JSON_KEY_RE = re.compile(rf'(?i)("(?:{_INLINE_JSON_KEYS_ALT})"\s*:\s*)"')
@@ -143,8 +143,15 @@ def _scrub_pem_blocks(text: str) -> str:
         next_end = text.find("-----END ", body_start, stop)
         if next_end != -1:
             stop = next_end
-        body_match = _PEM_BODY_CHARS_RE.match(text, body_start, stop)
-        body_end = body_match.end() if body_match is not None else body_start
+        body_end = body_start
+        while body_end < stop:
+            body_match = _PEM_BODY_CHARS_RE.match(text, body_end, stop)
+            if body_match is not None:
+                body_end = body_match.end()
+            if body_end + 1 < stop and text[body_end] == "\\" and text[body_end + 1] in ("r", "n"):
+                body_end += 2
+            else:
+                break
         footer_match = _PEM_FOOTER_RE.match(text, body_end)
         full_end = footer_match.end() if footer_match is not None else body_end
         parts.append("[REDACTED_PRIVATE_KEY]")
