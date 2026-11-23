@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <!--CSP_META-->
 <title>Chief of Staff — Fleet Briefing</title>
 <style>
@@ -15,8 +16,8 @@
   --text: #1b232c;
   --muted: #57606a;
   --accent: #0969da;
-  --ok: #1a7f37;
-  --warn: #9a6700;
+  --ok: #116329;
+  --warn: #7d4e00;
   --danger: #cf222e;
   --radius: 10px;
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -33,7 +34,7 @@
     --accent: #58a6ff;
     --ok: #3fb950;
     --warn: #d29922;
-    --danger: #f85149;
+    --danger: #ff7b72;
   }
 }
 * { box-sizing: border-box; }
@@ -191,7 +192,7 @@ section.card h2 {
       <div id="updated-at" class="muted"></div>
     </div>
     <div class="meta-row">
-      <span id="mode" class="badge" data-tone="accent">Loading</span>
+      <span id="mode" class="badge" data-tone="accent" role="status" aria-live="polite">Loading</span>
     </div>
   </header>
 
@@ -389,6 +390,7 @@ section.card h2 {
         if (remaining !== null && cap !== null && cap > 0) {
           var meter = document.createElement("progress");
           meter.className = "quota-meter";
+          meter.setAttribute("aria-label", name + " remaining quota");
           meter.setAttribute("max", String(cap));
           meter.setAttribute("value", String(Math.max(0, Math.min(cap, remaining))));
           li.appendChild(meter);

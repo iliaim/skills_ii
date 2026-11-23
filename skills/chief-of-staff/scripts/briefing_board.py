@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import base64
-import copy
 import hashlib
 import hmac
 import http.cookies
@@ -44,7 +43,7 @@ _STATIC_STYLE_RE = re.compile(r"<style>(.*?)</style>", flags=re.DOTALL)
 def _safe_json_for_html(state: dict[str, Any]) -> str:
     """Redact secrets and escape HTML/JS-breaking characters in single-line JSON."""
     scrubbed = _REDACT.scrub_data(state)
-    encoded = json.dumps(scrubbed, separators=(",", ":"))
+    encoded = json.dumps(scrubbed, separators=(",", ":"), allow_nan=False)
     return (
         encoded.replace("&", "\\u0026")
         .replace("<", "\\u003c")
@@ -89,10 +88,7 @@ def _load_template(template_path: Path = TEMPLATE_PATH) -> str:
     return template_path.read_text(encoding="utf-8")
 
 
-def render_html(state: dict[str, Any], *, for_http: bool = False) -> str:
-    """Render portable or HTTP-served briefing HTML with strict static CSP and scrubbed state."""
-    if not isinstance(state, dict):
-        raise ValueError(f"Briefing state must be a dict, got {type(state).__name__}")
+def _render_html_from_json(state_json: str, *, for_http: bool = False) -> str:
     template_html = _load_template()
     if _CSP_META_PLACEHOLDER not in template_html or _STATE_JSON_PLACEHOLDER not in template_html:
         raise ValueError("Briefing template is missing required placeholders")
@@ -104,7 +100,14 @@ def render_html(state: dict[str, Any], *, for_http: bool = False) -> str:
         csp_meta = f'<meta http-equiv="Content-Security-Policy" content="{snapshot_csp}">'
 
     rendered = template_html.replace(_CSP_META_PLACEHOLDER, csp_meta, 1)
-    return rendered.replace(_STATE_JSON_PLACEHOLDER, _safe_json_for_html(state), 1)
+    return rendered.replace(_STATE_JSON_PLACEHOLDER, state_json, 1)
+
+
+def render_html(state: dict[str, Any], *, for_http: bool = False) -> str:
+    """Render portable or HTTP-served briefing HTML with strict static CSP and scrubbed state."""
+    if not isinstance(state, dict):
+        raise ValueError(f"Briefing state must be a dict, got {type(state).__name__}")
+    return _render_html_from_json(_safe_json_for_html(state), for_http=for_http)
 
 
 def write_snapshot(output_path: Path, state: dict[str, Any]) -> Path:
@@ -136,6 +139,7 @@ class _BriefingRequestHandler(http.server.BaseHTTPRequestHandler):
     """Hardened localhost-only HTTP + SSE handler for LiveBriefingServer."""
 
     protocol_version = "HTTP/1.1"
+    timeout = 5.0
     server: LiveBriefingServer
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -324,12 +328,12 @@ class LiveBriefingServer(http.server.ThreadingHTTPServer):
             raise ValueError("heartbeat_seconds must be > 0")
 
         self._lock = threading.Lock()
-        self._state: dict[str, Any] = copy.deepcopy(initial_state)
-        self._latest_payload: str = _safe_json_for_html(self._state)
+        self._latest_payload: str = _safe_json_for_html(initial_state)
         self._sse_clients: set[queue.Queue[str | None]] = set()
         self._shutting_down = False
         self._serving = False
         self._idle_timer: threading.Timer | None = None
+        self._bootstrap_file_written = False
 
         self.max_sse_clients = max_sse_clients
         self.heartbeat_seconds = heartbeat_seconds
@@ -358,7 +362,7 @@ class LiveBriefingServer(http.server.ThreadingHTTPServer):
         try:
             if self.bootstrap_url_path is not None:
                 _REDACT.safe_atomic_write_0600(self.bootstrap_url_path, self.auth_url)
-            self._reset_idle_timer_locked()
+                self._bootstrap_file_written = True
         except Exception:
             self._unlink_bootstrap_file()
             super().server_close()
@@ -370,10 +374,15 @@ class LiveBriefingServer(http.server.ThreadingHTTPServer):
             return self._shutting_down
 
     def _unlink_bootstrap_file(self) -> None:
-        if self.bootstrap_url_path is None:
+        with self._lock:
+            if not self._bootstrap_file_written or self.bootstrap_url_path is None:
+                return
+            target = self.bootstrap_url_path
+            self._bootstrap_file_written = False
+        if target.is_symlink():
             return
         try:
-            self.bootstrap_url_path.unlink()
+            target.unlink()
         except FileNotFoundError:
             pass
         except OSError:
@@ -386,7 +395,7 @@ class LiveBriefingServer(http.server.ThreadingHTTPServer):
 
     def _reset_idle_timer_locked(self) -> None:
         self._cancel_idle_timer_locked()
-        if self._shutting_down or self.idle_timeout_seconds <= 0 or self._sse_clients:
+        if not self._serving or self._shutting_down or self.idle_timeout_seconds <= 0 or self._sse_clients:
             return
         timer = threading.Timer(self.idle_timeout_seconds, self._on_idle_timeout)
         timer.daemon = True
@@ -406,11 +415,14 @@ class LiveBriefingServer(http.server.ThreadingHTTPServer):
             if self._shutting_down:
                 return
             self._serving = True
+            if not self._sse_clients:
+                self._reset_idle_timer_locked()
         try:
             super().serve_forever(poll_interval=poll_interval)
         finally:
             with self._lock:
                 self._serving = False
+                self._cancel_idle_timer_locked()
 
     def verify_cookie(self, cookie_value: str) -> bool:
         return hmac.compare_digest(cookie_value, self.cookie_value)
@@ -427,8 +439,8 @@ class LiveBriefingServer(http.server.ThreadingHTTPServer):
 
     def render_current_http_html(self) -> str:
         with self._lock:
-            snapshot = copy.deepcopy(self._state)
-        return render_html(snapshot, for_http=True)
+            payload = self._latest_payload
+        return _render_html_from_json(payload, for_http=True)
 
     def register_sse_client(self) -> queue.Queue[str | None] | None:
         with self._lock:
@@ -454,7 +466,6 @@ class LiveBriefingServer(http.server.ThreadingHTTPServer):
         with self._lock:
             if self._shutting_down:
                 return
-            self._state = copy.deepcopy(state)
             self._latest_payload = payload
             evicted = False
             for q in list(self._sse_clients):

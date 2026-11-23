@@ -9,6 +9,7 @@ import re
 import stat
 import sys
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -142,6 +143,7 @@ def test_live_server_security_sse_concurrency_and_clean_shutdown(
     thread.start()
 
     sse_conns: list[http.client.HTTPConnection] = []
+    sse_resps: list[http.client.HTTPResponse] = []
     try:
         assert url_file.is_file()
         assert stat.S_IMODE(url_file.stat().st_mode) == 0o600
@@ -152,48 +154,71 @@ def test_live_server_security_sse_concurrency_and_clean_shutdown(
 
         # 1. DNS rebinding Host header -> 403
         conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
-        conn.putrequest("GET", f"/b/{srv.slug}/", skip_host=True)
-        conn.putheader("Host", "evil.example")
-        conn.endheaders()
-        resp = conn.getresponse()
-        resp.read()
-        conn.close()
-        assert resp.status == 403
+        try:
+            conn.putrequest("GET", f"/b/{srv.slug}/", skip_host=True)
+            conn.putheader("Host", "evil.example")
+            conn.endheaders()
+            resp = conn.getresponse()
+            try:
+                resp.read()
+                assert resp.status == 403
+            finally:
+                resp.close()
+        finally:
+            conn.close()
 
         # 2. Cross-site Sec-Fetch-Site -> 403
         conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
-        conn.request("GET", f"/b/{srv.slug}/", headers={"Sec-Fetch-Site": "cross-site"})
-        resp = conn.getresponse()
-        resp.read()
-        conn.close()
-        assert resp.status == 403
+        try:
+            conn.request("GET", f"/b/{srv.slug}/", headers={"Sec-Fetch-Site": "cross-site"})
+            resp = conn.getresponse()
+            try:
+                resp.read()
+                assert resp.status == 403
+            finally:
+                resp.close()
+        finally:
+            conn.close()
 
         # 3. Non-GET methods -> 405
         for method in ("POST", "HEAD", "PUT", "DELETE", "PATCH"):
             conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
-            conn.request(method, f"/b/{srv.slug}/")
-            resp = conn.getresponse()
-            resp.read()
-            conn.close()
-            assert resp.status == 405
+            try:
+                conn.request(method, f"/b/{srv.slug}/")
+                resp = conn.getresponse()
+                try:
+                    resp.read()
+                    assert resp.status == 405
+                finally:
+                    resp.close()
+            finally:
+                conn.close()
 
         # 4. Unauthenticated GET /b/<slug>/ and /b/<slug>/events -> 401
         for path in (f"/b/{srv.slug}/", f"/b/{srv.slug}/events"):
             conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
-            conn.request("GET", path)
-            resp = conn.getresponse()
-            resp.read()
-            conn.close()
-            assert resp.status == 401
+            try:
+                conn.request("GET", path)
+                resp = conn.getresponse()
+                try:
+                    resp.read()
+                    assert resp.status == 401
+                finally:
+                    resp.close()
+            finally:
+                conn.close()
 
         # 5. First GET to auth_url -> 302 + Set-Cookie + immediate unlink of bootstrap.url
         opener = urllib.request.build_opener(_NoRedirect())
         with pytest.raises(urllib.error.HTTPError) as exc_info:
             opener.open(auth_url, timeout=5)
         auth_err = exc_info.value
-        assert auth_err.code == 302
-        assert auth_err.headers.get("Location") == f"/b/{srv.slug}/"
-        set_cookie = auth_err.headers.get("Set-Cookie", "")
+        try:
+            assert auth_err.code == 302
+            assert auth_err.headers.get("Location") == f"/b/{srv.slug}/"
+            set_cookie = auth_err.headers.get("Set-Cookie", "")
+        finally:
+            auth_err.close()
         assert set_cookie.startswith(f"__skills_ii_{srv.slug}=")
         assert f"Path=/b/{srv.slug}/" in set_cookie
         assert "HttpOnly" in set_cookie
@@ -205,7 +230,10 @@ def test_live_server_security_sse_concurrency_and_clean_shutdown(
         # 6. Replay of auth_url -> 401
         with pytest.raises(urllib.error.HTTPError) as replay_exc:
             opener.open(auth_url, timeout=5)
-        assert replay_exc.value.code == 401
+        try:
+            assert replay_exc.value.code == 401
+        finally:
+            replay_exc.value.close()
 
         # 7. Open SSE stream #1 and read initial frame
         sse1 = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
@@ -216,6 +244,7 @@ def test_live_server_security_sse_concurrency_and_clean_shutdown(
             headers={"Cookie": cookie_pair, "Sec-Fetch-Site": "same-origin"},
         )
         sse1_resp = sse1.getresponse()
+        sse_resps.append(sse1_resp)
         assert sse1_resp.status == 200
         assert "text/event-stream" in sse1_resp.headers.get("Content-Type", "")
         frame1 = _read_sse_data_frame(sse1_resp)
@@ -224,16 +253,21 @@ def test_live_server_security_sse_concurrency_and_clean_shutdown(
 
         # 8. Concurrent GET /b/<slug>/ while SSE stream #1 stays open
         page_conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
-        page_conn.request(
-            "GET",
-            f"/b/{srv.slug}/",
-            headers={"Cookie": cookie_pair, "Sec-Fetch-Site": "none"},
-        )
-        page_resp = page_conn.getresponse()
-        page_body = page_resp.read().decode("utf-8")
-        page_conn.close()
-        assert page_resp.status == 200
-        http_csp = page_resp.headers.get("Content-Security-Policy", "")
+        try:
+            page_conn.request(
+                "GET",
+                f"/b/{srv.slug}/",
+                headers={"Cookie": cookie_pair, "Sec-Fetch-Site": "none"},
+            )
+            page_resp = page_conn.getresponse()
+            try:
+                page_body = page_resp.read().decode("utf-8")
+                assert page_resp.status == 200
+                http_csp = page_resp.headers.get("Content-Security-Policy", "")
+            finally:
+                page_resp.close()
+        finally:
+            page_conn.close()
         assert "frame-ancestors 'none'" in http_csp
         assert '<meta http-equiv="Content-Security-Policy"' not in page_body
 
@@ -254,17 +288,28 @@ def test_live_server_security_sse_concurrency_and_clean_shutdown(
         sse_conns.append(sse2)
         sse2.request("GET", f"/b/{srv.slug}/events", headers={"Cookie": cookie_pair})
         sse2_resp = sse2.getresponse()
+        sse_resps.append(sse2_resp)
         assert sse2_resp.status == 200
         frame2 = _read_sse_data_frame(sse2_resp)
         assert frame2["goal"] == "Updated"
 
         sse3 = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
-        sse3.request("GET", f"/b/{srv.slug}/events", headers={"Cookie": cookie_pair})
-        sse3_resp = sse3.getresponse()
-        sse3_resp.read()
-        sse3.close()
-        assert sse3_resp.status == 503
+        try:
+            sse3.request("GET", f"/b/{srv.slug}/events", headers={"Cookie": cookie_pair})
+            sse3_resp = sse3.getresponse()
+            try:
+                sse3_resp.read()
+                assert sse3_resp.status == 503
+            finally:
+                sse3_resp.close()
+        finally:
+            sse3.close()
     finally:
+        for r in sse_resps:
+            try:
+                r.close()
+            except OSError:
+                pass
         for c in sse_conns:
             try:
                 c.close()
@@ -291,12 +336,17 @@ def test_live_server_heartbeat_slow_client_drop_and_idle_shutdown(tmp_path: Path
     )
     thread = threading.Thread(target=srv.serve_forever, daemon=True)
     thread.start()
+    sse: http.client.HTTPConnection | None = None
+    resp: http.client.HTTPResponse | None = None
     try:
         auth_url = url_file.read_text(encoding="utf-8").strip()
         opener = urllib.request.build_opener(_NoRedirect())
         with pytest.raises(urllib.error.HTTPError) as exc_info:
             opener.open(auth_url, timeout=5)
-        cookie_pair = exc_info.value.headers.get("Set-Cookie", "").split(";", 1)[0]
+        try:
+            cookie_pair = exc_info.value.headers.get("Set-Cookie", "").split(";", 1)[0]
+        finally:
+            exc_info.value.close()
 
         sse = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
         sse.request("GET", f"/b/{srv.slug}/events", headers={"Cookie": cookie_pair})
@@ -316,20 +366,43 @@ def test_live_server_heartbeat_slow_client_drop_and_idle_shutdown(tmp_path: Path
         # Publish >64 frames without reading from SSE to verify non-blocking slow-client drop
         for idx in range(70):
             srv.publish_state({"goal": f"Update {idx}"})
+        resp.close()
+        resp = None
         sse.close()
+        sse = None
 
         # With 0 connected SSE clients, idle_timeout_seconds=0.15 cleanly terminates serve_forever
         thread.join(timeout=3)
         assert not thread.is_alive()
     finally:
+        if resp is not None:
+            resp.close()
+        if sse is not None:
+            sse.close()
         srv.shutdown()
         srv.server_close()
         thread.join(timeout=3)
         assert not url_file.exists()
 
 
-def test_publish_state_eviction_rearms_idle_timer_without_unregister(tmp_path: Path) -> None:
+def test_publish_state_eviction_rearms_idle_timer_without_unregister_and_preserves_rejected_symlink(
+    tmp_path: Path,
+) -> None:
     board = _load_board()
+
+    # Rejecting a symlinked bootstrap_url_path must raise ValueError without unlinking the symlink
+    real_target = tmp_path / "real-target.txt"
+    real_target.write_text("keep", encoding="utf-8")
+    sym_bootstrap = tmp_path / "sym-bootstrap.url"
+    sym_bootstrap.symlink_to(real_target)
+    with pytest.raises(ValueError, match="symlink"):
+        board.LiveBriefingServer(
+            initial_state={"goal": "Reject symlink"},
+            bootstrap_url_path=sym_bootstrap,
+        )
+    assert sym_bootstrap.is_symlink()
+    assert real_target.read_text(encoding="utf-8") == "keep"
+
     url_file = tmp_path / "evict-bootstrap.url"
     srv = board.LiveBriefingServer(
         initial_state={"goal": "Eviction idle timer check"},
@@ -340,6 +413,11 @@ def test_publish_state_eviction_rearms_idle_timer_without_unregister(tmp_path: P
     thread = threading.Thread(target=srv.serve_forever, daemon=True)
     thread.start()
     try:
+        deadline = time.monotonic() + 2.0
+        while not srv._serving and time.monotonic() < deadline:
+            time.sleep(0.005)
+        assert srv._serving
+
         q = srv.register_sse_client()
         assert q is not None
         assert srv._idle_timer is None
