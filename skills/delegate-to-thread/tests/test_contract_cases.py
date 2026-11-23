@@ -1755,7 +1755,7 @@ class DelegateContractCaseTests(unittest.TestCase):
 
     def test_cross_skill_recovery_state_vocabulary_is_unambiguous(self):
         provider = (SKILL_ROOT.parent / "agent-communication" / "references" / "codex.md").read_text()
-        orchestration = (SKILL_ROOT.parent / "orchestrate-threads" / "references" / "orchestration-contract.md").read_text()
+        orchestration = (SKILL_ROOT.parent / "orchestrate-agents" / "references" / "orchestration-contract.md").read_text()
         self.assertIn("return `queued/unmonitorable` with the evidence", provider)
         self.assertIn("`contact-unavailable` only after an", provider)
         self.assertIn("without a proven exact identity the\nnode remains `queued/unmonitorable`", orchestration)
