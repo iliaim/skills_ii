@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--CSP_META-->
+<title>Chief of Staff — Fleet Briefing</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-alt: #eef1f5;
+  --border: #d0d7de;
+  --text: #1b232c;
+  --muted: #57606a;
+  --accent: #0969da;
+  --ok: #1a7f37;
+  --warn: #9a6700;
+  --danger: #cf222e;
+  --radius: 10px;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-alt: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --ok: #3fb950;
+    --warn: #d29922;
+    --danger: #f85149;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 1.5rem;
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  gap: 1.25rem;
+}
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 650;
+}
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.badge[data-tone="ok"] { color: var(--ok); border-color: var(--ok); }
+.badge[data-tone="warn"] { color: var(--warn); border-color: var(--warn); }
+.badge[data-tone="danger"] { color: var(--danger); border-color: var(--danger); }
+.badge[data-tone="accent"] { color: var(--accent); border-color: var(--accent); }
+.muted {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+section.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+}
+section.card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 650;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.45rem;
+}
+.goal-text {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 500;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+.item-box {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+}
+.item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.item-title {
+  font-weight: 600;
+  word-break: break-word;
+}
+.item-detail {
+  margin: 0.3rem 0 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.tree-list {
+  list-style: none;
+  margin: 0;
+  padding-left: 0;
+}
+.tree-list .tree-list {
+  margin-top: 0.45rem;
+  padding-left: 1.15rem;
+  border-left: 2px solid var(--border);
+}
+.tree-node {
+  margin-bottom: 0.5rem;
+}
+.tree-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+.mono {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+}
+.quota-meter {
+  width: 100%;
+  height: 0.55rem;
+  margin-top: 0.4rem;
+}
+</style>
+</head>
+<body>
+<main class="container">
+  <header>
+    <div>
+      <h1>Chief of Staff Briefing</h1>
+      <div id="updated-at" class="muted"></div>
+    </div>
+    <div class="meta-row">
+      <span id="mode" class="badge" data-tone="accent">Loading</span>
+    </div>
+  </header>
+
+  <section class="card" aria-labelledby="goal-heading">
+    <h2 id="goal-heading">Active Goal</h2>
+    <p id="goal" class="goal-text"></p>
+  </section>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="attention-heading">
+      <h2 id="attention-heading">Attention Inbox</h2>
+      <div id="attention"></div>
+    </section>
+
+    <section class="card" aria-labelledby="quotas-heading">
+      <h2 id="quotas-heading">Provider Headroom</h2>
+      <div id="quotas"></div>
+    </section>
+  </div>
+
+  <section class="card" aria-labelledby="tree-heading">
+    <h2 id="tree-heading">Fleet Hierarchy (Chief &rarr; Orchestrator &rarr; Worker)</h2>
+    <div id="tree"></div>
+  </section>
+</main>
+
+<script id="briefing-state" type="application/json"><!--STATE_JSON--></script>
+<script>
+(function () {
+  "use strict";
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) {
+      node.className = className;
+    }
+    if (text !== undefined && text !== null) {
+      node.textContent = String(text);
+    }
+    return node;
+  }
+
+  function toneForStatus(value) {
+    var s = String(value || "").toLowerCase();
+    if (s === "high" || s === "critical" || s === "error" || s === "blocked" || s === "failed" || s === "exhausted") {
+      return "danger";
+    }
+    if (s === "warn" || s === "warning" || s === "medium" || s === "pending" || s === "waiting" || s === "reconnecting") {
+      return "warn";
+    }
+    if (s === "ok" || s === "healthy" || s === "running" || s === "active" || s === "done" || s === "live") {
+      return "ok";
+    }
+    return "accent";
+  }
+
+  function renderGoal(state) {
+    var goalEl = document.getElementById("goal");
+    var goal = state && typeof state.goal === "string" && state.goal.trim() ? state.goal : "No active goal recorded.";
+    goalEl.textContent = goal;
+
+    var updatedEl = document.getElementById("updated-at");
+    var ts = state && (state.updatedAt || state.updated_at || state.generatedAt);
+    updatedEl.textContent = ts ? "Updated: " + String(ts) : "Portable briefing state";
+  }
+
+  function renderAttention(state) {
+    var container = document.getElementById("attention");
+    var items = state && Array.isArray(state.attention) ? state.attention : [];
+    if (items.length === 0) {
+      container.replaceChildren(el("p", "muted", "No items requiring attention."));
+      return;
+    }
+    var list = el("ul", "list");
+    for (var i = 0; i < items.length; i += 1) {
+      var item = items[i];
+      var li = el("li", "item-box");
+      var head = el("div", "item-head");
+      var titleText = typeof item === "string" ? item : (item && (item.title || item.summary || item.id)) || "Attention item";
+      head.appendChild(el("span", "item-title", titleText));
+      if (item && typeof item === "object") {
+        var sev = item.severity || item.priority || item.status;
+        if (sev) {
+          var badge = el("span", "badge", sev);
+          badge.setAttribute("data-tone", toneForStatus(sev));
+          head.appendChild(badge);
+        }
+      }
+      li.appendChild(head);
+      if (item && typeof item === "object") {
+        var detail = item.detail || item.reason || item.action || item.route;
+        if (detail) {
+          li.appendChild(el("p", "item-detail", detail));
+        }
+      }
+      list.appendChild(li);
+    }
+    container.replaceChildren(list);
+  }
+
+  function buildTreeList(nodes) {
+    var ul = el("ul", "tree-list");
+    for (var i = 0; i < nodes.length; i += 1) {
+      var node = nodes[i];
+      if (!node || typeof node !== "object") {
+        continue;
+      }
+      var li = el("li", "tree-node");
+      var card = el("div", "tree-card");
+      var role = node.role || "node";
+      var roleBadge = el("span", "badge", role);
+      roleBadge.setAttribute("data-tone", "accent");
+      card.appendChild(roleBadge);
+
+      var name = node.name || node.id || "unnamed";
+      card.appendChild(el("strong", "", name));
+
+      if (node.status) {
+        var statusBadge = el("span", "badge", node.status);
+        statusBadge.setAttribute("data-tone", toneForStatus(node.status));
+        card.appendChild(statusBadge);
+      }
+      if (node.provider) {
+        card.appendChild(el("span", "mono muted", node.provider));
+      }
+      if (node.branch) {
+        card.appendChild(el("span", "mono muted", node.branch));
+      }
+      li.appendChild(card);
+
+      if (Array.isArray(node.children) && node.children.length > 0) {
+        li.appendChild(buildTreeList(node.children));
+      }
+      ul.appendChild(li);
+    }
+    return ul;
+  }
+
+  function renderTree(state) {
+    var container = document.getElementById("tree");
+    var tree = state ? state.tree : null;
+    var roots = [];
+    if (Array.isArray(tree)) {
+      roots = tree;
+    } else if (tree && typeof tree === "object" && Object.keys(tree).length > 0) {
+      roots = [tree];
+    }
+    if (roots.length === 0) {
+      container.replaceChildren(el("p", "muted", "No active fleet hierarchy."));
+      return;
+    }
+    container.replaceChildren(buildTreeList(roots));
+  }
+
+  function renderQuotas(state) {
+    var container = document.getElementById("quotas");
+    var quotas = state ? state.quotas : null;
+    var entries = [];
+    if (Array.isArray(quotas)) {
+      for (var i = 0; i < quotas.length; i += 1) {
+        if (quotas[i] && typeof quotas[i] === "object") {
+          entries.push([quotas[i].provider || quotas[i].name || ("provider-" + i), quotas[i]]);
+        }
+      }
+    } else if (quotas && typeof quotas === "object") {
+      var keys = Object.keys(quotas);
+      for (var j = 0; j < keys.length; j += 1) {
+        entries.push([keys[j], quotas[keys[j]]]);
+      }
+    }
+    if (entries.length === 0) {
+      container.replaceChildren(el("p", "muted", "No provider quota data reported."));
+      return;
+    }
+    var list = el("ul", "list");
+    for (var k = 0; k < entries.length; k += 1) {
+      var name = entries[k][0];
+      var info = entries[k][1];
+      var li = el("li", "item-box");
+      var head = el("div", "item-head");
+      head.appendChild(el("span", "item-title", name));
+
+      if (info && typeof info === "object") {
+        var remaining = typeof info.remaining === "number" ? info.remaining : null;
+        var cap = typeof info.cap === "number" ? info.cap : (typeof info.limit === "number" ? info.limit : null);
+        var status = info.status || (remaining === 0 ? "exhausted" : "ok");
+        var summary = remaining !== null && cap !== null
+          ? (remaining + " / " + cap + " remaining")
+          : (info.summary || status);
+        var badge = el("span", "badge", summary);
+        badge.setAttribute("data-tone", toneForStatus(status));
+        head.appendChild(badge);
+        li.appendChild(head);
+
+        if (remaining !== null && cap !== null && cap > 0) {
+          var meter = document.createElement("progress");
+          meter.className = "quota-meter";
+          meter.setAttribute("max", String(cap));
+          meter.setAttribute("value", String(Math.max(0, Math.min(cap, remaining))));
+          li.appendChild(meter);
+        }
+        if (info.detail || info.resetAt) {
+          li.appendChild(el("p", "item-detail", info.detail || ("Resets: " + info.resetAt)));
+        }
+      } else {
+        head.appendChild(el("span", "badge", String(info)));
+        li.appendChild(head);
+      }
+      list.appendChild(li);
+    }
+    container.replaceChildren(list);
+  }
+
+  function renderState(state) {
+    renderGoal(state);
+    renderAttention(state);
+    renderTree(state);
+    renderQuotas(state);
+  }
+
+  function setMode(text, tone) {
+    var modeEl = document.getElementById("mode");
+    modeEl.textContent = text;
+    modeEl.setAttribute("data-tone", tone || "accent");
+  }
+
+  var initialRaw = document.getElementById("briefing-state").textContent || "{}";
+  try {
+    renderState(JSON.parse(initialRaw));
+  } catch (err) {
+    renderState({ goal: "Unable to parse briefing state JSON." });
+  }
+
+  if (location.protocol === "http:" || location.protocol === "https:") {
+    setMode("Connecting...", "warn");
+    var source = new EventSource("./events");
+    source.addEventListener("open", function () {
+      setMode("Live SSE", "ok");
+    });
+    source.addEventListener("message", function (event) {
+      try {
+        renderState(JSON.parse(event.data));
+        setMode("Live SSE", "ok");
+      } catch (err) {
+        setMode("Payload Error", "danger");
+      }
+    });
+    source.addEventListener("error", function () {
+      if (source.readyState === EventSource.CLOSED) {
+        setMode("Disconnected", "danger");
+      } else {
+        setMode("Reconnecting...", "warn");
+      }
+    });
+  } else {
+    setMode("Snapshot (Offline)", "accent");
+  }
+})();
+</script>
+</body>
+</html>
