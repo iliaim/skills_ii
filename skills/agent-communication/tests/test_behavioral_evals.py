@@ -526,7 +526,7 @@ class BehavioralEvalContracts(unittest.TestCase):
         def find(root):
             return {"tool": "exec_command", "arguments": {"argv": ["find", root + "/sessions", "-name", "rollout-*-task-xhost-044.jsonl*"]}}
 
-        finds = [find("/home/agent/.codex"), find("/state/codex-app-44")]
+        finds = [find("/srv/workspace/.codex"), find("/state/codex-app-44")]
         read = {"tool": "exec_command", "arguments": {"argv": ["jq", "-c", "select(.type == \"event_msg\")", rollout]}}
         stat = {"tool": "exec_command", "arguments": {"argv": ["stat", rollout]}}
         queue = {
@@ -945,7 +945,7 @@ class BehavioralEvalContracts(unittest.TestCase):
                     "tool": "skills.read",
                     "arguments": {
                         "skill": "delegate-to-thread",
-                        "path": "/Users/user/.codex/skills/delegate-to-thread/SKILL.md",
+                        "path": "/opt/codex-skills/delegate-to-thread/SKILL.md",
                     },
                 },
                 {

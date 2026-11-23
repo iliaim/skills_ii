@@ -27,7 +27,7 @@ On live-task surfaces that expose them, `send_message` does not start an idle su
 Install the four sibling skill directories together to preserve their relative references. These are
 instructions and a read-only inspection helper; installation does not create a running receiver,
 queue consumer, watchdog or observer. Reliable follow-through still needs an active owner and a
-supported bounded observation route. Changes here do not modify Hermes or FightCard installations.
+supported bounded observation route. Changes here do not automatically update external repositories that vendor copies of these skills.
 
 For a shared local checkout, link each complete package into the provider's skill directory:
 `$CODEX_HOME/skills` (default `~/.codex/skills`) or `$CLAUDE_CONFIG_DIR/skills` (default

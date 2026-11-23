@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bounded, metadata-only inspection of one explicitly selected JSONL file.
 
-Inspired by the Hermes agent-session-forensics skill. This small independent
+Read-only metadata-first JSONL session transcript inspector. This small independent
 reimplementation emits only allowlisted structural categories and bounded
 scan metadata, never source content or paths.
 """
