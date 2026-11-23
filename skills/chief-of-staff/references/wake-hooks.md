@@ -35,12 +35,14 @@ Wire [chief_guard.py](../scripts/chief_guard.py) across Claude Code, Codex, and 
 
 ## Codex (`.codex/hooks.json`)
 
+Use `"matcher": "*"` so every Codex file-mutation and shell tool (`Edit`, `Write`, `MultiEdit`, `Bash`, `exec_command`, `shell_command`, `apply_patch`, `write_stdin`) is gated while read-only tools pass straight through:
+
 ```json
 {
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Edit|Write|MultiEdit|Bash|apply_patch",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",

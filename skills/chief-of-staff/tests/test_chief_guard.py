@@ -113,6 +113,22 @@ def test_chief_blocks_project_source_edits_across_claude_codex_and_agy() -> None
                 "args": {"Path": "/repo/src/app.py"},
             },
         },
+        {
+            "conversationId": "123",
+            "cwd": "/repo",
+            "toolCall": {
+                "name": "replace_file_content",
+                "args": {"TargetFile": "/repo/src/app.py"},
+            },
+        },
+        {
+            "conversationId": "123",
+            "cwd": "/repo",
+            "toolCall": {
+                "name": "multi_replace_file_content",
+                "args": {"TargetFile": "/repo/src/app.py"},
+            },
+        },
     )
     for raw_payload in agy_payloads:
         code, out = guard.evaluate(json.dumps(raw_payload), env=env)
@@ -131,6 +147,7 @@ def test_chief_blocks_project_source_edits_across_claude_codex_and_agy() -> None
         "git checkout -b feat/new",
         "npm run build",
         "echo 'hack' > /repo/src/app.py",
+        "echo 'hack'>/repo/src/app.py",
         "cat src/a.py >> src/b.py",
         "sed -i '' 's/a/b/' src/app.py",
         "git status && git commit -m 'sneaky'",
@@ -160,9 +177,17 @@ def test_chief_blocks_project_source_edits_across_claude_codex_and_agy() -> None
         "git status",
         "git -C /repo log -n 5 --oneline",
         "gh issue list --state open",
-        "python3 skills/chief-of-staff/scripts/briefing_board.py --state-json /tmp/state.json --snapshot /tmp/briefing.html",
-        "python3 skills/chief-of-staff/scripts/setup_init.py --repo-root /repo",
+        "gh api repos/example/project --method GET",
+        "gh api repos/example/project -XGET",
+        "python3 skills/chief-of-staff/scripts/briefing_board.py --state-json ~/.local/state/skills-ii/state.json --snapshot ~/.local/state/skills-ii/briefing.html",
+        "python3 skills/chief-of-staff/scripts/setup_init.py --repo-root /repo --fleet-config ~/.config/skills-ii/fleet.json",
         "ls -la src 2>/dev/null",
+        'echo "status: $(git status)"',
+        "sed -n '1,20p' README.md",
+        "sort -u README.md",
+        "uniq -c README.md",
+        "rg --line-number chief README.md",
+        "find . -maxdepth 2 -name '*.md'",
     )
     for cmd in allowed_commands:
         claude_code, claude_out = guard.evaluate(
@@ -183,6 +208,121 @@ def test_chief_blocks_project_source_edits_across_claude_codex_and_agy() -> None
         )
         assert agy_code == 0
         assert json.loads(agy_out) == {"decision": "allow"}
+
+
+def test_chief_blocks_shell_substitution_python_flags_git_c_utility_flags_and_codex_tools(
+    tmp_path: Path,
+) -> None:
+    guard = _load_guard()
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    env = {"SKILLS_II_ROLE": "chief", "HOME": str(fake_home)}
+
+    bypass_commands = (
+        # 1. Double-quoted command substitution, backticks, process substitution, <> redirection
+        'echo "$(git commit -m evil)"',
+        'echo "`git push origin main`"',
+        'echo "$(echo pwn > /repo/src/app.py)"',
+        "cat <(git commit -m evil)",
+        "echo hi >(tee /repo/src/app.py)",
+        "cat <> /repo/src/app.py",
+        "cat <>/repo/src/app.py",
+        # 2. Untrusted python script paths & dangerous output flags
+        "python3 ~/.config/skills-ii/setup_init.py --repo-root /repo",
+        "python3 /tmp/briefing_board.py --snapshot ~/.local/state/skills-ii/b.html",
+        "python3 skills/chief-of-staff/scripts/briefing_board.py --snapshot /repo/src/app.py",
+        "python3 skills/chief-of-staff/scripts/briefing_board.py --live-bootstrap-file=/repo/src/url.txt",
+        "python3 skills/chief-of-staff/scripts/setup_init.py --repo-root /repo --fleet-config /repo/src/fleet.json",
+        "python3 -c \"open('/repo/src/app.py', 'w').write('x')\"",
+        # 3. git -c / --config-env / --output
+        'git -c alias.status="!touch pwn" status',
+        "git -calias.x=!sh status",
+        "git --config-env=core.fsmonitor=EVIL status",
+        "git diff --output=/repo/src/app.py",
+        "git log --output /repo/src/app.py",
+        # 4. Utility mutating / exec flags
+        "sed -Ei 's/a/b/' src/app.py",
+        "sed --in-place 's/a/b/' src/app.py",
+        "sed -f evil.sed src/app.py",
+        "sed -n 'w /repo/src/app.py' README.md",
+        "sed 's/.*/id/e' README.md",
+        "sort -o /repo/src/app.py README.md",
+        "sort -uo /repo/src/app.py README.md",
+        "sort --output=/repo/src/app.py README.md",
+        "uniq README.md /repo/src/app.py",
+        "uniq -c README.md /repo/src/app.py",
+        "rg --pre sh chief README.md",
+        "rg --pre=sh chief README.md",
+        "find . -exec rm {} +",
+        "find . -fprint0 /repo/src/app.py",
+        "find . -fls /repo/src/app.py",
+        "find . -delete",
+        # 5. gh api attached short flags
+        "gh api repos/example/project -XPOST",
+        "gh api repos/example/project -f title=pwn",
+        "gh api repos/example/project -Fcount=1",
+        "gh api repos/example/project --field=title=pwn",
+        "gh api repos/example/project --raw-field=body=x",
+        "gh api repos/example/project --input=/tmp/body.json",
+    )
+
+    for cmd in bypass_commands:
+        code, reason = guard.evaluate(
+            json.dumps({"cwd": "/repo", "tool_name": "Bash", "tool_input": {"command": cmd}}),
+            env=env,
+        )
+        assert code == 2, f"Expected bypass command to be denied: {cmd!r}, got {(code, reason)}"
+
+    # 5. Codex shell tools (exec_command, shell_command string & argv, write_stdin, send_command_input)
+    for codex_shell in ("exec_command", "shell_command"):
+        deny_str_code, _ = guard.evaluate(
+            json.dumps({"cwd": "/repo", "tool_name": codex_shell, "tool_input": {"cmd": "git commit -m x"}}),
+            env=env,
+        )
+        assert deny_str_code == 2
+
+        allow_str_code, allow_str_out = guard.evaluate(
+            json.dumps({"cwd": "/repo", "tool_name": codex_shell, "tool_input": {"cmd": "git status"}}),
+            env=env,
+        )
+        assert (allow_str_code, allow_str_out) == (0, "")
+
+        deny_argv_code, _ = guard.evaluate(
+            json.dumps({"cwd": "/repo", "tool_name": codex_shell, "tool_input": {"argv": ["git", "push"]}}),
+            env=env,
+        )
+        assert deny_argv_code == 2
+
+        deny_bash_c_argv, _ = guard.evaluate(
+            json.dumps(
+                {
+                    "cwd": "/repo",
+                    "tool_name": codex_shell,
+                    "tool_input": {"argv": ["bash", "-c", "git commit -m x"]},
+                }
+            ),
+            env=env,
+        )
+        assert deny_bash_c_argv == 2
+
+        allow_argv_code, allow_argv_out = guard.evaluate(
+            json.dumps(
+                {
+                    "cwd": "/repo",
+                    "tool_name": codex_shell,
+                    "tool_input": {"argv": ["git", "status"]},
+                }
+            ),
+            env=env,
+        )
+        assert (allow_argv_code, allow_argv_out) == (0, "")
+
+    for stdin_tool in ("write_stdin", "send_command_input"):
+        code, _ = guard.evaluate(
+            json.dumps({"cwd": "/repo", "tool_name": stdin_tool, "tool_input": {"chars": "git commit\n"}}),
+            env=env,
+        )
+        assert code == 2
 
 
 def test_chief_allows_orchestration_config_and_fails_closed_on_bad_json(tmp_path: Path) -> None:
@@ -219,6 +359,25 @@ def test_chief_allows_orchestration_config_and_fails_closed_on_bad_json(tmp_path
         )
         assert (code, out) == (0, ""), f"Expected Write allow for {path}, got {(code, out)}"
 
+    # Relative path without cwd must fail closed
+    assert guard._allowed_chief_path(".agents/orchestration.json", cwd=None, env=env) is False
+    no_cwd_code, _ = guard.evaluate(
+        json.dumps({"tool_name": "Write", "tool_input": {"file_path": ".agents/orchestration.json"}}),
+        env=env,
+    )
+    assert no_cwd_code == 2
+
+    # Ancestor symlink checks
+    repo_dir = tmp_path / "repo"
+    src_dir = repo_dir / "src"
+    src_dir.mkdir(parents=True)
+    (repo_dir / ".agents").symlink_to(src_dir)
+    assert guard._allowed_chief_path(".agents/orchestration.json", cwd=str(repo_dir), env=env) is False
+
+    (fake_home / ".config").mkdir()
+    (fake_home / ".config" / "skills-ii").symlink_to(src_dir)
+    assert guard._allowed_chief_path("~/.config/skills-ii/fleet.json", cwd=str(repo_dir), env=env) is False
+
     rejected_paths = (
         "/repo/.config/skills-ii/../../src/app.py",
         "~/.config/skills-ii/../../src/app.py",
@@ -236,14 +395,24 @@ def test_chief_allows_orchestration_config_and_fails_closed_on_bad_json(tmp_path
         assert reason != ""
 
 
-def test_chief_guard_cli_main_stdout_and_stderr(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_chief_guard_cli_main_stdout_and_stderr(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     guard = _load_guard()
     monkeypatch.setenv("SKILLS_II_ROLE", "chief")
 
     monkeypatch.setattr(
         sys,
         "stdin",
-        type("FakeStdin", (), {"read": staticmethod(lambda: json.dumps({"tool_name": "Edit", "tool_input": {"file_path": "/repo/src/app.py"}}))})(),
+        type(
+            "FakeStdin",
+            (),
+            {
+                "read": staticmethod(
+                    lambda: json.dumps({"tool_name": "Edit", "tool_input": {"file_path": "/repo/src/app.py"}})
+                )
+            },
+        )(),
     )
     assert guard.main([]) == 2
     captured = capsys.readouterr()
