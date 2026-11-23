@@ -1,6 +1,7 @@
 ---
 name: agent-session-investigation
-description: Investigate what happened in named agent sessions using read-only, metadata-first inspection, bounded historical evidence and fresh corroboration. Use for session forensics or root-cause retrospectives; route live task contact and continuation to agent-communication.
+description: Investigate what happened in named agent sessions using read-only, metadata-first inspection, bounded historical evidence and fresh corroboration. Use for session forensics or root-cause retrospectives; route live task contact and continuation to agent-communication. Not for contacting, continuing, or modifying live sessions (use agent-communication or dispatch-workers).
+license: MIT
 ---
 
 # Agent Session Investigation
@@ -23,8 +24,8 @@ corpus, copy transcripts, build a session database, or search unrelated attachme
 - For whether a message was acted on, apply its
   [message evidence contract](../agent-communication/references/message-contract.md#observe-progress-in-the-sender).
   An incoming label, generic ACK, action acceptance, operation and verified result prove different things.
-- For child report completeness or parent acceptance, return findings to `delegate-to-thread` or
-  `orchestrate-threads`. This skill does not transfer ownership, accept a graph, dispatch or create tasks.
+- For child report completeness or parent acceptance, return findings to `dispatch-workers` or
+  `orchestrate-agents`. This skill does not transfer ownership, accept a graph, dispatch or create tasks.
 
 Do not send messages, continue/resume, interrupt, archive, repair a queue, alter a provider database,
 change controllers/hosts or mutate GitHub while investigating. An investigation finding may recommend
@@ -33,7 +34,7 @@ an authorized next step through its owning skill; invoking this skill does not a
 ## Inspect metadata first
 
 Prefer a bounded native metadata projection when it answers the question. For one selected local
-Claude/Codex JSONL source, resolve this skill directory and run its dependency-free helper:
+Claude/Codex/Antigravity JSONL source, resolve this skill directory and run its dependency-free helper:
 
 ```sh
 python3 skills/agent-session-investigation/scripts/inspect_jsonl.py /absolute/selected.jsonl --backend codex
@@ -42,10 +43,13 @@ python3 skills/agent-session-investigation/scripts/inspect_jsonl.py /absolute/se
 The repository-relative command assumes this checkout; an installed skill uses its own `scripts/`
 path. The helper reads one regular file without printing text, paths, IDs or arbitrary record labels.
 It reports structural counts, scanned physical line/byte ranges, parse gaps, read limits and snapshot
-stability. The helper's physical line/byte coordinates are 1-based. Defaults are 10,000 physical
-lines, 1 MB per line and 16 MB total. The total cap includes underlying file reads, buffering and
-oversized-line draining. Raising a bound is a deliberate scoped read, never evidence that the earlier
-sample was complete.
+stability. For Antigravity transcripts (`--backend agy`, or auto-detected from `step_index` and
+Antigravity record types), it also streams an O(1)-memory `turn_state` (`ended`, `mid-turn`,
+`user-last`, or `unknown`), reporting the classified state only when both `scan.complete` and
+`scan.stable` hold (and `unknown` otherwise). The helper's physical line/byte coordinates are 1-based.
+Defaults are 10,000 physical lines, 1 MB per line and 16 MB total. The total cap includes underlying
+file reads, buffering and oversized-line draining. Raising a bound is a deliberate scoped read, never
+evidence that the earlier sample was complete.
 It supports uncompressed JSONL only. For another source format use the provider's documented bounded
 read-only route; do not decompress in place or pretend the helper supports it.
 
@@ -74,7 +78,11 @@ reference. For Codex, read
 [the local transcript reference](../agent-communication/references/codex-local-transcripts.md): use
 the exact `threads.id` mapping when available, otherwise use the validated native UUID only to find
 candidate rollout files, then verify `session_meta.payload.id` and the expected working directory. A
-filename match alone is not identity proof. Claude and other providers use their own references.
+filename match alone is not identity proof. For Antigravity (`agy`), resolve `<conversation-id>` under
+one of its three brain transcript roots:
+`<gemini-root>/{antigravity,antigravity-cli,antigravity-ide}/brain/<conversation-id>/.system_generated/logs/transcript.jsonl`
+(where `<gemini-root>` defaults to `~/.gemini` unless overridden by the environment). Claude and other
+providers use their own references.
 
 “Local” means local to the provider host that owns the session. For a session on another machine,
 resolve its installed host profile and use its existing authenticated, host-key-checked transport to
