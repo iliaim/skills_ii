@@ -360,6 +360,7 @@ class LiveBriefingServer(http.server.ThreadingHTTPServer):
                 _REDACT.safe_atomic_write_0600(self.bootstrap_url_path, self.auth_url)
             self._reset_idle_timer_locked()
         except Exception:
+            self._unlink_bootstrap_file()
             super().server_close()
             raise
 
@@ -455,12 +456,14 @@ class LiveBriefingServer(http.server.ThreadingHTTPServer):
                 return
             self._state = copy.deepcopy(state)
             self._latest_payload = payload
+            evicted = False
             for q in list(self._sse_clients):
                 try:
                     q.put_nowait(payload)
                 except queue.Full:
                     # Drop slow client so publish_state never blocks the server or other clients.
                     self._sse_clients.discard(q)
+                    evicted = True
                     while True:
                         try:
                             q.get_nowait()
@@ -470,6 +473,8 @@ class LiveBriefingServer(http.server.ThreadingHTTPServer):
                         q.put_nowait(None)
                     except queue.Full:
                         pass
+            if evicted and not self._sse_clients and not self._shutting_down:
+                self._reset_idle_timer_locked()
 
     def _wake_all_sse_clients_locked(self) -> None:
         for q in list(self._sse_clients):

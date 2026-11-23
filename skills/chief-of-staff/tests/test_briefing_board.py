@@ -328,6 +328,40 @@ def test_live_server_heartbeat_slow_client_drop_and_idle_shutdown(tmp_path: Path
         assert not url_file.exists()
 
 
+def test_publish_state_eviction_rearms_idle_timer_without_unregister(tmp_path: Path) -> None:
+    board = _load_board()
+    url_file = tmp_path / "evict-bootstrap.url"
+    srv = board.LiveBriefingServer(
+        initial_state={"goal": "Eviction idle timer check"},
+        bootstrap_url_path=url_file,
+        max_sse_clients=1,
+        idle_timeout_seconds=0.15,
+    )
+    thread = threading.Thread(target=srv.serve_forever, daemon=True)
+    thread.start()
+    try:
+        q = srv.register_sse_client()
+        assert q is not None
+        assert srv._idle_timer is None
+
+        # Overflow client queue (maxsize=64) without calling unregister_sse_client
+        for idx in range(70):
+            srv.publish_state({"goal": f"Burst {idx}"})
+
+        assert not srv._sse_clients
+        assert srv._idle_timer is not None
+        assert q.get_nowait() is None
+
+        # Re-armed idle timer fires idle shutdown even without unregister_sse_client
+        thread.join(timeout=3)
+        assert not thread.is_alive()
+    finally:
+        srv.shutdown()
+        srv.server_close()
+        thread.join(timeout=3)
+        assert not url_file.exists()
+
+
 def test_cli_snapshot_mode(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     board = _load_board()
     state_path = tmp_path / "state.json"
