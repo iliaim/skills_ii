@@ -133,12 +133,20 @@ def _validate_command_fields(obj: Any, path_prefix: str = "") -> None:
         for key, value in obj.items():
             full_key = f"{path_prefix}.{key}" if path_prefix else str(key)
             if isinstance(key, str) and (key == "commandPrefix" or key.endswith("Command")):
-                if value is not None and not (
-                    isinstance(value, list) and all(isinstance(item, str) for item in value)
-                ):
-                    raise ValueError(
-                        f"Field {full_key!r} must be None or a list[str] argv array, got {type(value).__name__}"
-                    )
+                is_prefix = key == "commandPrefix"
+                if value is not None:
+                    if not isinstance(value, list):
+                        raise ValueError(
+                            f"Field {full_key!r} must be None or a list[str] argv array, got {type(value).__name__}"
+                        )
+                    if not is_prefix and len(value) == 0:
+                        raise ValueError(
+                            f"Field {full_key!r} must be None or a non-empty list[str] argv array, got empty list"
+                        )
+                    if not all(isinstance(item, str) and item != "" for item in value):
+                        raise ValueError(
+                            f"Field {full_key!r} argv elements must all be non-empty str"
+                        )
             else:
                 _validate_command_fields(value, full_key)
     elif isinstance(obj, list):
@@ -261,7 +269,7 @@ def main(argv: list[str] | None = None) -> int:
         repo_root=args.repo_root,
         fleet_config_path=args.fleet_config,
     )
-    sys.stdout.write(json.dumps(summary, indent=2) + "\n")
+    sys.stdout.write(json.dumps(_redact.scrub_data(summary), indent=2) + "\n")
     return 0
 
 

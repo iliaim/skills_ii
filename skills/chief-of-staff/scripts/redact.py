@@ -11,13 +11,18 @@ import sys
 from pathlib import Path
 from typing import Any
 
-SENSITIVE_KEYS: frozenset[str] = frozenset(
+HTTP_HEADER_KEYS: frozenset[str] = frozenset(
     {
         "authorization",
         "cookie",
         "set-cookie",
         "cf-access-jwt-assertion",
         "x-api-key",
+    }
+)
+
+SENSITIVE_KEYS: frozenset[str] = HTTP_HEADER_KEYS | frozenset(
+    {
         "accesstoken",
         "access_token",
         "refreshtoken",
@@ -32,57 +37,56 @@ SENSITIVE_KEYS: frozenset[str] = frozenset(
     }
 )
 
-PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+_HTTP_HEADER_ALT = "|".join(re.escape(key) for key in sorted(HTTP_HEADER_KEYS, key=len, reverse=True))
+_INLINE_JSON_KEYS_ALT = "|".join(re.escape(key) for key in sorted(SENSITIVE_KEYS, key=len, reverse=True))
+
+RULES: tuple[tuple[tuple[str, ...], re.Pattern[str], str], ...] = (
     (
-        re.compile(
-            r"-----BEGIN [A-Z0-9 ]{0,32}PRIVATE KEY-----"
-            r"(?:(?!-----BEGIN |-----END )[A-Za-z0-9+/=\r\n \t:,-]){0,16384}"
-            r"(?:-----END [A-Z0-9 ]{0,32}PRIVATE KEY-----)?"
-        ),
-        "[REDACTED_PRIVATE_KEY]",
-    ),
-    (
+        ("gh", "github_pat_"),
         re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b"),
         "[REDACTED_GH_TOKEN]",
     ),
     (
+        ("sk-",),
         re.compile(r"\bsk-(?:(?:proj|svcacct|admin|ant-[a-z0-9]+)-[A-Za-z0-9_-]{20,}|[A-Za-z0-9]{20,})\b"),
         "[REDACTED_API_KEY]",
     ),
     (
+        ("akia",),
         re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
         "[REDACTED_AWS_KEY]",
     ),
     (
+        ("aiza",),
         re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"),
         "[REDACTED_GOOGLE_KEY]",
     ),
     (
+        ("ya29.",),
         re.compile(r"\bya29\.[0-9A-Za-z_.-]{16,}\b"),
         "[REDACTED_OAUTH_TOKEN]",
     ),
     (
-        re.compile(r"(?i)\b(authorization|cookie|set-cookie|cf-access-jwt-assertion|x-api-key)[ \t]*:[ \t]*[^\r\n]+"),
+        tuple(sorted(HTTP_HEADER_KEYS)),
+        re.compile(rf"(?i)\b({_HTTP_HEADER_ALT})[ \t]*:[ \t]*[^\r\n]+"),
         r"\1: [REDACTED]",
     ),
     (
+        ("bearer",),
         re.compile(r"(?i)\bbearer[ \t]+[A-Za-z0-9._~+/=-]{8,}"),
         "Bearer [REDACTED]",
     ),
     (
-        re.compile(
-            r'(?i)("(?:authorization|cookie|set-cookie|cf-access-jwt-assertion|x-api-key'
-            r'|access_?token|refresh_?token|id_token|api_?key|client_secret|password|secret|token)"\s*:\s*)'
-            r'"(?:\\.|[^"\\]){0,16384}"'
-        ),
-        r'\1"[REDACTED]"',
-    ),
-    (
+        ("@",),
         re.compile(
             r"(?<![a-zA-Z0-9+.-])([a-zA-Z][a-zA-Z0-9+.-]{0,31}://[^/\s:@\"']{0,256}:)[^@\s/\"']{1,1024}(@)"
         ),
         r"\1[REDACTED]\2",
     ),
+)
+
+PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = tuple(
+    (pattern, replacement) for _, pattern, replacement in RULES
 )
 
 _DARWIN_SYSTEM_SYMLINKS = frozenset({Path("/tmp"), Path("/var"), Path("/etc")})
@@ -111,13 +115,10 @@ def _protected_root_dirs() -> frozenset[Path]:
 
 
 _PEM_HEADER_RE = re.compile(r"-----BEGIN [A-Z0-9 ]{0,32}PRIVATE KEY-----")
-_PEM_BODY_CHARS_RE = re.compile(r"[A-Za-z0-9+/=\r\n \t:,-]*")
+_PEM_BODY_CHARS_RE = re.compile(r"(?:\\[rn]|[A-Za-z0-9+/=\r\n \t:,-])*")
 _PEM_FOOTER_RE = re.compile(r"-----END [A-Z0-9 ]{0,32}PRIVATE KEY-----")
 _PEM_MAX_BODY_CHARS = 16384
-_INLINE_JSON_KEY_RE = re.compile(
-    r'(?i)("(?:authorization|cookie|set-cookie|cf-access-jwt-assertion|x-api-key'
-    r'|access_?token|refresh_?token|id_token|api_?key|client_secret|password|secret|token)"\s*:\s*)"'
-)
+_INLINE_JSON_KEY_RE = re.compile(rf'(?i)("(?:{_INLINE_JSON_KEYS_ALT})"\s*:\s*)"')
 _INLINE_JSON_MAX_CHARS = 16384
 
 
@@ -188,30 +189,18 @@ def _scrub_inline_json(text: str) -> str:
     return "".join(parts)
 
 
-_PATTERN_TRIGGERS: tuple[tuple[re.Pattern[str], str, tuple[str, ...] | None], ...] = (
-    (PATTERNS[1][0], PATTERNS[1][1], ("gh", "github_pat_")),
-    (PATTERNS[2][0], PATTERNS[2][1], ("sk-",)),
-    (PATTERNS[3][0], PATTERNS[3][1], ("AKIA",)),
-    (PATTERNS[4][0], PATTERNS[4][1], ("AIza",)),
-    (PATTERNS[5][0], PATTERNS[5][1], ("ya29.",)),
-    (PATTERNS[6][0], PATTERNS[6][1], (":",)),
-    (PATTERNS[7][0], PATTERNS[7][1], (" ", "\t")),
-)
-
-
 def scrub_secrets(text: str) -> str:
     """Redact known credential patterns from plain text in bounded time."""
     if not text:
         return text
     result = _scrub_pem_blocks(text)
-    for pattern, replacement, needles in _PATTERN_TRIGGERS:
-        if needles is None or any(needle in result for needle in needles):
-            result = pattern.sub(replacement, result)
-    result = _scrub_inline_json(result)
-    if "://" in result and "@" in result:
-        url_pattern, url_replacement = PATTERNS[-1]
-        result = url_pattern.sub(url_replacement, result)
-    return result
+    lowered = result.lower()
+    for needles, pattern, replacement in RULES:
+        if not needles or any(needle in lowered for needle in needles):
+            result, count = pattern.subn(replacement, result)
+            if count:
+                lowered = result.lower()
+    return _scrub_inline_json(result)
 
 
 def scrub_data(value: Any) -> Any:

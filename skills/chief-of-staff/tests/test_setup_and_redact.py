@@ -116,8 +116,19 @@ def test_truncated_pem_and_redos_bound() -> None:
     redact = _load_module("chief_of_staff_redact_test", "redact.py")
 
     hdr = "-----BEGIN " + "RSA PRIVATE KEY-----"
+    end_hdr = "-----END " + "RSA PRIVATE KEY-----"
     truncated = f"{hdr}\nMIIEpAIBAAKCAQEA1234567890abcdef"
     assert redact.scrub_secrets(truncated) == "[REDACTED_PRIVATE_KEY]"
+
+    escaped_pem_json = '{"stdout": "' + hdr + '\\nMIIEpAIBAAKCAQEA1234\\n' + end_hdr + '"}'
+    scrubbed_pem_json = redact.scrub_secrets(escaped_pem_json)
+    assert "MIIEpAIBAAKCAQEA1234" not in scrubbed_pem_json
+    assert json.loads(scrubbed_pem_json) == {"stdout": "[REDACTED_PRIVATE_KEY]"}
+
+    escaped_crlf_pem_json = '{"stdout": "' + hdr + '\\r\\nMIIEpAIBAAKCAQEA5678\\r\\n' + end_hdr + '"}'
+    scrubbed_crlf_json = redact.scrub_secrets(escaped_crlf_pem_json)
+    assert "MIIEpAIBAAKCAQEA5678" not in scrubbed_crlf_json
+    assert json.loads(scrubbed_crlf_json) == {"stdout": "[REDACTED_PRIVATE_KEY]"}
 
     big = (hdr + "\n" + ("A" * 1000) + "\n") * 2000
     t0 = time.monotonic()
@@ -294,12 +305,29 @@ def test_setup_init_rejects_symlinks_and_preserves_existing_customizations(
     orch_after = json.loads(orch_path.read_text(encoding="utf-8"))
     assert orch_after["tracker"]["readyCommand"] == ["gh", "issue", "list"]
 
-    # Reject string shell commands in existing configs
+    # Reject string shell commands, empty *Command [], and non-str/empty argv elements
     bad_orch = dict(orch_after)
     bad_orch["tracker"] = dict(orch_after["tracker"], claimCommand="gh issue edit --add-assignee @me")
     orch_path.write_text(json.dumps(bad_orch) + "\n", encoding="utf-8")
     with pytest.raises(ValueError, match="argv"):
         setup_init.initialize_setup(repo_root=repo_dir, fleet_config_path=user_cfg, extra_bin_dirs=[])
+
+    bad_orch["tracker"] = dict(orch_after["tracker"], readyCommand=[])
+    orch_path.write_text(json.dumps(bad_orch) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="non-empty list"):
+        setup_init.initialize_setup(repo_root=repo_dir, fleet_config_path=user_cfg, extra_bin_dirs=[])
+
+    bad_orch["tracker"] = dict(orch_after["tracker"], readyCommand=[""])
+    orch_path.write_text(json.dumps(bad_orch) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="non-empty str"):
+        setup_init.initialize_setup(repo_root=repo_dir, fleet_config_path=user_cfg, extra_bin_dirs=[])
+
+    bad_orch["tracker"] = dict(orch_after["tracker"])
+    bad_orch["runtime"] = {"commandPrefix": [123]}
+    orch_path.write_text(json.dumps(bad_orch) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="non-empty str"):
+        setup_init.initialize_setup(repo_root=repo_dir, fleet_config_path=user_cfg, extra_bin_dirs=[])
+
     # Restore valid orchestration.json
     orch_path.write_text(json.dumps(orch_after) + "\n", encoding="utf-8")
 
@@ -350,10 +378,16 @@ def test_setup_init_rejects_symlinks_and_preserves_existing_customizations(
             extra_bin_dirs=[],
         )
 
-    # CLI test
+    # CLI test (and verify stdout summary is scrubbed of custom secrets in fleet.json)
+    secret_note = "ghs_" + ("5" * 25)
+    fleet_with_secret = dict(fleet_after, customNote=secret_note)
+    user_cfg.write_text(json.dumps(fleet_with_secret, indent=2) + "\n", encoding="utf-8")
     capsys.readouterr()
     rc = setup_init.main(["--repo-root", str(repo_dir), "--fleet-config", str(user_cfg)])
     assert rc == 0
-    cli_out = json.loads(capsys.readouterr().out)
+    raw_cli_out = capsys.readouterr().out
+    assert secret_note not in raw_cli_out
+    cli_out = json.loads(raw_cli_out)
     assert cli_out["status"] == "ok"
     assert cli_out["providers"]["codex"]["installed"] is True
+    assert cli_out["fleet"]["customNote"] == "[REDACTED_GH_TOKEN]"
