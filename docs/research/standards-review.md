@@ -86,9 +86,9 @@ subcases before selector validation and passes afterward.
 All three packages passed the installed Skill Creator validator separately:
 
 ```sh
-python3 /Volumes/MacSSD/Developer/Codex/State/skills/.system/skill-creator/scripts/quick_validate.py skills/agent-communication
-python3 /Volumes/MacSSD/Developer/Codex/State/skills/.system/skill-creator/scripts/quick_validate.py skills/delegate-to-thread
-python3 /Volumes/MacSSD/Developer/Codex/State/skills/.system/skill-creator/scripts/quick_validate.py skills/orchestrate-threads
+python3 <state-root>/skills/.system/skill-creator/scripts/quick_validate.py skills/agent-communication
+python3 <state-root>/skills/.system/skill-creator/scripts/quick_validate.py skills/delegate-to-thread
+python3 <state-root>/skills/.system/skill-creator/scripts/quick_validate.py skills/orchestrate-threads
 ```
 
 That environment includes PyYAML; it is not an undeclared requirement of the repository's pytest gate.
@@ -128,12 +128,12 @@ The user authorized research, independent Luna subagents, and applying improveme
 This is interactive work with one integrated implementation; no unattended controller is needed.
 
 Read first: the message and relevant provider references in `skills/agent-communication/references`,
-the existing delegate/orchestration contracts, the installed Hermes `agent-session-forensics` skill
-and helper source, current-main FightCard orchestration/dispatch guidance, README, CI and existing tests.
+the existing delegate/orchestration contracts, the prior `agent-session-forensics` session-forensics
+reference skill and helper source, current-main consumer-repository orchestration/dispatch guidance, README, CI and existing tests.
 
 Writable scope: the communication contract/provider diagnostics and their evals, a small
 `agent-session-investigation` package, focused routing links in the other skills, README, and this
-existing research record. Protected scope: Hermes installation, FightCard checkout/hosts, private
+existing research record. Protected scope: prior reference installation, external consumer checkouts/hosts, private
 session stores, runtime/controller configuration, and unrelated repository content.
 
 Given a transport-accepted message with no action-bound receiver response, when the sender follows
@@ -151,7 +151,7 @@ question/session, begins with metadata, preserves physical provenance and parse/
 and distinguishes historical claims from fresh verification. It sends no messages and changes no
 session/controller state. Its helper supports one explicitly selected local Claude/Codex JSONL
 file, not corpus inventory or additional provider integrations. The dependency-free metadata
-inspector, adapted narrowly from Hermes, emits no transcript text, IDs, paths or arbitrary source
+inspector, adapted narrowly from the prior session-forensics reference, emits no transcript text, IDs, paths or arbitrary source
 labels. Defaults are 10,000 physical lines, 1 MB per line, and 16 MB total; oversized-line draining
 also consumes the total budget. Incomplete/unstable snapshots and parse gaps remain explicit.
 Semantic analysis, when needed, uses a separate purpose-authorized, locally redacted and bounded
@@ -159,7 +159,7 @@ projection; the metadata helper does not perform it or claim to answer a semanti
 Here purpose authorization means an explicit human grant covering the named session/file and question;
 each excerpt is labelled untrusted before model input and retains physical line/byte provenance.
 Exact task identity and provider status remain owned by communication; report/graph acceptance
-remains owned by delegation/orchestration. Do not duplicate these contracts or copy FightCard's inbox.
+remains owned by delegation/orchestration. Do not duplicate these contracts or copy the consumer repository's inbox.
 
 Checks: `python3 -m pytest -q skills`; both communication evaluator `--list` commands;
 the installed Skill Creator `quick_validate.py` for each changed/new package; `git diff --check`.
@@ -185,8 +185,8 @@ Pre-implementation checkpoint: research complete; baseline `python3 -m pytest -q
 
 ### Research findings and decisions
 
-Five GPT-6 Luna researchers independently examined the existing communication contract, Hermes,
-FightCard, primary messaging standards, and scope/complexity. The final pre-implementation plan
+Five GPT-6 Luna researchers independently examined the existing communication contract, prior session-forensics reference,
+consumer-repository orchestration patterns, primary messaging standards, and scope/complexity. The final pre-implementation plan
 received a fresh cooperative read-only challenge with no unresolved findings; its section digest
 was `52726568f3c651a5683c88d7a0325bfadf19d879fdd300478c0c1c2c6a1437b3`.
 This was a lightweight interactive challenge, not protected host-enforced unattended assurance.
@@ -202,22 +202,21 @@ The user had already authorized applying the improvements; no further plan appro
   Add that feature-detected distinction, plus an authorized continuation cue for an already queued
   action. Neither tool's success proves action acceptance/execution. These tools are not the
   persisted `codex queue` route; do not use the subagent cue to evade its no-replay rule.
-- **FightCard:** read the clean detached coordinator's guidance, then current-main source rather
-  than dispatching from that checkout. The
-  [multi-orchestrator inbox](https://github.com/iliaim/fightcardai/blob/42e5f58fdf205396773a85f19179206e4af2f8cb/.agents/skills/orchestrate-agents/references/multi-orchestrator.md)
+- **Consumer repository orchestration:** read the clean detached coordinator's guidance, then current-main source rather
+  than dispatching from that checkout. Its multi-orchestrator inbox reference
   uses ACKs with `STARTED`, `QUEUED(when)`, `DECLINED(reason)` and `DONE`, and a separate accepted
-  handoff. Its durable inbox/cursor/controller make those receipts meaningful. The
-  [worker-host recovery reference](https://github.com/iliaim/fightcardai/blob/42e5f58fdf205396773a85f19179206e4af2f8cb/.agents/skills/orchestrate-agents/references/worker-hosts.md)
+  handoff. Its durable inbox/cursor/controller make those receipts meaningful. Its
+  worker-host recovery reference
   retains whole startup handles and reconciles exact conversation/worktree/registry bindings
   before another launch. Learn from the explicit dispositions and correlation; do not copy its
   inbox, supervisor, resend policy or host controls into generic Codex communication.
-- **Hermes:** inspect the installed `agent-session-forensics` skill and helper source, not private
+- **Prior session-forensics reference:** inspect the reference `agent-session-forensics` skill and helper source, not private
   sessions. Its metadata-first structure, physical provenance, snapshot checks and untrusted-content
   boundary support a useful standalone historical workflow. Adapt only a single-file metadata
   inspector. Exclude corpus inventory, sampled keyword incidents, four-provider expansion,
-  FightCard-specific redactors/casebooks and a new session store. Hermes synthetic helper checks
+  repository-specific redactors/casebooks and a new session store. Its synthetic helper checks
   were reported green by its researcher; parent acceptance relies on this repo's separately run
-  tests and inspected diff, not that report. Hermes itself was not changed.
+  tests and inspected diff, not that report. The reference installation itself was not changed.
 - **Provider diagnostics:** local Codex filename suffix/`session_id` is only a lead; require
   canonical `session_meta.payload.id` and reconcile exact database `threads.id`/`rollout_path`.
   Remove the example that dumped all subsequent assistant content and preserve gaps/conflicts.
@@ -321,7 +320,7 @@ artifacts and required reports instead of trusting an ACK or a model's completio
 
 Final checkpoint: research and implementation verified locally; independent source reviews report
 no remaining actionable findings; normal PR/CI delivery is next. The PR is the authoritative delivery
-record; no host controllers, private session stores, Hermes or FightCard source were modified.
+record; no host controllers, private session stores, reference skill installations, or consumer-repository source were modified.
 
 ## Installation reconciliation and bounded I/O follow-up (2026-10-25)
 
@@ -365,7 +364,7 @@ Final follow-up checks:
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q skills/agent-session-investigation/tests/test_inspect_jsonl.py
 PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q skills
-python3 /Volumes/MacSSD/Developer/Codex/State/skills/.system/skill-creator/scripts/quick_validate.py skills/agent-session-investigation
+python3 <state-root>/skills/.system/skill-creator/scripts/quick_validate.py skills/agent-session-investigation
 git diff --check
 ```
 
@@ -408,7 +407,7 @@ Verification commands:
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider skills
 PYTHONDONTWRITEBYTECODE=1 python3 skills/agent-communication/scripts/run_behavioral_evals.py --eval 49 --runs 2 --model gpt-6-luna --codex-bin /opt/homebrew/bin/codex
-PYTHONDONTWRITEBYTECODE=1 python3 /Volumes/MacSSD/Developer/Codex/State/skills/.system/skill-creator/scripts/quick_validate.py skills/agent-communication
+PYTHONDONTWRITEBYTECODE=1 python3 <state-root>/skills/.system/skill-creator/scripts/quick_validate.py skills/agent-communication
 git diff --check
 ```
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bounded, metadata-only inspection of one explicitly selected JSONL file.
 
-Inspired by the Hermes agent-session-forensics skill. This small independent
+Read-only metadata-first JSONL session transcript inspector. This small independent
 reimplementation emits only allowlisted structural categories and bounded
 scan metadata, never source content or paths.
 """
@@ -24,9 +24,25 @@ POSITION_LIMIT = 20
 
 # Deliberately finite vocabularies. Source-provided labels outside these sets
 # collapse to "other" and are never copied into output. These include the
-# observed Codex JSONL event vocabulary and common Claude message/block types.
+# observed Codex JSONL event vocabulary, common Claude message/block types,
+# and Antigravity (agy) transcript record types.
+AGY_OUTER_TYPES = frozenset({
+    "USER_INPUT",
+    "PLANNER_RESPONSE",
+    "GENERIC",
+    "ERROR_MESSAGE",
+    "SYSTEM_MESSAGE",
+})
+
 CATEGORY_FIELDS = {
-    "outer_types": ("type", frozenset({"message", "response", "event", "session", "snapshot", "progress", "user", "assistant", "session_meta", "response_item", "event_msg", "turn_context", "compacted"})),
+    "outer_types": (
+        "type",
+        frozenset({
+            "message", "response", "event", "session", "snapshot", "progress",
+            "user", "assistant", "session_meta", "response_item", "event_msg",
+            "turn_context", "compacted",
+        }) | AGY_OUTER_TYPES,
+    ),
     "payload_types": ("type", frozenset({"message", "tool_use", "tool_result", "text", "thinking", "image", "audio", "task_started", "task_complete", "task_completed", "user_message", "agent_message", "function_call", "function_call_output", "reasoning", "other"})),
     "roles": ("role", frozenset({"user", "assistant", "system", "developer", "tool"})),
     "block_types": ("type", frozenset({"text", "input_text", "output_text", "tool_use", "tool_result", "thinking", "image", "audio", "input_audio", "output_audio", "input_json", "other"})),
@@ -158,6 +174,24 @@ def _classify(obj: dict[str, Any], counts: dict[str, Counter[str]]) -> None:
     _block_types(obj.get("content"), counts)
 
 
+def _agy_turn_state(obj: dict[str, Any], current: str) -> str:
+    """Update streaming Antigravity turn state from one parsed record."""
+    st = obj.get("status")
+    rt = obj.get("type")
+    if st == "RUNNING":
+        return "mid-turn"
+    if rt in {"USER_INPUT", "SYSTEM_MESSAGE"}:
+        return "user-last"
+    if rt == "ERROR_MESSAGE" or st == "ERROR":
+        return "ended"
+    if rt == "PLANNER_RESPONSE":
+        if obj.get("tool_calls"):
+            return "mid-turn"
+        if st == "DONE":
+            return "ended"
+    return current
+
+
 def inspect(
     path: str | os.PathLike[str],
     backend: str = "unknown",
@@ -166,8 +200,8 @@ def inspect(
     max_total_bytes: int = DEFAULT_MAX_TOTAL_BYTES,
 ) -> dict[str, Any]:
     """Inspect one selected file and return a bounded, non-identifying summary."""
-    if backend not in {"codex", "claude", "unknown"}:
-        raise ValueError("backend must be codex, claude, or unknown")
+    if backend not in {"codex", "claude", "agy", "unknown"}:
+        raise ValueError("backend must be codex, claude, agy, or unknown")
     if any(type(value) is not int or value <= 0 for value in (max_records, max_line_bytes, max_total_bytes)):
         raise ValueError("limits must be positive finite integers")
 
@@ -178,6 +212,8 @@ def inspect(
     stopped_reason = "eof"
     complete = False
     after_fd: os.stat_result | None = None
+    detected_backend = backend
+    last_turn_state = "unknown"
 
     handle, before_fd, absolute, parent_fd, basename = _open_regular(Path(path), max_total_bytes)
     try:
@@ -248,6 +284,15 @@ def inspect(
                     continue
                 parsed += 1
                 _classify(obj, counts)
+                if (
+                    detected_backend == "unknown"
+                    and isinstance(obj.get("step_index"), int)
+                    and not isinstance(obj.get("step_index"), bool)
+                    and obj.get("type") in AGY_OUTER_TYPES
+                ):
+                    detected_backend = "agy"
+                if detected_backend == "agy":
+                    last_turn_state = _agy_turn_state(obj, last_turn_state)
 
                 if bytes_scanned >= max_total_bytes:
                     # A final exact-cap newline can still be complete if stat
@@ -274,8 +319,8 @@ def inspect(
     if not stable:
         complete = False
 
-    return {
-        "backend": backend,
+    result: dict[str, Any] = {
+        "backend": detected_backend,
         "limits": {"max_records": max_records, "max_line_bytes": max_line_bytes, "max_total_bytes": max_total_bytes},
         "scan": {
             "physical_lines": physical_lines,
@@ -294,12 +339,15 @@ def inspect(
         },
         "categories": {name: dict(sorted(counter.items())) for name, counter in counts.items() if counter},
     }
+    if backend == "agy" or detected_backend == "agy":
+        result["turn_state"] = last_turn_state if (complete and stable) else "unknown"
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", help="one explicitly selected local JSONL file")
-    parser.add_argument("--backend", choices=("codex", "claude", "unknown"), default="unknown")
+    parser.add_argument("--backend", choices=("codex", "claude", "agy", "unknown"), default="unknown")
     parser.add_argument("--max-records", type=_positive_limit, default=DEFAULT_MAX_RECORDS)
     parser.add_argument("--max-line-bytes", type=_positive_limit, default=DEFAULT_MAX_LINE_BYTES)
     parser.add_argument("--max-total-bytes", type=_positive_limit, default=DEFAULT_MAX_TOTAL_BYTES)

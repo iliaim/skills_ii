@@ -322,3 +322,128 @@ def test_inspection_does_not_mutate_source(tmp_path):
     after = source.stat()
     assert source.read_bytes() == content
     assert (before.st_size, before.st_mtime_ns, before.st_ctime_ns) == (after.st_size, after.st_mtime_ns, after.st_ctime_ns)
+
+
+def _write_jsonl(path: Path, rows: list[dict]) -> Path:
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    return path
+
+
+def test_agy_mid_turn_when_planner_response_has_tool_calls(tmp_path: Path):
+    log = _write_jsonl(
+        tmp_path / "agy-mid.jsonl",
+        [
+            {"step_index": 0, "source": "USER_EXPLICIT", "type": "USER_INPUT", "status": "DONE", "created_at": "2026-11-23T20:00:00Z"},
+            {"step_index": 1, "source": "MODEL", "type": "PLANNER_RESPONSE", "status": "DONE", "created_at": "2026-11-23T20:00:05Z", "tool_calls": [{"name": "run_command"}]},
+            {"step_index": 2, "source": "SYSTEM", "type": "GENERIC", "status": "DONE", "created_at": "2026-11-23T20:00:10Z"},
+        ],
+    )
+    report = run(log, backend="agy")
+    assert report["backend"] == "agy"
+    assert report["turn_state"] == "mid-turn"
+    assert report["categories"]["outer_types"]["PLANNER_RESPONSE"] == 1
+    assert report["categories"]["outer_types"]["USER_INPUT"] == 1
+    assert report["categories"]["outer_types"]["GENERIC"] == 1
+
+
+def test_agy_ended_only_when_complete_and_no_tool_calls(tmp_path: Path):
+    ended_log = _write_jsonl(
+        tmp_path / "agy-ended.jsonl",
+        [
+            {"step_index": 0, "source": "USER_EXPLICIT", "type": "USER_INPUT", "status": "DONE", "created_at": "2026-11-23T20:00:00Z"},
+            {"step_index": 1, "source": "MODEL", "type": "PLANNER_RESPONSE", "status": "DONE", "created_at": "2026-11-23T20:00:05Z", "tool_calls": []},
+        ],
+    )
+    report = run(ended_log, backend="agy")
+    assert report["turn_state"] == "ended"
+
+    r_auto = run(ended_log)
+    assert r_auto["backend"] == "agy"
+    assert r_auto["turn_state"] == "ended"
+
+    err_type_log = _write_jsonl(
+        tmp_path / "agy-err-type.jsonl",
+        [
+            {"step_index": 0, "source": "USER_EXPLICIT", "type": "USER_INPUT", "status": "DONE"},
+            {"step_index": 1, "source": "SYSTEM", "type": "ERROR_MESSAGE", "status": "DONE"},
+        ],
+    )
+    assert run(err_type_log, backend="agy")["turn_state"] == "ended"
+    assert run(err_type_log, backend="agy")["categories"]["outer_types"]["ERROR_MESSAGE"] == 1
+
+    err_status_log = _write_jsonl(
+        tmp_path / "agy-err-status.jsonl",
+        [
+            {"step_index": 0, "source": "MODEL", "type": "PLANNER_RESPONSE", "status": "ERROR", "tool_calls": [{"name": "run_command"}]},
+        ],
+    )
+    assert run(err_status_log, backend="agy")["turn_state"] == "ended"
+
+    user_last_log = _write_jsonl(
+        tmp_path / "agy-user-last.jsonl",
+        [
+            {"step_index": 0, "source": "MODEL", "type": "PLANNER_RESPONSE", "status": "DONE"},
+            {"step_index": 1, "source": "USER_EXPLICIT", "type": "USER_INPUT", "status": "DONE"},
+        ],
+    )
+    assert run(user_last_log, backend="agy")["turn_state"] == "user-last"
+
+    sys_msg_log = _write_jsonl(
+        tmp_path / "agy-sys-msg.jsonl",
+        [
+            {"step_index": 0, "source": "MODEL", "type": "PLANNER_RESPONSE", "status": "DONE"},
+            {"step_index": 1, "source": "SYSTEM", "type": "SYSTEM_MESSAGE", "status": "DONE"},
+        ],
+    )
+    assert run(sys_msg_log, backend="agy")["turn_state"] == "user-last"
+
+    running_log = _write_jsonl(
+        tmp_path / "agy-running.jsonl",
+        [
+            {"step_index": 0, "source": "USER_EXPLICIT", "type": "USER_INPUT", "status": "DONE"},
+            {"step_index": 1, "source": "MODEL", "type": "PLANNER_RESPONSE", "status": "RUNNING"},
+        ],
+    )
+    assert run(running_log, backend="agy")["turn_state"] == "mid-turn"
+
+    cli_proc = subprocess.run(
+        [sys.executable, str(SCRIPT), str(ended_log), "--backend", "agy"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert cli_proc.returncode == 0
+    cli_report = json.loads(cli_proc.stdout)
+    assert cli_report["backend"] == "agy"
+    assert cli_report["turn_state"] == "ended"
+
+    non_agy_log = _write_jsonl(
+        tmp_path / "non-agy.jsonl",
+        [{"type": "PLANNER_RESPONSE", "status": "DONE"}],
+    )
+    non_agy_report = run(non_agy_log)
+    assert non_agy_report["backend"] == "unknown"
+    assert "turn_state" not in non_agy_report
+
+
+def test_agy_truncated_scan_reports_unknown_turn_state(tmp_path: Path, monkeypatch):
+    log = _write_jsonl(
+        tmp_path / "agy-trunc.jsonl",
+        [
+            {"step_index": 0, "source": "USER_EXPLICIT", "type": "USER_INPUT", "status": "DONE"},
+            {"step_index": 1, "source": "MODEL", "type": "PLANNER_RESPONSE", "status": "DONE"},
+            {"step_index": 2, "source": "MODEL", "type": "PLANNER_RESPONSE", "status": "RUNNING"},
+        ],
+    )
+    report = run(log, backend="agy", max_records=2)
+    assert report["scan"]["complete"] is False
+    assert report["turn_state"] == "unknown"
+
+    monkeypatch.setattr(inspector, "_stable", lambda *args: False)
+    ended_log = _write_jsonl(
+        tmp_path / "agy-unstable.jsonl",
+        [{"step_index": 0, "source": "MODEL", "type": "PLANNER_RESPONSE", "status": "DONE"}],
+    )
+    unstable_report = run(ended_log, backend="agy")
+    assert unstable_report["scan"]["stable"] is False
+    assert unstable_report["turn_state"] == "unknown"

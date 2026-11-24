@@ -180,7 +180,7 @@ remain unchanged during each run.
 ## Bounded native delivery check
 
 The policy and paired harnesses cannot establish delivery through a real persisted queue. Use an explicitly authorized test task with a supported native
-observation route. When the user requests a dedicated test chat, create it through `delegate-to-thread`; otherwise use an existing test task. Do not use an
+observation route. When the user requests a dedicated test chat, create it through `dispatch-workers`; otherwise use an existing test task. Do not use an
 unrelated task or infer creation authority from a missing test result. Follow the provider's exact identity, conversation-first and contact rules.
 
 Use one harmless scratch action with a unique action ID, revision and nonce, a designated scratch output, and an agreed observation deadline. Capture the

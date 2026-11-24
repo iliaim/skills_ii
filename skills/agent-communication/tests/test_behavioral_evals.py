@@ -51,7 +51,7 @@ class BehavioralEvalContracts(unittest.TestCase):
         }
         self.assertTrue(self.runner.grade_result(scenario, safe)["passed"])
 
-        for tool in ("delegate_to_thread", "spawn_agent", "collaboration.spawn_agent", "fork_thread"):
+        for tool in ("dispatch_workers", "delegate_to_thread", "spawn_agent", "collaboration.spawn_agent", "fork_thread"):
             with self.subTest(tool=tool):
                 unsafe = {
                     **safe,
@@ -526,7 +526,7 @@ class BehavioralEvalContracts(unittest.TestCase):
         def find(root):
             return {"tool": "exec_command", "arguments": {"argv": ["find", root + "/sessions", "-name", "rollout-*-task-xhost-044.jsonl*"]}}
 
-        finds = [find("/home/agent/.codex"), find("/state/codex-app-44")]
+        finds = [find("/srv/workspace/.codex"), find("/state/codex-app-44")]
         read = {"tool": "exec_command", "arguments": {"argv": ["jq", "-c", "select(.type == \"event_msg\")", rollout]}}
         stat = {"tool": "exec_command", "arguments": {"argv": ["stat", rollout]}}
         queue = {
@@ -650,38 +650,35 @@ class BehavioralEvalContracts(unittest.TestCase):
         self.assertTrue(any("forbidden CLI action resume" in failure for failure in grade["failures"]))
 
     def test_required_call_any_accepts_semantically_equivalent_skill_route(self):
-        scenario = {
-            "eval_id": 15,
-            "checks": {
-                "decision_in": ["route-delegate-to-thread"],
-                "required_call_any": [
-                    [
-                        {"tool": "delegate-to-thread", "arguments": {"skill": "delegate-to-thread"}},
-                        {"tool": "skill", "arguments": {"skill": "delegate-to-thread"}},
-                    ]
-                ],
-            },
-        }
-        result = {
-            "eval_id": 15,
-            "decision": "route-delegate-to-thread",
-            "planned_calls": [
-                {
-                    "tool": "skill",
-                    "arguments": {"skill": "delegate-to-thread", "destination": "chatgptWorkCloud"},
+        scenario = self.runner.scenario_by_id(
+            self.runner.load_scenarios(SKILL_ROOT / "evals" / "scenarios.json"),
+            15,
+        )
+        for decision, skill_name in (
+            ("route-dispatch-workers", "dispatch-workers"),
+            ("route-delegate-to-thread", "delegate-to-thread"),
+        ):
+            with self.subTest(decision=decision, skill=skill_name):
+                result = {
+                    "eval_id": 15,
+                    "decision": decision,
+                    "planned_calls": [
+                        {
+                            "tool": "skill",
+                            "arguments": {"skill": skill_name, "destination": "chatgptWorkCloud"},
+                        }
+                    ],
+                    "facts": {"objective_preserved": True},
+                    "explanation": "Route only.",
                 }
-            ],
-            "facts": {},
-            "explanation": "Route only.",
-        }
 
-        grade = self.runner.grade_result(scenario, result)
+                grade = self.runner.grade_result(scenario, result)
 
-        self.assertTrue(grade["passed"], grade["failures"])
-        missing = dict(result, planned_calls=[])
-        missing_grade = self.runner.grade_result(scenario, missing)
-        self.assertFalse(missing_grade["passed"])
-        self.assertTrue(any("alternative" in failure for failure in missing_grade["failures"]))
+                self.assertTrue(grade["passed"], grade["failures"])
+                missing = dict(result, planned_calls=[])
+                missing_grade = self.runner.grade_result(scenario, missing)
+                self.assertFalse(missing_grade["passed"])
+                self.assertTrue(any("alternative" in failure for failure in missing_grade["failures"]))
 
     def test_eval_13_accepts_the_explicit_live_subagent_alias(self):
         scenario = self.runner.scenario_by_id(
@@ -937,42 +934,66 @@ class BehavioralEvalContracts(unittest.TestCase):
             self.runner.load_scenarios(SKILL_ROOT / "evals" / "scenarios.json"),
             1,
         )
-        base = {
-            "eval_id": 1,
-            "decision": "route-delegate-to-thread",
+        for decision, skill_name in (
+            ("route-dispatch-workers", "dispatch-workers"),
+            ("route-delegate-to-thread", "delegate-to-thread"),
+        ):
+            with self.subTest(decision=decision, skill=skill_name):
+                base = {
+                    "eval_id": 1,
+                    "decision": decision,
+                    "planned_calls": [
+                        {
+                            "tool": "skills.read",
+                            "arguments": {
+                                "skill": skill_name,
+                                "path": f"/opt/codex-skills/{skill_name}/SKILL.md",
+                            },
+                        },
+                        {
+                            "tool": skill_name,
+                            "arguments": {"skill": skill_name},
+                        },
+                    ],
+                    "facts": {"objective_preserved": True},
+                    "explanation": "Load and route to the owning skill.",
+                }
+
+                grade = self.runner.grade_result(scenario, base)
+
+                self.assertTrue(grade["passed"], grade["failures"])
+                read_only_route = dict(base, planned_calls=[base["planned_calls"][0]])
+                read_only_grade = self.runner.grade_result(scenario, read_only_route)
+                self.assertTrue(read_only_grade["passed"], read_only_grade["failures"])
+                unsafe = dict(
+                    base,
+                    planned_calls=[
+                        {"tool": "skills.read", "arguments": {"skill": "unrelated-secret-skill"}},
+                        base["planned_calls"][1],
+                    ],
+                )
+                unsafe_grade = self.runner.grade_result(scenario, unsafe)
+                self.assertFalse(unsafe_grade["passed"])
+                self.assertTrue(any("unapproved skills.read target" in failure for failure in unsafe_grade["failures"]))
+
+        orchestrate_plan = {
+            "eval_id": 99,
+            "decision": "route-orchestrate-agents",
             "planned_calls": [
-                {
-                    "tool": "skills.read",
-                    "arguments": {
-                        "skill": "delegate-to-thread",
-                        "path": "/Users/user/.codex/skills/delegate-to-thread/SKILL.md",
-                    },
-                },
-                {
-                    "tool": "delegate-to-thread",
-                    "arguments": {"skill": "delegate-to-thread"},
-                },
+                {"tool": "skills.read", "arguments": {"skill": "orchestrate-agents"}},
+                {"tool": "skill", "arguments": {"skill": "orchestrate-agents"}},
             ],
-            "facts": {"objective_preserved": True},
-            "explanation": "Load and route to the owning skill.",
+            "facts": {},
+            "explanation": "Parent graph routing is allowlisted.",
         }
-
-        grade = self.runner.grade_result(scenario, base)
-
-        self.assertTrue(grade["passed"], grade["failures"])
-        read_only_route = dict(base, planned_calls=[base["planned_calls"][0]])
-        read_only_grade = self.runner.grade_result(scenario, read_only_route)
-        self.assertTrue(read_only_grade["passed"], read_only_grade["failures"])
-        unsafe = dict(
-            base,
-            planned_calls=[
-                {"tool": "skills.read", "arguments": {"skill": "unrelated-secret-skill"}},
-                base["planned_calls"][1],
-            ],
+        self.assertTrue(self.runner.grade_result({"eval_id": 99, "checks": {}}, orchestrate_plan)["passed"])
+        unsafe_skill_call = dict(
+            orchestrate_plan,
+            planned_calls=[{"tool": "skill", "arguments": {"skill": "unrelated-secret-skill"}}],
         )
-        unsafe_grade = self.runner.grade_result(scenario, unsafe)
-        self.assertFalse(unsafe_grade["passed"])
-        self.assertTrue(any("unapproved skills.read target" in failure for failure in unsafe_grade["failures"]))
+        unsafe_skill_grade = self.runner.grade_result({"eval_id": 99, "checks": {}}, unsafe_skill_call)
+        self.assertFalse(unsafe_skill_grade["passed"])
+        self.assertTrue(any("unapproved skill target" in failure for failure in unsafe_skill_grade["failures"]))
 
     def test_call_rule_counts_only_calls_whose_arguments_match_on_the_same_call(self):
         rule = {
@@ -1486,10 +1507,10 @@ else:
                     run_once.assert_not_called()
 
     def test_attached_protocol_contracts_name_reporting_and_fail_closed_gates(self):
-        delegate_contract = (SKILL_ROOT.parent / "delegate-to-thread" / "references" / "task-contract.md").read_text()
-        advanced_delegation = (SKILL_ROOT.parent / "delegate-to-thread" / "references" / "advanced-delegation.md").read_text()
-        orchestration_contract = (SKILL_ROOT.parent / "orchestrate-threads" / "references" / "orchestration-contract.md").read_text()
-        advanced_modes = (SKILL_ROOT.parent / "orchestrate-threads" / "references" / "advanced-modes.md").read_text()
+        delegate_contract = (SKILL_ROOT.parent / "dispatch-workers" / "references" / "task-contract.md").read_text()
+        advanced_delegation = (SKILL_ROOT.parent / "dispatch-workers" / "references" / "advanced-delegation.md").read_text()
+        orchestration_contract = (SKILL_ROOT.parent / "orchestrate-agents" / "references" / "orchestration-contract.md").read_text()
+        advanced_modes = (SKILL_ROOT.parent / "orchestrate-agents" / "references" / "advanced-modes.md").read_text()
         communication_skill = (SKILL_ROOT / "SKILL.md").read_text() + (SKILL_ROOT / "references" / "exact-id-observations.md").read_text()
 
         for field in ("child_id", "report_revision", "report_identity_or_digest", "evidence_refs", "next_gate", "acceptance_map", "checks_and_observed_results", "supersedes"):

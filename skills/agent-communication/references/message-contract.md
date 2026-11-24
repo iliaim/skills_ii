@@ -103,7 +103,7 @@ receiver's own record through its supported read/wait route; no callback-ack wai
 exact scope.
 
 When the assignment requires attached-child checkpoints or a canonical terminal report, read and use the [attached-child reporting
-contract](../../delegate-to-thread/references/task-contract.md#attached-child-reporting). It alone owns the required fields and report identity rules. Preserve
+contract](../../dispatch-workers/references/task-contract.md#attached-child-reporting). It alone owns the required fields and report identity rules. Preserve
 its exact field names rather than replacing them with a concise result summary. Check completeness before recording or sending; an authorized callback carries
 the same canonical report as the receiver's own record. Ordinary status replies need no terminal-report template unless their assignment requires one. The
 sender checks the actual report against that contract before accepting completion; a correct artifact does not repair missing report fields.
@@ -183,6 +183,16 @@ failure: after one, try no other route but a mailbox your task or a project rule
 
 Routes documented only by a vendor are leads, not locally verified integrations. Add a thin adapter only for a demonstrated missing route and only when
 authorized; keep this contract instead of adding a second queue, status database or acknowledgement protocol.
+
+### Transport Selection Matrix
+
+Select the highest-tier verified route supported for the exact recipient without crossing into unauthorized continuation or terminal injection:
+
+| Tier | Route family | When to use | Hard guardrail |
+|---|---|---|---|
+| **Tier 1** | Native same-provider transport (`send_message_to_thread`, live `send_message` / `followup_task`, Antigravity `send_message`, or host-local `codex queue`) | Default whenever a verified native or queue route reaches the exact target ID | Transport acceptance proves delivery only; still verify receipt and `accepted\|held\|refused` disposition |
+| **Tier 2** | Exact-ID CLI continuation (`claude --resume <id>`, `codex exec resume <id>`, `agy --conversation <id>`) | Only for intentional continuation when exact target identity is resolved and the receiver turn is confirmed idle (no active writer) | Never resume a live writer, never use `--continue` / `--last`, and never treat continuation as passive status polling |
+| **Tier 3** | Pointer-only tmux/pane nudge | Last-resort wake-up for an interactive pane with an existing authorized mailbox or tracker record | Send a short single-line pointer naming the canonical tracker/artifact URL or record ref; **never** paste multi-line payloads, diffs, or untrusted text into a terminal pane |
 
 ## Find out what happened
 

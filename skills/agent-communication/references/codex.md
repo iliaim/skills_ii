@@ -2,7 +2,7 @@
 
 Read this reference when the recipient is a Codex or ChatGPT task: to find, read, message or continue it. Routes are keyed by the recipient; the sender can be
 any runtime that fits the route it uses. For local rollout paths and filesystem/database freshness diagnostics, also read
-[codex-local-transcripts.md](codex-local-transcripts.md). Route every request for a new user-visible task to `delegate-to-thread`.
+[codex-local-transcripts.md](codex-local-transcripts.md). Route every request for a new user-visible task to `dispatch-workers`.
 
 Observations marked "observed 2026-11-11" were measured once on one macOS host with Claude Code 2.1.322 and codex-cli 0.167.1. They are dated test results, not
 guarantees; re-check them on the installed version.
@@ -103,7 +103,7 @@ with a shell uses `codex queue`. Open the message with the [label line](message-
    that tuple, fail closed with `contact-unavailable`. Omit model and thinking overrides unless the user explicitly requested them. For a task on another host,
    use the native tools only when they resolve that host; otherwise use the shell route below over SSH on the owning host.
 2. Use `wait_threads` only for ongoing Codex tasks when following requested progress; use `read_thread` for ChatGPT-backed tasks, and do not repeatedly poll
-   unchanged state. When a governing `orchestrate-threads` run supplies the real exact identity, return supported observation or continuation evidence to it;
+   unchanged state. When a governing `orchestrate-agents` run supplies the real exact identity, return supported observation or continuation evidence to it;
    that coordinator—not this operation—owns graph transitions, acceptance, and integration.
 
 The answer comes back through `wait_threads` or `read_thread`, else the place the request named. For a live current-task subagent, see [Current-task
@@ -206,7 +206,7 @@ A `clientThreadId` is never an operable task ID. Do not pass it to task tools, t
 no task exists.
 
 The handle itself is the runtime's setup correlation. Do not create a second caller token. The universal resolution and native-confirmation rules live in [the
-delegate task contract](../../delegate-to-thread/references/task-contract.md#automatic-exact-handle-setup-resolution); this section only identifies the local
+delegate task contract](../../dispatch-workers/references/task-contract.md#automatic-exact-handle-setup-resolution); this section only identifies the local
 provider-specific binding source used when the runtime resolver is unavailable.
 
 For every setup-only result, an internal local desktop-state/cache record may be inspected automatically as a narrowly scoped correlation lead when the local
@@ -264,10 +264,10 @@ user-visible task: this procedure grants no permission to create a thread, resum
 
 ## Route new-task requests
 
-New Codex/ChatGPT task creation is owned by `delegate-to-thread`. When a request asks for a new or separate task, leave this existing-task workflow and invoke
+New Codex/ChatGPT task creation is owned by `dispatch-workers`. When a request asks for a new or separate task, leave this existing-task workflow and invoke
 that skill. Do not select a destination, construct the first message, call `create_thread`, classify its result, or coordinate the new task from this reference.
 
-The exception is not creation: after `delegate-to-thread` has returned a real task ID in coordinator creation handoff, use this existing-task workflow for the
+The exception is not creation: after `dispatch-workers` has returned a real task ID in coordinator creation handoff, use this existing-task workflow for the
 exact-ID operation requested by the governing orchestrator. A `clientThreadId` or other setup correlation is still non-operable.
 
 Recurring work remains an automation request, not a reason to create one task per run.

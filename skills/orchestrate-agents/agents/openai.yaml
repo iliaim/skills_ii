@@ -1,0 +1,7 @@
+interface:
+  display_name: "Orchestrate Agents"
+  short_description: "Coordinate scoped workers, graphs, and maker-checker reviews"
+  default_prompt: "Use $orchestrate-agents to coordinate ready tasks or dependency graphs, launch workers via $dispatch-workers, run maker-checker reviews, and verify delivery."
+
+policy:
+  allow_implicit_invocation: true

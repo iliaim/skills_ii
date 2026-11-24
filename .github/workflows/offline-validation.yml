@@ -21,4 +21,12 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install -r requirements-dev.txt
       - name: Run offline contracts
-        run: python -m pytest -q skills
+        run: python -m pytest -q tests skills
+      - name: Run NVIDIA SkillEvaluator Tier 1 gate
+        run: |
+          count=0
+          for skill in skills/*/; do
+            skillevaluator validate "$skill" --tiers 1 --skip security -r cli
+            count=$((count + 1))
+          done
+          test "$count" -eq 5
