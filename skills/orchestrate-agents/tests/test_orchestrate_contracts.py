@@ -36,9 +36,8 @@ def _parse_openai_yaml(text: str) -> dict[str, str]:
 
 def _heading_slug(heading: str) -> str:
     slug = heading.strip().lower()
-    slug = re.sub(r"[^a-z0-9\s-]", "", slug)
-    slug = re.sub(r"\s+", "-", slug)
-    return slug
+    slug = re.sub(r"[^a-z0-9_\s-]", "", slug)
+    return slug.replace(" ", "-")
 
 
 def _headings_and_anchors(markdown: str) -> dict[str, str]:
