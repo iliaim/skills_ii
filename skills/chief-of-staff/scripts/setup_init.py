@@ -32,7 +32,7 @@ DEFAULT_WORKER_CAPS: dict[str, int] = {
 def default_fleet_config_path() -> Path:
     config_home = os.environ.get("XDG_CONFIG_HOME")
     base = Path(config_home) if config_home else (Path.home() / ".config")
-    return base / "chief-of-staff" / "fleet.json"
+    return base / "skills-ii" / "fleet.json"
 
 
 def _default_extra_bin_dirs() -> list[Path]:
@@ -262,7 +262,7 @@ def main(argv: list[str] | None = None) -> int:
         "--fleet-config",
         type=Path,
         default=None,
-        help="Path to private fleet.json (defaults to ~/.config/chief-of-staff/fleet.json).",
+        help="Path to private fleet.json (defaults to ~/.config/skills-ii/fleet.json).",
     )
     args = parser.parse_args(argv)
     summary = initialize_setup(

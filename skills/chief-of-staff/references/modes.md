@@ -62,4 +62,3 @@ When summarizing state in Attended mode or returning from `/quiet` / `/away`, ke
 - **Shipped & Verified**: <issue/stream> — <PR/commit + verified check summary>
 - **In Flight**: <count> orchestrators / <count> active workers across <repos>
 ```
-

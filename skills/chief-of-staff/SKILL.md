@@ -47,7 +47,7 @@ Run [scripts/setup_init.py](scripts/setup_init.py) to initialize both configurat
 python3 <skill-dir>/scripts/setup_init.py --repo-root <repo>
 ```
 
-Pass `--fleet-config ~/.config/skills-ii/fleet.json` when storing the user fleet file under `~/.config/skills-ii/` (otherwise `setup_init.py` defaults to `~/.config/chief-of-staff/fleet.json`).
+`setup_init.py` defaults the private user fleet file to `~/.config/skills-ii/fleet.json` (pass `--fleet-config <path>` to override).
 
 ### Tier 1 — Committed Repo Contract (`.agents/orchestration.json`)
 
@@ -82,7 +82,7 @@ Pass `--fleet-config ~/.config/skills-ii/fleet.json` when storing the user fleet
      --snapshot ~/.local/state/skills-ii/briefing.html
    ```
 
-3. **Opt-in live SSE cockpit** (`--live`, bound to `127.0.0.1`, `GET`/`HEAD` only):
+3. **Opt-in live SSE cockpit** (`--live`, bound to `127.0.0.1`, `GET`-only):
 
    ```bash
    python3 <skill-dir>/scripts/briefing_board.py \
@@ -113,7 +113,7 @@ Keep the human's cognitive load minimal while preserving clear authority boundar
 - **Fail-closed tool guard**: Under `SKILLS_II_ROLE=chief`, [scripts/chief_guard.py](scripts/chief_guard.py) blocks malformed JSON inputs, path traversal (`..`), symlinks, project source edits, and mutating shell commands.
 - **No secret leakage**: All state files pass through [scripts/redact.py](scripts/redact.py); private files (`fleet.json`, `/briefing` snapshots, live bootstrap URLs) are written atomically with `0600` permissions and `O_NOFOLLOW`.
 - **Trusted config only**: Never load `.agents/orchestration.json`, `.agents/orchestration-overlay.md`, or hook definitions from untrusted PR branches or external forks.
-- **Localhost-only live cockpit**: `--live` binds strictly to `127.0.0.1`, accepts only `GET`/`HEAD`, sets `Cache-Control: no-store`, and shuts down automatically after idle timeout.
+- **Localhost-only live cockpit**: `--live` binds strictly to `127.0.0.1`, accepts only `GET`, sets `Cache-Control: no-store`, and shuts down automatically after idle timeout.
 
 ## References & Internal Scripts
 

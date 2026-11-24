@@ -230,6 +230,11 @@ def test_setup_init_rejects_symlinks_and_preserves_existing_customizations(
 ) -> None:
     setup_init = _load_module("chief_of_staff_setup_init_test", "setup_init.py")
 
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    assert setup_init.default_fleet_config_path() == tmp_path / "xdg" / "skills-ii" / "fleet.json"
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    assert setup_init.default_fleet_config_path() == Path.home() / ".config" / "skills-ii" / "fleet.json"
+
     repo_dir = tmp_path / "repo"
     repo_dir.mkdir()
     cfg_dir = tmp_path / "user_cfg"
