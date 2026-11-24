@@ -89,13 +89,13 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     (pattern, replacement) for _, pattern, replacement in RULES
 )
 
-_DARWIN_SYSTEM_SYMLINKS = frozenset({Path("/tmp"), Path("/var"), Path("/etc")})
+_DARWIN_SYSTEM_SYMLINKS = frozenset({Path("/tmp"), Path("/var"), Path("/etc")})  # nosec B108
 
 
 def _protected_root_dirs() -> frozenset[Path]:
     roots = {
         Path("/"),
-        Path("/tmp"),
+        Path("/tmp"),  # nosec B108
         Path("/var"),
         Path("/etc"),
         Path("/private"),

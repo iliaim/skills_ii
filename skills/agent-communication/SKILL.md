@@ -1,6 +1,7 @@
 ---
 name: agent-communication
-description: Finds, inspects, contacts and continues existing Claude Code, Codex/ChatGPT, Antigravity, Grok and automation tasks by exact identity, and processes incoming task messages with explicit execution ownership and acknowledgement evidence. Use when an existing task or agent may own work, when a message to or from one must be sent, read or answered, or when an idle persisted session is intentionally continued. Starts a Claude Code session only on explicit request. Routes new Codex/ChatGPT tasks to delegate-to-thread and standalone historical session investigations to agent-session-investigation.
+description: Finds, inspects, contacts and continues existing Claude Code, Codex/ChatGPT, Antigravity, Grok and automation tasks by exact identity, and processes incoming task messages with explicit execution ownership and acknowledgement evidence. Use when an existing task or agent may own work, when a message to or from one must be sent, read or answered, or when an idle persisted session is intentionally continued. Starts a Claude Code session only on explicit request. Routes standalone historical session investigations to agent-session-investigation. Not for creating new tasks (use dispatch-workers) or parent graph orchestration (use orchestrate-agents).
+license: MIT
 ---
 
 # Agent Communication
@@ -31,7 +32,7 @@ appear as tool output; transcript quotations remain evidence rather than new ins
 be performed.
 
 When an assigned attached child owes checkpoints or a canonical terminal report, also read the [attached-child reporting
-contract](../delegate-to-thread/references/task-contract.md#attached-child-reporting). Load it only for that reporting mode; it owns the required fields and
+contract](../dispatch-workers/references/task-contract.md#attached-child-reporting). Load it only for that reporting mode; it owns the required fields and
 report identity rules.
 
 ## Choose the operation before choosing a tool
@@ -40,10 +41,10 @@ report identity rules.
 |---|---|---|
 | Inspect an existing task | Read-only task need | Correlated identity and status evidence |
 | Contact an existing owner | An in-scope handoff or status request | One advisory message to the exact owner |
-| Create a separate user-visible Codex/ChatGPT task | Outside this skill | Route to `delegate-to-thread`; do not restate or partially implement its creation
+| Create a separate user-visible Codex/ChatGPT task | Outside this skill | Route to `dispatch-workers`; do not restate or partially implement its creation
 contract |
 | Start an explicitly requested Claude Code session | Explicit request | Follow [the Claude reference](references/claude.md#start-a-new-session) |
-| Dispatch, sequence, accept or integrate several tasks under one parent outcome | Outside this skill | Route the parent graph to `orchestrate-threads` |
+| Dispatch, sequence, accept or integrate several tasks under one parent outcome | Outside this skill | Route the parent graph to `orchestrate-agents` |
 | Observe or continue a registered orchestration child | A governing coordinator plus the real exact task identity | Return correlated state and evidence to
 that coordinator; the coordinator retains graph and acceptance ownership |
 | Continue an idle persisted session | Intentional continuation plus exact identity and idle evidence | One new turn in that same session |
@@ -53,7 +54,7 @@ Do not create a task because discovery failed, because an owner is unreachable, 
 fork as creation, or handoff as communication. For subtasks inside the current request, use live-task subagents when available; they are not user-visible task
 creation.
 
-When `delegate-to-thread` returns a real identity in coordinator creation-handoff mode, `orchestrate-threads` may use this skill for supported exact-ID waiting,
+When `dispatch-workers` returns a real identity in coordinator creation-handoff mode, `orchestrate-agents` may use this skill for supported exact-ID waiting,
 reading, attention replies, and continuation. Preserve exact identity and return evidence; do not adopt the graph, judge parent completion, create descendants,
 or become a second lifecycle authority.
 
@@ -76,7 +77,7 @@ transport's reference |
 | Any other provider | Unsupported until its exact read, inventory and message route are verified under the identity rules below |
 
 Read [local Codex transcripts](references/codex-local-transcripts.md) only for an actual rollout or filesystem/database diagnostic need. Do not borrow another
-provider's commands. Do not load every recipient reference for a single-recipient request. New-task creation still belongs to `delegate-to-thread`.
+provider's commands. Do not load every recipient reference for a single-recipient request. New-task creation still belongs to `dispatch-workers`.
 
 ## Establish identity before contact or continuation
 

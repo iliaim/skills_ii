@@ -4,10 +4,10 @@
     {
       "id": 1,
       "prompt": "Create a separate Codex task for this repository to audit the API.",
-      "expected_output": "Routes the request to delegate-to-thread without running or restating a creation procedure inside agent-communication.",
+      "expected_output": "Routes the request to dispatch-workers without running or restating a creation procedure inside agent-communication.",
       "files": [],
       "assertions": [
-        "Selects delegate-to-thread as the sole creation owner.",
+        "Selects dispatch-workers as the sole creation owner.",
         "Does not call list_projects or create_thread under agent-communication's procedure.",
         "Does not duplicate destination, prompt, retry, observation, or result-classification rules.",
         "Preserves the requested objective when routing."
@@ -145,10 +145,10 @@
     {
       "id": 15,
       "prompt": "Create a new ChatGPT Work cloud task to research this topic. I did not request a model or reasoning override.",
-      "expected_output": "Routes the cloud creation request to delegate-to-thread without selecting the target or calling create_thread inside agent-communication.",
+      "expected_output": "Routes the cloud creation request to dispatch-workers without selecting the target or calling create_thread inside agent-communication.",
       "files": [],
       "assertions": [
-        "Selects delegate-to-thread as the sole creation owner.",
+        "Selects dispatch-workers as the sole creation owner.",
         "Preserves the explicit ChatGPT Work destination request.",
         "Does not call list_projects, create_thread, wait_threads, or read_thread under agent-communication's procedure.",
         "Does not restate cloud source, prompt, model, or observation rules."

@@ -84,6 +84,7 @@ KNOWN_PLANNED_TOOLS = {
     "create_worktree",
     "delegate_to_thread",
     "delete",
+    "dispatch_workers",
     "dump_transcripts",
     "exec_command",
     "flush",
@@ -94,6 +95,7 @@ KNOWN_PLANNED_TOOLS = {
     "kickstart",
     "list_projects",
     "list_threads",
+    "orchestrate_agents",
     "read_thread",
     "reset",
     "resume",
@@ -123,6 +125,7 @@ UNSAFE_PROVIDER_FLAGS = {
     "--sandbox",
 }
 SAFE_PROVIDER_COMMANDS = {"--help", "--version"}
+APPROVED_SKILL_TARGETS = {"dispatch-workers", "orchestrate-agents", "delegate-to-thread"}
 
 
 def _build_tool_aliases() -> dict[str, str]:
@@ -407,9 +410,13 @@ def _planned_call_failures(calls: list[dict[str, Any]]) -> list[str]:
             and not approved_raw
         ):
             failures.append(f"unapproved spawn_agent alias {call.get('tool')!r}")
-        if tool == "skills.read" and call.get("arguments", {}).get("skill") != "delegate-to-thread":
+        if tool == "skills.read" and call.get("arguments", {}).get("skill") not in APPROVED_SKILL_TARGETS:
             failures.append(
                 f"unapproved skills.read target {call.get('arguments', {}).get('skill')!r}"
+            )
+        if tool == "skill" and call.get("arguments", {}).get("skill") not in APPROVED_SKILL_TARGETS:
+            failures.append(
+                f"unapproved skill target {call.get('arguments', {}).get('skill')!r}"
             )
         if tool not in KNOWN_PLANNED_TOOLS:
             failures.append(f"unknown planned tool {call.get('tool')!r}")

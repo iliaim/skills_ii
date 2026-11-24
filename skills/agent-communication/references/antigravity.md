@@ -23,17 +23,20 @@ wake-up guarantees. Feature-detect the owning host's actual surface. The install
 available. Do not install a sidecar, alter configuration or invent a generic `agy send` to obtain a route. If none is verified, use only an existing authorized
 mailbox with an actual reader/poller, or report contact unavailable. Never switch routes to bypass a refusal or compensate for an uncertain send.
 
-## Caller-owned workers
+## Local brain transcripts
 
-[Headless mode](https://antigravity.google/docs/cli/headless/) documents `--input-format stream-json` with `--output-format stream-json` for multiple turns in
-one process. When an authorized caller already owns that process and its input/output, retain the observed conversation identity and correlate each result to
-its action/revision. A result event is evidence to check, not independent verification of every requested effect.
+Antigravity persists conversation transcripts on the owning host under three surface-specific brain roots (where `<gemini-root>` defaults to `~/.gemini` unless overridden by the host environment):
 
-`agy --conversation <id>` resumes a conversation and executes a turn; `--continue` chooses the most recent one. Neither is ordinary messaging to an active
-owner. Starting/resuming a worker needs its own authority and exclusive execution context; this reference grants neither. Cross-host work uses a verified
-owning-host client or controller route, not a local path pretending to be remote.
+```text
+<gemini-root>/{antigravity,antigravity-cli,antigravity-ide}/brain/<conversation-id>/.system_generated/logs/transcript.jsonl
+```
+
+Start with compact `transcript.jsonl` and read the corresponding line of `transcript_full.jsonl` only when `truncated_fields` is present. Resolve the exact `<conversation-id>` first; never scan across unrelated conversations or treat transcript recency alone as proof of a live receiver. Before resuming an idle conversation, verify turn state metadata-first (for example via `agent-session-investigation`'s `inspect_jsonl.py --backend agy`) alongside live process evidence.
+
+## Caller-owned workers and exact-ID continuation
+
+[Headless mode](https://antigravity.google/docs/cli/headless/) documents single-turn `agy -p "<brief>" --output-format stream-json` (for example with `< /dev/null` and Google/Vertex metered API env keys unset when host policy requires subscription quota) and multi-turn `--input-format stream-json` with `--output-format stream-json` in one caller-owned process. When an authorized caller already owns that process and its input/output, retain the observed conversation identity and correlate each result to its action/revision. A result event is evidence to check, not independent verification of every requested effect.
+
+`agy --conversation <id>` resumes an exact persisted conversation and executes a turn; `--continue` chooses the most recent one and is never an exact-ID selector. Neither is ordinary messaging to an active owner. Use `agy --conversation <id>` only as intentional continuation when continuation authority is established and exact-ID turn-state plus process checks confirm the conversation is idle. Cross-host work uses a verified owning-host client or controller route, not a local path pretending to be remote.
 
 The answer comes back through the verified worker output or an agreed record. For another host, use a verified owning-host route or an existing mailbox.
-
-Documentation and local CLI help were checked on 2026-10-27. No Antigravity session was contacted, and no live cross-runtime delivery or wake-up behavior was
-verified.

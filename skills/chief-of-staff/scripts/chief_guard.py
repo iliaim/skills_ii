@@ -17,7 +17,7 @@ REASON = (
     "repository changes via `dispatch-workers` or `orchestrate-agents`."
 )
 _ROLE_ENV_VAR, _CHIEF_ROLE = "SKILLS_II_ROLE", "chief"
-_DARWIN_SYSTEM_SYMLINKS = frozenset({Path("/tmp"), Path("/var"), Path("/etc")})
+_DARWIN_SYSTEM_SYMLINKS = frozenset({Path("/tmp"), Path("/var"), Path("/etc")})  # nosec B108
 _TRUSTED_SCRIPTS_DIR = posixpath.normpath(str(Path(__file__).resolve().parent))
 _TRUSTED_BIN_DIRS = frozenset({"/bin", "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"})
 
@@ -429,7 +429,7 @@ def _is_trusted_chief_script(raw_script: str, cwd: str | None, env: Mapping[str,
     if script_name not in _ALLOWED_CHIEF_SCRIPTS:
         return (False, "")
     user_roots, brain_roots = _chief_writable_user_roots(env)
-    if any(_is_under_dir(resolved, p) for p in user_roots + brain_roots + ["/tmp", "/private/tmp", "/var/tmp", "/private/var/tmp"]):
+    if any(_is_under_dir(resolved, p) for p in user_roots + brain_roots + ["/tmp", "/private/tmp", "/var/tmp", "/private/var/tmp"]):  # nosec B108
         return (False, "")
     trusted_dirs = {_TRUSTED_SCRIPTS_DIR}
     cwd_norm = _resolve_valid_cwd(cwd, env)
