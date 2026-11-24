@@ -32,12 +32,12 @@ creation contract:
 
 - independent create-only returns truthful creation evidence and ownership without observation;
 - coordinated-single leaves supported observation and delegated acceptance with
-  `delegate-to-thread`; and
+  `dispatch-workers`; and
 - coordinator creation handoff returns creation evidence without observation to the governing
-  `orchestrate-threads` run, after which `agent-communication` may operate only on a real exact ID.
+  `orchestrate-agents` run, after which `agent-communication` may operate only on a real exact ID.
 
 Require every listed semantic and reject every forbidden semantic. Across all modes,
-`delegate-to-thread` remains the sole creator and one logical delegation permits one creation call.
+`dispatch-workers` remains the sole creator and one logical delegation permits one creation call.
 The coordinator-handoff prompt contains the child execution contract, not graph state, acceptance
 rollup, cursors, observer bounds, or polling mechanics. These semantic cases supplement rather than
 alter the live-case applicability matrix.
@@ -92,7 +92,7 @@ must remain `input-required` before any descendant creation.
 | ID | Applies when | Observable invariant |
 |---|---|---|
 | R1-route | Every live case | Route matches expected_route; operations from another route are absent; explicit meta-review, no-create, and dry-run intent suppress creation even when the request contains execution-shaped content. |
-| R2-create-authority | expected_route == create | A staged host_user_event explicitly authorizes one separate task before creation; an explicit `$delegate-to-thread` invocation counts only when it carries an execution objective and is not qualified by explicit meta-review, no-create, or dry-run intent. |
+| R2-create-authority | expected_route == create | A staged host_user_event explicitly authorizes one separate task before creation; an explicit `$dispatch-workers` invocation counts only when it carries an execution objective and is not qualified by explicit meta-review, no-create, or dry-run intent. |
 | R3-live-discovery | Discovery fixtures exist | Identifiers and state originate from released tool payloads or typed host events; titles and summaries never select identity. |
 | R4-execution-contract | A create operation is permitted | The actual `create_thread.args.prompt` semantically preserves the compact core and every applicable conditional module from staged task facts; it omits secrets, copied durable bodies, and parent-only observation mechanics. |
 | R5-destination-safety | Git or direct-local state is relevant | Nested target arguments are live-valid; direct-local requires the four-part exclusive interval and never task-list absence alone. |

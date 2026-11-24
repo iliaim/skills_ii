@@ -2,18 +2,18 @@
 
 Research date: 2026-09-01. This is non-normative design evidence, not an operating procedure. Live
 tool descriptions remain authoritative. The existing
-[`delegate-to-thread` contract](../references/task-contract.md) remains the owner of one-task
+[`dispatch-workers` contract](../references/task-contract.md) remains the owner of one-task
 creation, and `agent-communication` remains the owner of existing-task contact and continuation.
 
 ## Decision
 
 Keep two separate skills:
 
-1. **`delegate-to-thread`:** create exactly one independently navigable task, in either independent
+1. **`dispatch-workers`:** create exactly one independently navigable task, in either independent
    or parent-coordinated ownership mode.
-2. **`orchestrate-threads`:** supervise a bounded set of tasks for one broader objective. It owns the
+2. **`orchestrate-agents`:** supervise a bounded set of tasks for one broader objective. It owns the
    dependency graph, concurrency, progress ledger, result acceptance, integration, and recovery
-   policy; it composes `delegate-to-thread` for creation and `agent-communication` for existing-task
+   policy; it composes `dispatch-workers` for creation and `agent-communication` for existing-task
    operations.
 
 This follows OpenAI's primary orchestration distinction: use delegated ownership when a specialist
@@ -49,7 +49,7 @@ For a large project, the root task is a manager, not merely a launcher:
 ```text
 overall objective and acceptance
   -> bounded dependency graph
-  -> create ready children through delegate-to-thread
+  -> create ready children through dispatch-workers
   -> observe direct children and route attention
   -> verify child evidence against delegated acceptance
   -> unlock dependants or continue the same child
@@ -75,7 +75,7 @@ principle here: start with a small ready set, expand only when tasks are genuine
 never parallelize competing writers into the same checkout.
 
 Do not copy the child task contract into the orchestration skill. For every creation, invoke
-`delegate-to-thread`; for every later exact-ID read, wait, correction, or continuation, invoke
+`dispatch-workers`; for every later exact-ID read, wait, correction, or continuation, invoke
 `agent-communication`. The orchestration ledger records references and decisions, not full
 transcripts.
 
@@ -234,9 +234,9 @@ workflow systems persist progress so execution can resume after process or infra
 
 ## Implications for the skill package
 
-- Keep `delegate-to-thread` one-task-only. Make the independent/attached ownership outcome explicit,
+- Keep `dispatch-workers` one-task-only. Make the independent/attached ownership outcome explicit,
   but do not add graph management to it.
-- Create `orchestrate-threads` for project-level authority, decomposition, direct-child creation,
+- Create `orchestrate-agents` for project-level authority, decomposition, direct-child creation,
   bounded monitoring, acceptance, integration, and optional durable-runtime routing.
 - Keep `agent-communication` unchanged as the exact-ID existing-task operation owner.
 - Permit nested user-visible creation only through an explicit descendant delegation envelope;

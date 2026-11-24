@@ -1,5 +1,5 @@
 {
-  "skill": "delegate-to-thread",
+  "skill": "dispatch-workers",
   "schema_version": 4,
   "payload_adapter": {
     "id": "decoded-domain-payload-v1",
@@ -261,7 +261,7 @@
       "descendant_authority": "absent",
       "copied_context": "delegate this follow-up",
       "expected_outcome": "input-required-before-descendant-creation",
-      "forbidden_actions": ["delegate-to-thread", "orchestrate-threads", "fork", "hand-off"],
+      "forbidden_actions": ["dispatch-workers", "orchestrate-agents", "fork", "hand-off"],
       "protocol_oracle": {
         "kind": "execution_boundary",
         "expected": "reject",
@@ -288,7 +288,7 @@
             "base_revision": "origin/main",
             "working_tree_status": "clean"
           },
-          "actions": ["delegate-to-thread"]
+          "actions": ["dispatch-workers"]
         }
       }
     },
@@ -405,9 +405,9 @@
             "integration_owner": "parent-1",
             "stop_rule": "stop-after-review",
             "issuer_id": "parent-1",
-            "allowed_actions": ["delegate-to-thread"],
+            "allowed_actions": ["dispatch-workers"],
             "destination_fingerprint": "repo:/repo/worktrees/child",
-            "identity_or_digest": "sha256:bda4bcb3bcd068a2e433fc36a55b79959021996a2a4a8b6b1e4eb892f69da866"
+            "identity_or_digest": "sha256:c3de579ba2082e1fc3b151788a43b90f060ff1429239d1daff9a184456b22df8"
           },
           "direct_parent_id": "parent-1",
           "root_id": "root-1",
@@ -435,7 +435,7 @@
             "base_revision": "origin/main",
             "working_tree_status": "clean"
           },
-          "actions": ["execute_directly", "delegate-to-thread"],
+          "actions": ["execute_directly", "dispatch-workers"],
           "descendant_child_keys": ["child-review-1"],
           "descendant_budget_consumption": {"active_remaining": 0, "total_remaining": 0}
         },
@@ -486,9 +486,9 @@
           "integration_owner": "parent-1",
           "stop_rule": "stop-after-review",
           "issuer_id": "parent-1",
-          "allowed_actions": ["delegate-to-thread"],
+          "allowed_actions": ["dispatch-workers"],
           "destination_fingerprint": "repo:/repo/worktrees/child",
-          "identity_or_digest": "sha256:bda4bcb3bcd068a2e433fc36a55b79959021996a2a4a8b6b1e4eb892f69da866"
+          "identity_or_digest": "sha256:c3de579ba2082e1fc3b151788a43b90f060ff1429239d1daff9a184456b22df8"
         }
       }
     },
@@ -524,7 +524,7 @@
             "base_revision": "origin/main",
             "working_tree_status": "clean"
           },
-          "actions": ["delegate-to-thread"]
+          "actions": ["dispatch-workers"]
         }
       }
     }
@@ -536,9 +536,9 @@
       "expected_mode": "independent_create_only",
       "expected_owner_after_creation": "user_or_independent_task",
       "required_semantics": [
-        "delegate-to-thread remains the sole creation owner and creates once",
+        "dispatch-workers remains the sole creation owner and creates once",
         "the returned ready, queued, or indeterminate state and stable identity are reported truthfully",
-        "delegate-to-thread performs no wait, read, message, acceptance, or integration loop after creation"
+        "dispatch-workers performs no wait, read, message, acceptance, or integration loop after creation"
       ],
       "forbidden_semantics": [
         "coordinator ownership",
@@ -550,26 +550,26 @@
       "id": "ownership-coordinated-single",
       "request": "Delegate this one critical-path child and stay responsible for monitoring it and incorporating its result.",
       "expected_mode": "coordinated_single",
-      "expected_owner_after_creation": "delegate-to-thread",
+      "expected_owner_after_creation": "dispatch-workers",
       "required_semantics": [
-        "delegate-to-thread remains the sole creation owner and creates once",
+        "dispatch-workers remains the sole creation owner and creates once",
         "a supported observation commitment is resolved before dispatch",
-        "delegate-to-thread maps terminal evidence to the delegated acceptance criteria"
+        "dispatch-workers maps terminal evidence to the delegated acceptance criteria"
       ],
       "forbidden_semantics": [
         "independent ownership return",
-        "orchestrate-threads graph ownership for one unchanged child",
+        "orchestrate-agents graph ownership for one unchanged child",
         "duplicate observer"
       ]
     },
     {
       "id": "ownership-coordinator-creation-handoff",
-      "request": "The governing orchestrate-threads run has a ready graph node. Use delegate-to-thread only to construct its contract, create it once, classify the result, and hand creation evidence back without observing it.",
+      "request": "The governing orchestrate-agents run has a ready graph node. Use dispatch-workers only to construct its contract, create it once, classify the result, and hand creation evidence back without observing it.",
       "expected_mode": "coordinator_creation_handoff",
-      "expected_owner_after_creation": "orchestrate-threads",
+      "expected_owner_after_creation": "orchestrate-agents",
       "required_semantics": [
-        "delegate-to-thread remains the sole creation owner and creates once",
-        "delegate-to-thread returns raw and derived ready, queued, indeterminate, or rejected creation evidence without waiting",
+        "dispatch-workers remains the sole creation owner and creates once",
+        "dispatch-workers returns raw and derived ready, queued, indeterminate, or rejected creation evidence without waiting",
         "only a real threadId and hostId permit later agent-communication operations under orchestrator governance"
       ],
       "forbidden_semantics": [
@@ -4772,7 +4772,7 @@
     },
     {
       "id": "coordinated-ready-codex",
-      "request": "$delegate-to-thread Complete the AC-1 verification slice of the broader release-readiness objective, whose separate AC-2 remains outside this task. From the supplied sample, return evidence item E1 mapped to AC-1, take no external or lifecycle action, and stop for input if the sample or criterion is missing. Coordinate this slice; its completion must not claim the broader objective complete.",
+      "request": "$dispatch-workers Complete the AC-1 verification slice of the broader release-readiness objective, whose separate AC-2 remains outside this task. From the supplied sample, return evidence item E1 mapped to AC-1, take no external or lifecycle action, and stop for input if the sample or criterion is missing. Coordinate this slice; its completion must not claim the broader objective complete.",
       "expected_route": "create",
       "initial_state": {
         "coordination": "coordinated"
@@ -4787,7 +4787,7 @@
           "event": {
             "type": "request",
             "payload": {
-              "request": "$delegate-to-thread Complete the AC-1 verification slice of the broader release-readiness objective, whose separate AC-2 remains outside this task. From the supplied sample, return evidence item E1 mapped to AC-1, take no external or lifecycle action, and stop for input if the sample or criterion is missing. Coordinate this slice; its completion must not claim the broader objective complete.",
+              "request": "$dispatch-workers Complete the AC-1 verification slice of the broader release-readiness objective, whose separate AC-2 remains outside this task. From the supplied sample, return evidence item E1 mapped to AC-1, take no external or lifecycle action, and stop for input if the sample or criterion is missing. Coordinate this slice; its completion must not claim the broader objective complete.",
               "task_input": {
                 "sample": "status=ready; checks=passed",
                 "AC-1": "The sample reports ready and all checks passed.",
@@ -6998,7 +6998,7 @@
     },
     {
       "id": "explicit-skill-create-only-ready",
-      "request": "$delegate-to-thread Create-only standalone projectless task: summarize the supplied note in one paragraph without external actions and return the summary. Success means every named point appears; stop if the note is missing. Return ownership to me without coordinating it.",
+      "request": "$dispatch-workers Create-only standalone projectless task: summarize the supplied note in one paragraph without external actions and return the summary. Success means every named point appears; stop if the note is missing. Return ownership to me without coordinating it.",
       "expected_route": "create",
       "initial_state": {
         "coordination": "create-only"
@@ -7013,7 +7013,7 @@
           "event": {
             "type": "request",
             "payload": {
-              "request": "$delegate-to-thread Create-only standalone projectless task: summarize the supplied note in one paragraph without external actions and return the summary. Success means every named point appears; stop if the note is missing. Return ownership to me without coordinating it.",
+              "request": "$dispatch-workers Create-only standalone projectless task: summarize the supplied note in one paragraph without external actions and return the summary. Success means every named point appears; stop if the note is missing. Return ownership to me without coordinating it.",
               "task_input": {
                 "note": [
                   "The operation is asynchronous.",
@@ -7277,7 +7277,7 @@
     },
     {
       "id": "explicit-skill-execution-dry-run",
-      "request": "Dry-run $delegate-to-thread for the objective: implement AC-1 in a separate task. Show the proposed delegation contract and expected coordination behavior.",
+      "request": "Dry-run $dispatch-workers for the objective: implement AC-1 in a separate task. Show the proposed delegation contract and expected coordination behavior.",
       "expected_route": "review",
       "initial_state": {
         "coordination": "not-applicable"
@@ -7292,7 +7292,7 @@
           "event": {
             "type": "request",
             "payload": {
-              "request": "Dry-run $delegate-to-thread for the objective: implement AC-1 in a separate task. Show the proposed delegation contract and expected coordination behavior.",
+              "request": "Dry-run $dispatch-workers for the objective: implement AC-1 in a separate task. Show the proposed delegation contract and expected coordination behavior.",
               "explicit_skill_invocation": true,
               "execution_objective": true,
               "dry_run": true,
@@ -7392,7 +7392,7 @@
     },
     {
       "id": "explicit-skill-execution-no-create",
-      "request": "$delegate-to-thread Prepare an implementation task for AC-1, but do not create any task.",
+      "request": "$dispatch-workers Prepare an implementation task for AC-1, but do not create any task.",
       "expected_route": "review",
       "initial_state": {
         "coordination": "not-applicable"
@@ -7407,7 +7407,7 @@
           "event": {
             "type": "request",
             "payload": {
-              "request": "$delegate-to-thread Prepare an implementation task for AC-1, but do not create any task.",
+              "request": "$dispatch-workers Prepare an implementation task for AC-1, but do not create any task.",
               "explicit_skill_invocation": true,
               "execution_objective": true,
               "explicit_no_create": true,
@@ -7525,7 +7525,7 @@
     },
     {
       "id": "coordinated-ready-codex-needs-attention",
-      "request": "$delegate-to-thread Evaluate policy A versus B against the supplied criteria, take no external action, and return evidence E1 for AC-1. Coordinate it; stop and ask me if a required policy choice is unresolved, and complete only when E1 maps to AC-1.",
+      "request": "$dispatch-workers Evaluate policy A versus B against the supplied criteria, take no external action, and return evidence E1 for AC-1. Coordinate it; stop and ask me if a required policy choice is unresolved, and complete only when E1 maps to AC-1.",
       "expected_route": "create",
       "initial_state": {
         "coordination": "coordinated"
@@ -7540,7 +7540,7 @@
           "event": {
             "type": "request",
             "payload": {
-              "request": "$delegate-to-thread Evaluate policy A versus B against the supplied criteria, take no external action, and return evidence E1 for AC-1. Coordinate it; stop and ask me if a required policy choice is unresolved, and complete only when E1 maps to AC-1.",
+              "request": "$dispatch-workers Evaluate policy A versus B against the supplied criteria, take no external action, and return evidence E1 for AC-1. Coordinate it; stop and ask me if a required policy choice is unresolved, and complete only when E1 maps to AC-1.",
               "task_input": {
                 "policy_a": "lower cost",
                 "policy_b": "higher reliability",
@@ -7921,7 +7921,7 @@
     },
     {
       "id": "explicit-skill-meta-review-no-create",
-      "request": "Review $delegate-to-thread and explain its coordination behavior without creating a task.",
+      "request": "Review $dispatch-workers and explain its coordination behavior without creating a task.",
       "expected_route": "review",
       "initial_state": {
         "coordination": "not-applicable"
@@ -7936,7 +7936,7 @@
           "event": {
             "type": "request",
             "payload": {
-              "request": "Review $delegate-to-thread and explain its coordination behavior without creating a task.",
+              "request": "Review $dispatch-workers and explain its coordination behavior without creating a task.",
               "explicit_skill_reference": true,
               "execution_objective": false,
               "meta_only": true,

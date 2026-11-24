@@ -219,7 +219,7 @@ deduplicate by stable event ID, process idempotently, acknowledge quickly, and f
 resource before taking consequential action. OpenAI's webhook guidance demonstrates this retry,
 deduplication, fast-acknowledgement, and signature-verification model.
 
-## Recommended direction for `delegate-to-thread`
+## Recommended direction for `dispatch-workers`
 
 1. Keep the route guard, but phrase it positively: invocation means “create a separate task” once the
    explicit request and readiness gate establish that route.

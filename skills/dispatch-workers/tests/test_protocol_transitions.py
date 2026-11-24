@@ -112,8 +112,8 @@ EXECUTION_EVIDENCE_FIELDS = {
 }
 MAX_SETUP_RECOVERY_CHECKS = 3
 DESCENDANT_ACTIONS = {
-    "delegate-to-thread",
-    "orchestrate-threads",
+    "dispatch-workers",
+    "orchestrate-agents",
     "fork",
     "hand-off",
 }
@@ -901,8 +901,8 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
         self.assertFalse(attached_report_admissible(report))
 
     def test_independent_create_only_task_does_not_require_attached_reporting(self):
-        create_only = {"mode": "independent-create-only", "creation_owner": "delegate-to-thread"}
-        self.assertEqual(create_only["creation_owner"], "delegate-to-thread")
+        create_only = {"mode": "independent-create-only", "creation_owner": "dispatch-workers"}
+        self.assertEqual(create_only["creation_owner"], "dispatch-workers")
         self.assertNotIn("report_revision", create_only)
 
     def test_callback_real_id_is_confirmed_directly_without_listing_or_retry(self):
@@ -1575,7 +1575,7 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             oracle["native_dispatch_intent_evidence"],
         ))
         forged_actions = copy.deepcopy(trace)
-        forged_actions["actions"] = ["delegate-to-thread", "fork"]
+        forged_actions["actions"] = ["dispatch-workers", "fork"]
         self.assertFalse(execution_boundary_admissible(
             forged_actions,
             oracle["native_execution_evidence"],
@@ -1585,7 +1585,7 @@ class DelegateProtocolTransitionTests(unittest.TestCase):
             oracle["native_dispatch_intent_evidence"],
         ))
         over_budget = copy.deepcopy(trace)
-        over_budget["actions"] = ["delegate-to-thread", "delegate-to-thread"]
+        over_budget["actions"] = ["dispatch-workers", "dispatch-workers"]
         self.assertFalse(execution_boundary_admissible(
             over_budget,
             oracle["native_execution_evidence"],

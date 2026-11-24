@@ -8,7 +8,7 @@ Live tool descriptions remain authoritative, and
 
 Use two tiers, not one oversized skill:
 
-1. **Coordinated delegation:** `delegate-to-thread` creates each user-visible task and supplies its
+1. **Coordinated delegation:** `dispatch-workers` creates each user-visible task and supplies its
    minimum-sufficient contract. The creating task stays alive, observes exact child identities, and
    uses `agent-communication` for later inspection, correction, continuation, or evidence retrieval.
 2. **Durable unattended orchestration:** a scheduler or small controller persists the coordination
@@ -59,7 +59,7 @@ wait on up to the supported batch limit. Reuse the returned cursor for that exac
 only when the terminal wait omitted evidence needed for acceptance. Do not repeatedly poll every
 transcript or narrate unchanged timeouts.
 
-`delegate-to-thread` should remain the sole owner of creation and the first-message contract.
+`dispatch-workers` should remain the sole owner of creation and the first-message contract.
 `agent-communication` should remain the sole owner of identifying, inspecting, contacting, and
 intentionally continuing an existing task. The coordinator composes them; neither skill should copy
 the other's rules.

@@ -26,11 +26,11 @@ env -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_USE_VERTEXAI -u AGY_ADC_
   agy -p "<brief>" --output-format stream-json < /dev/null
 ```
 
-- **Cold read-only reviewer launch** (read-only/plan scope, no maker history):
+- **Cold read-only reviewer launch** (`--mode plan`, zero write permissions, no maker history):
 
 ```sh
 env -u GEMINI_API_KEY -u GOOGLE_API_KEY -u GOOGLE_GENAI_USE_VERTEXAI -u AGY_ADC_AUTH \
-  agy -p "<review-brief>" --output-format stream-json < /dev/null
+  agy -p "<review-brief>" --mode plan --output-format stream-json < /dev/null
 ```
 
 - **Resume exact conversation** (idle conversation only; never `--continue`):

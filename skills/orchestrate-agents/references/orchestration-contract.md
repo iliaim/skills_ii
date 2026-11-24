@@ -1,7 +1,7 @@
 # Orchestration contract
 
 This is the normative contract for `orchestrate-agents`. Live tool descriptions control current
-operations, fields, backing-kind support, and result shapes. `delegate-to-thread` remains the sole
+operations, fields, backing-kind support, and result shapes. `dispatch-workers` remains the sole
 owner of one-task creation and its child prompt; `agent-communication` remains the sole owner of
 supported exact-ID inspection, waiting, contact, and continuation.
 
@@ -138,12 +138,12 @@ them, the parent must fail closed or serialize procedurally and report that limi
 ## Creation handoff and adoption
 
 Managing tasks does not imply authority to create them. Initialize a graph from supplied existing
-exact identities without calling `delegate-to-thread` or any creation operation. Preserve each exact
+exact identities without calling `dispatch-workers` or any creation operation. Preserve each exact
 operable `threadId` and any returned or required `hostId`, register it as `existing`, and use `agent-communication` only for supported
 exact-ID operations. If an exact identity cannot be established, hold that node and surface the
 identity gate; never create a replacement or reconcile by title.
 
-Only for a node explicitly authorized as new, call `delegate-to-thread` in explicit **coordinator
+Only for a node explicitly authorized as new, call `dispatch-workers` in explicit **coordinator
 creation handoff** mode.
 Supply the bounded outcome, parent relationship, root criterion, scope, authority, cumulative child
 acceptance and proof, deliverable, stop conditions, and—when the child may write—the integration

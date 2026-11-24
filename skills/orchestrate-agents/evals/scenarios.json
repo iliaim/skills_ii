@@ -4,9 +4,9 @@
     {
       "id": "route-independent-side-task",
       "request": "Create a separate task to research one unrelated deployment option while I continue this session. Return ownership immediately after creation; do not monitor it.",
-      "expected_route": "Route one creation through delegate-to-thread in independent create-only mode, then return ownership to the current task without orchestration.",
+      "expected_route": "Route one creation through dispatch-workers in independent create-only mode, then return ownership to the current task without orchestration.",
       "expected_state": {
-        "owner": "delegate-to-thread",
+        "owner": "dispatch-workers",
         "mode": "independent_create_only",
         "observation": "none_after_creation",
         "parent": "continues_current_work"
@@ -17,18 +17,18 @@
         "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
       ],
       "required_evidence": [
-        "The route names delegate-to-thread as the sole creation owner",
+        "The route names dispatch-workers as the sole creation owner",
         "The result promises only truthful ready, queued, or indeterminate creation evidence",
         "No parent monitoring or acceptance loop is claimed"
       ],
-      "pass_condition": "Pass only if the independent child is created once through delegate-to-thread, ownership returns immediately, and no orchestration lifecycle is invented."
+      "pass_condition": "Pass only if the independent child is created once through dispatch-workers, ownership returns immediately, and no orchestration lifecycle is invented."
     },
     {
       "id": "route-coordinated-single-child",
       "request": "Delegate this one implementation task to a new Codex task, stay attached, answer its blockers, and verify its result before telling me it is done.",
-      "expected_route": "Use delegate-to-thread's coordinated-single route; after a real task identity exists, use agent-communication operations supported for that backing kind.",
+      "expected_route": "Use dispatch-workers's coordinated-single route; after a real task identity exists, use agent-communication operations supported for that backing kind.",
       "expected_state": {
-        "owner": "delegate-to-thread",
+        "owner": "dispatch-workers",
         "mode": "coordinated_single",
         "execution": "observed_within_resolved_bound",
         "acceptance": "pending_until_evidence_mapping"
@@ -48,7 +48,7 @@
     {
       "id": "route-multi-task-orchestration",
       "request": "Coordinate a release-readiness project across separate research, implementation, and verification tasks, with implementation depending on accepted research and verification depending on an available implementation artifact.",
-      "expected_route": "Use orchestrate-agents as the root graph and acceptance owner; call delegate-to-thread once per ready child in coordinator creation handoff mode, then use agent-communication for exact-ID observation and continuation.",
+      "expected_route": "Use orchestrate-agents as the root graph and acceptance owner; call dispatch-workers once per ready child in coordinator creation handoff mode, then use agent-communication for exact-ID observation and continuation.",
       "expected_state": {
         "owner": "orchestrate-agents",
         "mode": "multi_task_graph",
@@ -57,7 +57,7 @@
         "child_acceptance": "separate_per_child"
       },
       "forbidden_operations": [
-        "Give graph ownership to delegate-to-thread or agent-communication",
+        "Give graph ownership to dispatch-workers or agent-communication",
         "Dispatch a dependant before its named edge gate passes",
         "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
       ],
@@ -79,7 +79,7 @@
         "result_return": "current_response"
       },
       "forbidden_operations": [
-        "Invoke delegate-to-thread merely because work is parallel",
+        "Invoke dispatch-workers merely because work is parallel",
         "Create a persistent orchestration ledger for current-response subagents",
         "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
       ],
@@ -108,12 +108,12 @@
         "The supplied exact task ID is the primary lookup identity",
         "Creation remains exclusively out of scope for agent-communication"
       ],
-      "pass_condition": "Pass only if the existing-task route is used without invoking delegate-to-thread or creating a replacement."
+      "pass_condition": "Pass only if the existing-task route is used without invoking dispatch-workers or creating a replacement."
     },
     {
       "id": "adopt-single-child-into-graph",
       "request": "The attached implementation child has uncovered two independent follow-up tasks. Convert this into a coordinated graph without losing or restarting the existing child.",
-      "expected_route": "Promote ownership to orchestrate-agents by adopting the existing child's exact identity, host, cursor, contract reference, and current evidence; delegate-to-thread ceases observation and no task is recreated.",
+      "expected_route": "Promote ownership to orchestrate-agents by adopting the existing child's exact identity, host, cursor, contract reference, and current evidence; dispatch-workers ceases observation and no task is recreated.",
       "expected_state": {
         "owner": "orchestrate-agents",
         "mode": "adopted_graph",
@@ -123,7 +123,7 @@
       },
       "forbidden_operations": [
         "Recreate, fork, rename-match, or replace the original child",
-        "Leave delegate-to-thread and orchestrate-agents both owning observation",
+        "Leave dispatch-workers and orchestrate-agents both owning observation",
         "Perform any real task, message, goal, automation, repository, or external operation during this simulation"
       ],
       "required_evidence": [
@@ -771,7 +771,7 @@
     {
       "id": "coordinate-existing-task-set",
       "request": "Coordinate tasks T1, T2, and T3 under one parent objective. These exact task IDs already exist; no host IDs were supplied and the selected same-host operations do not require them. Monitor progress, contact them when supported, and roll up evidence without creating any new task.",
-      "expected_route": "Use orchestrate-agents as the root graph and acceptance owner, register T1, T2, and T3 as existing graph nodes with their exact identities, and use agent-communication only for supported exact-ID observation and contact; do not invoke delegate-to-thread or any task creation.",
+      "expected_route": "Use orchestrate-agents as the root graph and acceptance owner, register T1, T2, and T3 as existing graph nodes with their exact identities, and use agent-communication only for supported exact-ID observation and contact; do not invoke dispatch-workers or any task creation.",
       "expected_state": {
         "owner": "orchestrate-agents",
         "mode": "existing_tasks_graph",
@@ -780,7 +780,7 @@
         "management": "observation_contact_acceptance_rollup"
       },
       "forbidden_operations": [
-        "Call create_thread or delegate-to-thread creation for an already-existing graph node",
+        "Call create_thread or dispatch-workers creation for an already-existing graph node",
         "Call fork_thread or create a replacement task",
         "Alter, infer, or title-match any supplied exact task identity",
         "Treat management of an existing task as evidence that the orchestrator created it",
@@ -792,7 +792,7 @@
         "Only agent-communication operations supported for each exact-ID backing kind are used for observation or contact",
         "Orchestrate-agents retains graph, acceptance, and rollup ownership without claiming creation"
       ],
-      "pass_condition": "Pass only if the existing tasks are coordinated under one graph with exact operable identities preserved, zero creation, no delegate-to-thread invocation, and no create_thread, fork_thread, or replacement creation."
+      "pass_condition": "Pass only if the existing tasks are coordinated under one graph with exact operable identities preserved, zero creation, no dispatch-workers invocation, and no create_thread, fork_thread, or replacement creation."
     },
     {
       "id": "child-local-goal-helpful",
@@ -889,7 +889,7 @@
     {
       "id": "authorized-successor-after-terminal-failure",
       "request": "A child has a proven terminal failure and its correction path is exhausted. I explicitly authorize one successor task for the unmet objective.",
-      "expected_route": "Preserve the failed child's exact identity and evidence, register a newly authorized successor as a distinct graph node with a supersession link, and use delegate-to-thread once for that new node.",
+      "expected_route": "Preserve the failed child's exact identity and evidence, register a newly authorized successor as a distinct graph node with a supersession link, and use dispatch-workers once for that new node.",
       "expected_state": {
         "original_child": "preserved_terminal_failed",
         "successor": "new_explicitly_authorized_node",

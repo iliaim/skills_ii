@@ -109,10 +109,11 @@ def test_tier2_unsets_all_six_metered_api_keys_and_forbids_orphan_worktrees() ->
     codex_text = (providers_dir / "codex.md").read_text(encoding="utf-8")
     grok_text = (providers_dir / "grok.md").read_text(encoding="utf-8")
 
-    # 1. Antigravity: all 4 Google/Vertex metered keys, hooks.json fail-closed guard, stream-json, resume
+    # 1. Antigravity: all 4 Google/Vertex metered keys, hooks.json fail-closed guard, --mode plan, stream-json, resume
     for key in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_USE_VERTEXAI", "AGY_ADC_AUTH"):
         assert key in agy_text, f"agy.md missing metered key unset {key}"
     assert ".agents/hooks.json" in agy_text
+    assert "--mode plan" in agy_text
     assert "--output-format stream-json" in agy_text
     assert "--conversation" in agy_text
 
@@ -140,6 +141,22 @@ def test_tier2_unsets_all_six_metered_api_keys_and_forbids_orphan_worktrees() ->
 
 def test_no_broken_markdown_links_and_old_dir_removed() -> None:
     assert not (SKILL_ROOT.parent / "delegate-to-thread").exists()
+
+    checked_files = [
+        SKILL_ROOT / "SKILL.md",
+        *sorted((SKILL_ROOT / "references").rglob("*.md")),
+        *sorted((SKILL_ROOT / "evals").glob("*")),
+    ]
+    for path in checked_files:
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        assert "delegate-to-thread" not in text.lower(), (
+            f"Stale delegate-to-thread reference in {path.relative_to(SKILL_ROOT)}"
+        )
+        assert "orchestrate-threads" not in text.lower(), (
+            f"Stale orchestrate-threads reference in {path.relative_to(SKILL_ROOT)}"
+        )
 
     md_files = sorted(SKILL_ROOT.rglob("*.md"))
     for md_path in md_files:
