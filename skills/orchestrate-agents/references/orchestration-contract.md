@@ -124,7 +124,7 @@ ordinary commentary, child status, and message delivery do not satisfy those fie
 
 ## Resource claims and writer admission
 
-The [delegate task contract](../../delegate-to-thread/references/task-contract.md) is the sole owner
+The [delegate task contract](../../dispatch-workers/references/task-contract.md) is the sole owner
 of the resource-claim field schema and the child-facing declaration requirement. Before dispatch, the
 parent verifies that each writable child has a complete claim for every repository and external shared
 resource it can mutate. Unknown or conflicting claims hold dispatch. Shared reads may overlap;

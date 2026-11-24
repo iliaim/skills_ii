@@ -388,7 +388,7 @@ class PairedEvalContracts(unittest.TestCase):
         directory_alias = self.tmp / "checkout-link"
         directory_alias.symlink_to(checkout, target_is_directory=True)
         outputs = (companion, readme, checkout / "new-report.json", symlink, hardlink,
-                   directory_alias / "new-report.json", ROOT.parent / "delegate-to-thread" / "SKILL.md")
+                   directory_alias / "new-report.json", ROOT.parent / "dispatch-workers" / "SKILL.md")
         for output in outputs:
             with self.subTest(output=output), self.assertRaises(runner.HarnessError):
                 runner.validate_output_path(output, source)

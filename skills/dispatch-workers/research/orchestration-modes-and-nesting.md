@@ -143,7 +143,7 @@ create a user-visible task solely to obtain parallelism.
 The original design borrowed goal semantics from `writing-goals` and its canonical method,
 which are external to this collection. Do not import its full protected maker/reviewer/publisher
 lifecycle into ordinary task orchestration. The current rules are maintained in the
-[orchestration contract](../../orchestrate-threads/references/orchestration-contract.md).
+[orchestration contract](../../orchestrate-agents/references/orchestration-contract.md).
 
 Use these principles:
 

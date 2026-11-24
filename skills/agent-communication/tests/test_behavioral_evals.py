@@ -1486,8 +1486,8 @@ else:
                     run_once.assert_not_called()
 
     def test_attached_protocol_contracts_name_reporting_and_fail_closed_gates(self):
-        delegate_contract = (SKILL_ROOT.parent / "delegate-to-thread" / "references" / "task-contract.md").read_text()
-        advanced_delegation = (SKILL_ROOT.parent / "delegate-to-thread" / "references" / "advanced-delegation.md").read_text()
+        delegate_contract = (SKILL_ROOT.parent / "dispatch-workers" / "references" / "task-contract.md").read_text()
+        advanced_delegation = (SKILL_ROOT.parent / "dispatch-workers" / "references" / "advanced-delegation.md").read_text()
         orchestration_contract = (SKILL_ROOT.parent / "orchestrate-agents" / "references" / "orchestration-contract.md").read_text()
         advanced_modes = (SKILL_ROOT.parent / "orchestrate-agents" / "references" / "advanced-modes.md").read_text()
         communication_skill = (SKILL_ROOT / "SKILL.md").read_text() + (SKILL_ROOT / "references" / "exact-id-observations.md").read_text()

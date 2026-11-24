@@ -1,0 +1,7 @@
+interface:
+  display_name: "Dispatch Workers"
+  short_description: "Launch, review, and resume workers across providers and hosts"
+  default_prompt: "Use $dispatch-workers to launch one worker or cold read-only reviewer across native or cross-provider hosts with explicit ownership and isolated checkout context."
+
+policy:
+  allow_implicit_invocation: true

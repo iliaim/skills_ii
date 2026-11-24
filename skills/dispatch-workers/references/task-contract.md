@@ -1,6 +1,6 @@
 # Task contract and context gate
 
-This is the sole normative contract for tasks created through `delegate-to-thread`. The entry skill
+This is the sole normative contract for tasks created through `dispatch-workers`. The entry skill
 routes and sequences the work; evaluations consume this contract but do not redefine it. Live tool
 descriptions remain authoritative for current fields, destinations, and return shapes.
 
@@ -68,7 +68,7 @@ For any repository-writing objective, use the repository execution context below
 contains dispatch intent: exact project/path, execution mode (`managed-worktree` or explicitly
 authorized `direct-local`), requested starting state or an explicitly recorded provider-default rule,
 and write authority. It must include this direct-execution boundary: Implement this objective directly
-in this task; do not invoke `delegate-to-thread`, `orchestrate-threads`, create another user-visible
+in this task; do not invoke `dispatch-workers`, `orchestrate-agents`, create another user-visible
 task, fork, or hand off a descendant unless the first message explicitly grants descendant authority
 and defines its scope and owner. If a supported isolated worktree is unavailable and direct-local
 writing was not explicitly authorized, stop before writing and report `input-required`; the child must

@@ -354,7 +354,7 @@ class OrchestrationProtocolTransitionTests(unittest.TestCase):
 
     def test_writable_child_handoff_preserves_delegate_execution_boundary(self):
         contract = (SKILL_ROOT / "references" / "orchestration-contract.md").read_text()
-        delegate = (SKILL_ROOT.parent / "delegate-to-thread" / "tests" / "test_protocol_transitions.py").read_text()
+        delegate = (SKILL_ROOT.parent / "dispatch-workers" / "tests" / "test_protocol_transitions.py").read_text()
         self.assertIn("exact execution-boundary evidence", contract)
         for field in ("execution_evidence", "checkpoint"):
             self.assertIn(field, contract)
