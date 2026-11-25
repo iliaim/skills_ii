@@ -57,6 +57,7 @@ Choose the target host, execution tier, and model from live availability and `~/
 - **Tier-1 native delegation**: Use same-provider native tools (`create_thread`, `invoke_subagent`, `Agent`, or `swarm`) when caller and child share a harness and neither cross-provider review nor an SSH host is required.
 - **Tier-2 cross-provider CLI/tmux dispatch**: Use `codex`, `claude`, `agy`, or `grok` over local `shell=False` subprocesses, tmux sessions, or SSH hosts listed in `fleet.json` (`hosts` / `providers.<name>.binary`) when targeting another provider or remote machine.
 - **Verify headroom first**: Check `providers.<name>.enabled` and `workerCap`, active processes on the host, and worktree/disk space before spawning.
+- **Match model and effort to the proof**: Choose the least expensive configured setting likely to produce the requested acceptance proof, taking account of uncertainty, integration scope, and the consequences of a miss. Keep the configured default unless an authorized override is needed; when the choice changes the assignment, record a brief rationale in the existing work brief.
 - **Lazy provider reference (load only the chosen target)**:
   - Codex / ChatGPT -> [references/providers/codex.md](references/providers/codex.md)
   - Claude Code -> [references/providers/claude.md](references/providers/claude.md)
