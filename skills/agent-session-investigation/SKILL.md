@@ -34,14 +34,15 @@ an authorized next step through its owning skill; invoking this skill does not a
 ## Inspect metadata first
 
 Prefer a bounded native metadata projection when it answers the question. For one selected local
-Claude/Codex/Antigravity JSONL source, resolve this skill directory and run its dependency-free helper:
+Claude/Codex/Antigravity JSONL source, resolve this skill's directory (`<skill-dir>`, where this
+`SKILL.md` lives — e.g. `skills/agent-session-investigation` in the source repository or
+`.agents/skills/agent-session-investigation` when vendored) and run its dependency-free helper:
 
 ```sh
-python3 skills/agent-session-investigation/scripts/inspect_jsonl.py /absolute/selected.jsonl --backend codex
+python3 <skill-dir>/scripts/inspect_jsonl.py /absolute/selected.jsonl --backend codex
 ```
 
-The repository-relative command assumes this checkout; an installed skill uses its own `scripts/`
-path. The helper reads one regular file without printing text, paths, IDs or arbitrary record labels.
+The helper reads one regular file without printing text, paths, IDs or arbitrary record labels.
 It reports structural counts, scanned physical line/byte ranges, parse gaps, read limits and snapshot
 stability. For Antigravity transcripts (`--backend agy`, or auto-detected from `step_index` and
 Antigravity record types), it also streams an O(1)-memory `turn_state` (`ended`, `mid-turn`,
@@ -144,6 +145,7 @@ links; retain sensitive source bindings locally and use opaque source references
 
 ## Maintenance
 
-Run `python3 -m pytest -q skills/agent-session-investigation/tests` after helper changes. Test with
+In the upstream source repository (vendored runtime-only copies omit `tests/`), run
+`python3 -m pytest -q skills/agent-session-investigation/tests` after helper changes. Test with
 synthetic data only. The helper establishes structural inspection safety, not semantic correctness,
 provider delivery, receiver liveness, or completion.

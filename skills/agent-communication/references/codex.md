@@ -117,7 +117,7 @@ commands.
 Some current binaries, desktop-bundled or shell, provide:
 
 - `codex agents` for the shared local app-server inventory; and
-- `codex queue --thread EXACT_TASK_ID --message MESSAGE_TEXT` to queue a message to an existing local session.
+- `codex queue --thread EXACT_TASK_ID --message MESSAGE_TEXT` to queue a message to an existing local session (or an explicit remote app-server endpoint with `--remote <ADDR>` such as `ws://host:port`, `wss://host:port`, or `unix://PATH`, optionally with `--remote-auth-token-env <ENV_VAR>`, observed on `codex-cli 0.169.0`).
 
 The queue route accepts only an exact, previously resolved task ID. Names and summaries are discovery leads, never contact or continuation selectors; do not
 pass a title or name when the exact ID has not been resolved and correlated.
